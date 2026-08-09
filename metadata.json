@@ -1,0 +1,6 @@
+{
+  "name": "অ্যাবাকাস পেরেন্ট ট্রেনিং প্রোগ্রাম",
+  "description": "Professional Bengali Abacus Parent Training Course Platform for parents with structured modules, video lessons, homework, and progress tracking.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
