@@ -1,7 +1,7 @@
 /// <reference types="vite/client" />
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
-import { UserProfile, UserProgress, ClassItem, HomeworkSubmission } from '../types';
-import { DEFAULT_CLASSES, DEFAULT_COURSE } from '../data/defaultCourses';
+import { UserProfile, UserProgress, ClassItem } from '../types';
+import { DEFAULT_CLASSES } from '../data/defaultCourses';
 
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || '';
 const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || '';
@@ -23,7 +23,6 @@ const STORAGE_KEYS = {
   ALL_USERS: 'abacus_parent_all_users',
   PROGRESS: 'abacus_parent_progress_v2',
   CLASSES: 'abacus_parent_classes_v2',
-  HOMEWORK: 'abacus_parent_homework_v2',
 };
 
 // INITIAL DEMO USERS
@@ -90,7 +89,6 @@ export function saveStoredClasses(classes: ClassItem[]) {
 export function getStoredProgress(userId: string): Record<string, UserProgress> {
   const data = localStorage.getItem(`${STORAGE_KEYS.PROGRESS}_${userId}`);
   if (!data) {
-    // Default: Class 1 is unlocked (is_completed: false), others locked/not completed
     const initial: Record<string, UserProgress> = {
       'class-01': {
         user_id: userId,
@@ -112,21 +110,6 @@ export function saveStoredProgress(userId: string, progressRecord: Record<string
   localStorage.setItem(`${STORAGE_KEYS.PROGRESS}_${userId}`, JSON.stringify(progressRecord));
 }
 
-// Helper: Homework Submissions
-export function getStoredHomeworks(): HomeworkSubmission[] {
-  const data = localStorage.getItem(STORAGE_KEYS.HOMEWORK);
-  if (!data) return [];
-  try {
-    return JSON.parse(data);
-  } catch {
-    return [];
-  }
-}
-
-export function saveStoredHomeworks(list: HomeworkSubmission[]) {
-  localStorage.setItem(STORAGE_KEYS.HOMEWORK, JSON.stringify(list));
-}
-
 // Get Current Logged In User
 export function getCurrentUser(): UserProfile | null {
   const data = localStorage.getItem(STORAGE_KEYS.CURRENT_USER);
@@ -145,3 +128,4 @@ export function setCurrentUser(user: UserProfile | null) {
     localStorage.removeItem(STORAGE_KEYS.CURRENT_USER);
   }
 }
+

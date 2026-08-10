@@ -1,11 +1,7 @@
 import React from 'react';
 import { Phone, Mail, ShieldCheck, Award, Heart } from 'lucide-react';
 
-interface FooterProps {
-  onOpenAdmin?: () => void;
-}
-
-export const Footer: React.FC<FooterProps> = ({ onOpenAdmin }) => {
+export const Footer: React.FC = () => {
   return (
     <footer className="bg-slate-900 text-slate-400 text-xs border-t border-slate-800 mt-16">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
@@ -18,7 +14,7 @@ export const Footer: React.FC<FooterProps> = ({ onOpenAdmin }) => {
                 🧮
               </div>
               <span className="font-extrabold text-white text-base">
-                অ্যাবাকাস পেরেন্ট ট্রেনিং প্রোগ্রাম
+                অ্যাবাকাস Parent Training
               </span>
             </div>
             <p className="text-slate-400 leading-relaxed max-w-md">
@@ -64,18 +60,10 @@ export const Footer: React.FC<FooterProps> = ({ onOpenAdmin }) => {
             <p className="flex items-center gap-1 text-slate-500">
               শিক্ষার্থীদের ভবিষ্যতের জন্য তৈরি <Heart size={12} className="text-rose-500 fill-rose-500" />
             </p>
-            {onOpenAdmin && (
-              <button 
-                onClick={onOpenAdmin} 
-                className="text-slate-600 hover:text-slate-300 font-mono transition-colors px-1 py-0.5 rounded hover:bg-slate-800 text-[10px] cursor-pointer"
-                title="Secret Admin Access (000)"
-              >
-                000
-              </button>
-            )}
           </div>
         </div>
       </div>
     </footer>
   );
 };
+
