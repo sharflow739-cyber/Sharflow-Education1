@@ -199,7 +199,7 @@ export const Class02PracticalView: React.FC<Class02PracticalViewProps> = ({
     onCompleteClass(currentClass.id, 'ক্লাস ০২ সোবান প্র্যাকটিক্যাল সিমুলেটর অনুশীলন সম্পন্ন।');
   };
 
-  // Embed URL helper
+  // Embed URL helper with privacy-enhanced mode & restricted parameters
   const getEmbedUrl = (youtubeId: string) => {
     let cleanId = youtubeId.trim();
     if (cleanId.includes('v=')) {
@@ -207,7 +207,7 @@ export const Class02PracticalView: React.FC<Class02PracticalViewProps> = ({
     } else if (cleanId.includes('youtu.be/')) {
       cleanId = cleanId.split('youtu.be/')[1]?.split('?')[0] || cleanId;
     }
-    return `https://www.youtube-nocookie.com/embed/${cleanId}?rel=0&modestbranding=1&controls=1&showinfo=0`;
+    return `https://www.youtube-nocookie.com/embed/${cleanId}?rel=0&modestbranding=1&controls=1&iv_load_policy=3&playsinline=1&enablejsapi=1`;
   };
 
   const nextClass = allClasses.find((c) => c.class_number === currentClass.class_number + 1);
@@ -282,9 +282,12 @@ export const Class02PracticalView: React.FC<Class02PracticalViewProps> = ({
         </div>
 
         {/* REQUIRED Note under video */}
-        <div className="p-4 bg-orange-950/60 border-t border-orange-900/50 text-center">
-          <p className="text-sm font-bold text-orange-200">
-            "ভিডিওটি দেখার পর নিচের Practical অংশটি করুন।"
+        <div className="p-4 bg-orange-950/80 border-t border-orange-900/50 text-center space-y-1">
+          <p className="text-sm sm:text-base font-extrabold text-amber-300">
+            “ভিডিওটি শুধুমাত্র এই কোর্স প্ল্যাটফর্মের মধ্যেই দেখুন।”
+          </p>
+          <p className="text-xs text-orange-200/90 font-medium">
+            ভিডিওটি দেখার পর নিচের Practical অংশটি করুন।
           </p>
         </div>
       </div>

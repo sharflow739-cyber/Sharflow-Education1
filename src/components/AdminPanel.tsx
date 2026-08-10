@@ -281,6 +281,25 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
             </button>
           </div>
 
+          {/* YouTube Video Player Embed Configuration & Technical Limitation Notice */}
+          <div className="p-4 bg-amber-50 rounded-xl border border-amber-200 space-y-2 text-xs text-amber-900">
+            <div className="flex items-center gap-2 font-bold text-amber-950">
+              <ShieldCheck size={16} className="text-amber-600" />
+              <span>ইউটিউব এম্বেডেড ভিডিও প্লেয়ার ও প্রাইভেসী কনফিগারেশন:</span>
+            </div>
+            <ul className="list-disc list-inside space-y-1 text-[11px] text-amber-800 leading-relaxed font-medium">
+              <li>
+                <strong>ইন-প্ল্যাটফর্ম প্লেয়ার:</strong> সকল ভিডিও প্রাইভেসি-এনহ্যান্সড ডোমেইন (<code className="bg-amber-100 px-1 rounded">youtube-nocookie.com</code>) এর মাধ্যমে চালানো হচ্ছে, যাতে বাহ্যিক কুকি ও রিকমেন্ডেশন ট্র্যাকিং বন্ধ থাকে।
+              </li>
+              <li>
+                <strong>সুরক্ষা প্যারামিটার:</strong> <code className="bg-amber-100 px-1 rounded">rel=0</code>, <code className="bg-amber-100 px-1 rounded">modestbranding=1</code>, <code className="bg-amber-100 px-1 rounded">iv_load_policy=3</code>, <code className="bg-amber-100 px-1 rounded">playsinline=1</code> সক্রিয় করে প্লেয়ারকে সর্বোচ্চ সীমাবদ্ধ ও প্ল্যাটফর্ম-কেন্দ্রিক রাখা হয়েছে।
+              </li>
+              <li>
+                <strong>কারিগরি ও আইনি বিষয়াবলী (Technical & Legal Note):</strong> ইউটিউবের অফিশিয়াল ইমবেড এপিআই নীতি অনুযায়ী প্লেয়ারের ভিতরের নিজস্ব ওয়াটারমার্ক/লোগো প্ল্যাটফর্ম থেকে জোরপূর্বক পরিবর্তন বা ডোমেইন হাইজ্যাক করা যায় না (তা প্লেব্যাক ত্রুটি ঘটায়)। অতএব আইনি নীতি মেনে ইন-অ্যাপ সার্ভিস নিরবচ্ছিন্ন রাখা হয়েছে এবং নিচে স্পষ্টভাবে “ভিডিওটি শুধুমাত্র এই কোর্স প্ল্যাটফর্মের মধ্যেই দেখুন।” বার্তা প্রদর্শিত হচ্ছে।
+              </li>
+            </ul>
+          </div>
+
           <div className="space-y-3">
             {classes.map((cls) => (
               <div

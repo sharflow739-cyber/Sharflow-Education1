@@ -78,7 +78,7 @@ export const ClassView: React.FC<ClassViewProps> = ({
   // Find next class in sequence
   const nextClass = allClasses.find((c) => c.class_number === currentClass.class_number + 1);
 
-  // Convert YouTube ID / URL to embed URL safely
+  // Convert YouTube ID / URL to embed URL safely with privacy-enhanced parameters
   const getEmbedUrl = (youtubeId: string) => {
     let cleanId = youtubeId.trim();
     if (cleanId.includes('v=')) {
@@ -86,7 +86,7 @@ export const ClassView: React.FC<ClassViewProps> = ({
     } else if (cleanId.includes('youtu.be/')) {
       cleanId = cleanId.split('youtu.be/')[1]?.split('?')[0] || cleanId;
     }
-    return `https://www.youtube-nocookie.com/embed/${cleanId}?rel=0&modestbranding=1&controls=1&showinfo=0`;
+    return `https://www.youtube-nocookie.com/embed/${cleanId}?rel=0&modestbranding=1&controls=1&iv_load_policy=3&playsinline=1&enablejsapi=1`;
   };
 
   return (
@@ -167,13 +167,13 @@ export const ClassView: React.FC<ClassViewProps> = ({
         </div>
 
         {/* Video Footer Protection Note */}
-        <div className="p-3 bg-slate-950/80 text-[11px] text-slate-400 flex items-center justify-between gap-2 border-t border-slate-800">
-          <span>
-            নিরাপত্তা নির্দেশিকা: ভিডিওটি শুধুমাত্র আপনার অভিভাবক একাউন্টের জন্য অনুমোদিত।
-          </span>
-          <span className="text-orange-400 font-bold hidden sm:inline">
-            Abacus Parent Portal
-          </span>
+        <div className="p-3.5 bg-slate-950/90 text-center space-y-1 border-t border-slate-800">
+          <p className="text-xs sm:text-sm font-extrabold text-amber-300">
+            “ভিডিওটি শুধুমাত্র এই কোর্স প্ল্যাটফর্মের মধ্যেই দেখুন।”
+          </p>
+          <p className="text-[11px] text-slate-400">
+            নিরাপত্তা নির্দেশিকা: ভিডিওটি আপনার অভিভাবক অ্যাকাউন্টের অভ্যন্তরে ইন-প্ল্যাটফর্ম প্লেয়ারের মাধ্যমে সংরক্ষিত।
+          </p>
         </div>
       </div>
 
