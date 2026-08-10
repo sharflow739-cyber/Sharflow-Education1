@@ -1,7 +1,11 @@
 import React from 'react';
 import { Phone, Mail, ShieldCheck, Award, Heart } from 'lucide-react';
 
-export const Footer: React.FC = () => {
+interface FooterProps {
+  onOpenAdminSecret?: () => void;
+}
+
+export const Footer: React.FC<FooterProps> = ({ onOpenAdminSecret }) => {
   return (
     <footer className="bg-slate-900 text-slate-400 text-xs border-t border-slate-800 mt-16">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
@@ -60,6 +64,15 @@ export const Footer: React.FC = () => {
             <p className="flex items-center gap-1 text-slate-500">
               শিক্ষার্থীদের ভবিষ্যতের জন্য তৈরি <Heart size={12} className="text-rose-500 fill-rose-500" />
             </p>
+            {onOpenAdminSecret && (
+              <button
+                onClick={onOpenAdminSecret}
+                className="text-slate-700 hover:text-slate-300 font-mono transition-colors px-1.5 py-0.5 rounded hover:bg-slate-800 text-[10px] cursor-pointer"
+                title="Secret Admin Login (000)"
+              >
+                000
+              </button>
+            )}
           </div>
         </div>
       </div>
