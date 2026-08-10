@@ -181,6 +181,21 @@ export default function App() {
     saveStoredClasses(nextList);
   };
 
+  // Switch to admin account helper for easy verification
+  const handleSwitchToAdminUser = () => {
+    const adminUser = allUsers.find((u) => u.role === 'admin') || {
+      id: 'user-admin-01',
+      email: 'admin@abacus.bd',
+      full_name: 'অধ্যাপক মো: শাহরিয়ার (এডমিন)',
+      role: 'admin',
+      is_active: true,
+      created_at: new Date().toISOString(),
+    };
+    setCurrentUserState(adminUser);
+    setCurrentUser(adminUser);
+    navigateToView('admin');
+  };
+
   return (
     <div className="min-h-screen flex flex-col bg-slate-50 text-slate-900 selection:bg-orange-500 selection:text-white">
       
@@ -324,6 +339,7 @@ export default function App() {
                 /* ACCESS DENIED PAGE FOR NON-ADMIN PARENTS ATTEMPTING /admin */
                 <AccessDeniedView
                   onGoHome={() => navigateToView('dashboard')}
+                  onSwitchToAdmin={handleSwitchToAdminUser}
                   userRole={currentUser.role}
                 />
               )
@@ -333,8 +349,8 @@ export default function App() {
 
       </main>
 
-      {/* Footer */}
-      <Footer />
+      {/* Footer with secret 000 admin button */}
+      <Footer onOpenAdmin={() => navigateToView('admin')} />
 
       {/* Auth Modal */}
       <AuthModal
