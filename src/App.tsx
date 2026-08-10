@@ -16,8 +16,9 @@ import { WorksheetsTab } from './components/WorksheetsTab';
 import { QuizTab } from './components/QuizTab';
 import { AuthModal } from './components/AuthModal';
 import { DatabaseSetupModal } from './components/DatabaseSetupModal';
+import { AccessDeniedView } from './components/AccessDeniedView';
 
-import { BookOpen, ShieldCheck, Award, Play, Sparkles, CheckCircle2, User, ArrowRight, Lock } from 'lucide-react';
+import { BookOpen, ShieldCheck } from 'lucide-react';
 
 export default function App() {
   const [currentUser, setCurrentUserState] = useState<UserProfile | null>(null);
@@ -34,14 +35,37 @@ export default function App() {
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
   const [isDbSetupModalOpen, setIsDbSetupModalOpen] = useState(false);
 
+  // URL Path & Route Synchronization for Secret /admin Route
+  useEffect(() => {
+    const handleLocation = () => {
+      const path = window.location.pathname;
+      if (path === '/admin') {
+        setActiveView('admin');
+      }
+    };
+
+    handleLocation();
+    window.addEventListener('popstate', handleLocation);
+    return () => window.removeEventListener('popstate', handleLocation);
+  }, []);
+
+  // Sync route change to browser history URL
+  const navigateToView = (view: 'dashboard' | 'class' | 'admin' | 'worksheets' | 'quiz') => {
+    setActiveView(view);
+    if (view === 'admin') {
+      window.history.pushState({}, '', '/admin');
+    } else {
+      window.history.pushState({}, '', '/');
+    }
+  };
+
   // Initialize App Data
   useEffect(() => {
-    // Load initial stored user or set default parent user for immediate demo preview
     const existing = getCurrentUser();
     if (existing) {
       setCurrentUserState(existing);
     } else {
-      // Default to initial demo parent so preview opens ready to use!
+      // Default to initial parent user for immediate demo preview
       const initialUsers = getStoredUsers();
       const defaultParent = initialUsers.find((u) => u.role === 'parent') || initialUsers[0];
       setCurrentUserState(defaultParent);
@@ -58,14 +82,13 @@ export default function App() {
     setHomeworks(loadedHw);
   }, []);
 
-  // Sync user progress whenever currentUser or classes change
+  // Sync user progress whenever currentUser changes
   useEffect(() => {
     if (!currentUser) {
       setUserProgressMap({});
       return;
     }
 
-    // Load progress for current user
     const prog = getStoredProgress(currentUser.id);
     setUserProgressMap(prog);
   }, [currentUser]);
@@ -74,7 +97,7 @@ export default function App() {
   const handleLogout = () => {
     setCurrentUser(null);
     setCurrentUserState(null);
-    setActiveView('dashboard');
+    navigateToView('dashboard');
     setCurrentClass(null);
   };
 
@@ -96,7 +119,7 @@ export default function App() {
     setUserProgressMap(updatedProg);
     saveStoredProgress(currentUser.id, updatedProg);
 
-    // If homework text provided, save to admin homework list
+    // Save homework if provided
     if (homeworkAnswer && homeworkAnswer.trim()) {
       const cls = classes.find((c) => c.id === classId);
       const newHw: HomeworkSubmission = {
@@ -158,42 +181,17 @@ export default function App() {
     saveStoredClasses(nextList);
   };
 
-  // Demo Switcher between Parent and Admin mode for easy evaluation
-  const handleToggleDemoRole = () => {
-    const all = getStoredUsers();
-    if (currentUser?.role === 'admin') {
-      const parentUser = all.find((u) => u.role === 'parent') || all[0];
-      setCurrentUserState(parentUser);
-      setCurrentUser(parentUser);
-      setActiveView('dashboard');
-    } else {
-      const adminUser = all.find((u) => u.role === 'admin') || {
-        id: 'user-admin-01',
-        email: 'admin@abacus.bd',
-        full_name: 'অধ্যাপক মো: শাহরিয়ার (এডমিন)',
-        role: 'admin',
-        is_active: true,
-        created_at: new Date().toISOString(),
-      };
-      setCurrentUserState(adminUser);
-      setCurrentUser(adminUser);
-      setActiveView('admin');
-    }
-  };
-
   return (
     <div className="min-h-screen flex flex-col bg-slate-50 text-slate-900 selection:bg-orange-500 selection:text-white">
       
-      {/* Top Header */}
+      {/* Top Header - CLEAN PARENT NAVBAR (No Admin Mode, No Supabase SQL buttons) */}
       <Header
         currentUser={currentUser}
         onLogout={handleLogout}
         onOpenAuth={() => setIsAuthModalOpen(true)}
-        onOpenDbSetup={() => setIsDbSetupModalOpen(true)}
-        onToggleDemoRole={handleToggleDemoRole}
         activeView={activeView}
         setActiveView={(v) => {
-          setActiveView(v);
+          navigateToView(v);
           if (v !== 'class') setCurrentClass(null);
         }}
       />
@@ -201,7 +199,7 @@ export default function App() {
       {/* MAIN BODY AREA */}
       <main className="flex-1">
         
-        {/* REQUIREMENT #1: LOGIN MANDATORY GUARD */}
+        {/* LOGIN MANDATORY GUARD FOR PARENT PORTAL */}
         {!currentUser ? (
           /* UNAUTHENTICATED LANDING / LOGIN PROMPT */
           <div className="max-w-5xl mx-auto px-4 py-12 text-center space-y-8 animate-fade-in">
@@ -275,10 +273,10 @@ export default function App() {
                 announcements={DEFAULT_ANNOUNCEMENTS}
                 onSelectClass={(cls) => {
                   setCurrentClass(cls);
-                  setActiveView('class');
+                  navigateToView('class');
                 }}
-                onOpenWorksheets={() => setActiveView('worksheets')}
-                onOpenQuiz={() => setActiveView('quiz')}
+                onOpenWorksheets={() => navigateToView('worksheets')}
+                onOpenQuiz={() => navigateToView('quiz')}
               />
             )}
 
@@ -293,33 +291,42 @@ export default function App() {
                   if (target) setCurrentClass(target);
                 }}
                 onBackToDashboard={() => {
-                  setActiveView('dashboard');
+                  navigateToView('dashboard');
                   setCurrentClass(null);
                 }}
               />
             )}
 
             {activeView === 'worksheets' && (
-              <WorksheetsTab onBackToDashboard={() => setActiveView('dashboard')} />
+              <WorksheetsTab onBackToDashboard={() => navigateToView('dashboard')} />
             )}
 
             {activeView === 'quiz' && (
-              <QuizTab onBackToDashboard={() => setActiveView('dashboard')} />
+              <QuizTab onBackToDashboard={() => navigateToView('dashboard')} />
             )}
 
-            {activeView === 'admin' && currentUser.role === 'admin' && (
-              <AdminPanel
-                currentUser={currentUser}
-                allUsers={allUsers}
-                classes={classes}
-                userProgressMap={userProgressMap}
-                homeworks={homeworks}
-                onToggleUserActive={handleToggleUserActive}
-                onSaveClass={handleSaveClass}
-                onDeleteClass={handleDeleteClass}
-                onOpenDbSetupModal={() => setIsDbSetupModalOpen(true)}
-                onBackToDashboard={() => setActiveView('dashboard')}
-              />
+            {/* SECRET /admin ROUTE HANDLING */}
+            {activeView === 'admin' && (
+              currentUser.role === 'admin' ? (
+                <AdminPanel
+                  currentUser={currentUser}
+                  allUsers={allUsers}
+                  classes={classes}
+                  userProgressMap={userProgressMap}
+                  homeworks={homeworks}
+                  onToggleUserActive={handleToggleUserActive}
+                  onSaveClass={handleSaveClass}
+                  onDeleteClass={handleDeleteClass}
+                  onOpenDbSetupModal={() => setIsDbSetupModalOpen(true)}
+                  onBackToDashboard={() => navigateToView('dashboard')}
+                />
+              ) : (
+                /* ACCESS DENIED PAGE FOR NON-ADMIN PARENTS ATTEMPTING /admin */
+                <AccessDeniedView
+                  onGoHome={() => navigateToView('dashboard')}
+                  userRole={currentUser.role}
+                />
+              )
             )}
           </>
         )}
@@ -335,7 +342,7 @@ export default function App() {
         onClose={() => setIsAuthModalOpen(false)}
         onLoginSuccess={(user) => {
           setCurrentUserState(user);
-          setActiveView('dashboard');
+          navigateToView('dashboard');
         }}
       />
 

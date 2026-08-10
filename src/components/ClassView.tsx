@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { ClassItem, UserProgress, HomeworkSubmission } from '../types';
 import { VirtualAbacus } from './VirtualAbacus';
+import { Class02PracticalView } from './Class02PracticalView';
 import confetti from 'canvas-confetti';
 import { 
   ArrowLeft, CheckCircle2, Lock, Play, BookOpen, 
@@ -24,6 +25,19 @@ export const ClassView: React.FC<ClassViewProps> = ({
   onNavigateToClass,
   onBackToDashboard,
 }) => {
+  // Dedicated Practical view for Class 02
+  if (currentClass.class_number === 2 || currentClass.id === 'class-02') {
+    return (
+      <Class02PracticalView
+        currentClass={currentClass}
+        allClasses={allClasses}
+        userProgressMap={userProgressMap}
+        onCompleteClass={onCompleteClass}
+        onNavigateToClass={onNavigateToClass}
+        onBackToDashboard={onBackToDashboard}
+      />
+    );
+  }
   const isCompleted = Boolean(userProgressMap[currentClass.id]?.is_completed);
   
   const [homeworkText, setHomeworkText] = useState(

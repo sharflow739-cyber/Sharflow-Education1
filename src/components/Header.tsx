@@ -1,13 +1,11 @@
 import React from 'react';
 import { UserProfile } from '../types';
-import { LogOut, Shield, User, Database, Sparkles, BookOpen } from 'lucide-react';
+import { LogOut, User, BookOpen } from 'lucide-react';
 
 interface HeaderProps {
   currentUser: UserProfile | null;
   onLogout: () => void;
   onOpenAuth: () => void;
-  onOpenDbSetup: () => void;
-  onToggleDemoRole?: () => void;
   activeView: 'dashboard' | 'class' | 'admin' | 'worksheets' | 'quiz';
   setActiveView: (view: 'dashboard' | 'class' | 'admin' | 'worksheets' | 'quiz') => void;
 }
@@ -16,8 +14,6 @@ export const Header: React.FC<HeaderProps> = ({
   currentUser,
   onLogout,
   onOpenAuth,
-  onOpenDbSetup,
-  onToggleDemoRole,
   activeView,
   setActiveView,
 }) => {
@@ -49,7 +45,7 @@ export const Header: React.FC<HeaderProps> = ({
             </div>
           </div>
 
-          {/* Center Navigation Links (if logged in) */}
+          {/* Center Navigation Links (Parent Navbar) */}
           {currentUser && (
             <nav className="hidden md:flex items-center gap-1 bg-slate-100/80 p-1 rounded-xl border border-slate-200/60">
               <button
@@ -84,50 +80,12 @@ export const Header: React.FC<HeaderProps> = ({
               >
                 কুইজ টেস্ট (Quiz)
               </button>
-
-              {currentUser.role === 'admin' && (
-                <button
-                  onClick={() => setActiveView('admin')}
-                  className={`px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1 ${
-                    activeView === 'admin'
-                      ? 'bg-orange-500 text-white shadow-2xs'
-                      : 'text-orange-700 bg-orange-100/60 hover:bg-orange-100'
-                  }`}
-                >
-                  <Shield size={13} />
-                  এডমিন প্যানেল
-                </button>
-              )}
             </nav>
           )}
 
           {/* Right Action Menu */}
           <div className="flex items-center gap-2">
             
-            {/* Database Setup Modal Trigger */}
-            <button
-              onClick={onOpenDbSetup}
-              className="px-2.5 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition-colors"
-              title="Supabase Database SQL Schema"
-            >
-              <Database size={14} className="text-orange-600" />
-              <span className="hidden sm:inline">Supabase SQL</span>
-            </button>
-
-            {/* Quick Demo Role Switcher button (for easy testing) */}
-            {onToggleDemoRole && currentUser && (
-              <button
-                onClick={onToggleDemoRole}
-                className="px-2.5 py-1.5 bg-orange-50 hover:bg-orange-100 text-orange-800 border border-orange-200 rounded-lg text-xs font-bold flex items-center gap-1 transition-colors"
-                title="Switch between Parent and Admin mode for testing"
-              >
-                <Sparkles size={13} className="text-orange-600" />
-                <span className="hidden sm:inline">
-                  {currentUser.role === 'admin' ? 'Parent মোড' : 'Admin মোড'}
-                </span>
-              </button>
-            )}
-
             {/* User Account / Auth Section */}
             {currentUser ? (
               <div className="flex items-center gap-2 pl-2 border-l border-slate-200">
