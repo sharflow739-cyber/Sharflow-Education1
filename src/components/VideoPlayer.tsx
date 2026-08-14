@@ -73,28 +73,61 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
   const parsed = parseVideoSource(rawUrl);
 
   return (
-    <div className="relative w-full aspect-video rounded-2xl overflow-hidden bg-black shadow-md border border-slate-800">
-      {/* Embedded Iframe Player (100% width and height, 16:9 aspect ratio) */}
+    <div
+      className="relative w-full max-w-full aspect-video rounded-2xl overflow-hidden bg-black shadow-md border border-slate-800 select-none"
+      style={{
+        aspectRatio: '16 / 9',
+        WebkitUserSelect: 'none',
+        userSelect: 'none',
+      }}
+      onContextMenu={(e) => e.preventDefault()}
+      onDragStart={(e) => e.preventDefault()}
+    >
+      {/* 
+        Responsive 16:9 Embedded Iframe:
+        - Positioned absolutely top:0, left:0 with 100% width and height inside the 16:9 relative container.
+        - Preserves correct aspect ratio across mobile (320px-430px), tablet, and desktop viewports without cropping.
+        - Uses sandbox attributes for Google Drive embeds (disallowing allow-top-navigation / allow-top-navigation-by-user-activation)
+          to prevent the iframe from redirecting the parent top-level course window.
+      */}
       {parsed.type === 'iframe' && (
         <iframe
           src={parsed.src}
           title={title}
-          className="absolute top-0 left-0 w-full h-full border-0"
+          className="absolute top-0 left-0 w-full h-full border-0 block"
+          style={{ width: '100%', height: '100%', border: 0 }}
           allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
           allowFullScreen
+          sandbox={
+            parsed.isGoogleDrive
+              ? 'allow-scripts allow-same-origin allow-forms allow-presentation'
+              : undefined
+          }
         />
       )}
 
       {/* 
-        Google Drive Corner Mask:
-        Google Drive embed iframes generate a "Pop-out / Open in new window" icon in the top-right corner.
-        Because of cross-origin browser security restrictions, the DOM inside the third-party iframe cannot be modified directly.
-        This responsive UI overlay intercepts pointer clicks specifically over the top-right button area
-        to prevent external navigation without covering the video playback controls, center play button, or timeline.
+        Google Drive Pop-Out / External Icon Mitigation:
+        -------------------------------------------------------------
+        TECHNICAL NOTE & LIMITATIONS:
+        Google Drive embed iframes (/preview) render an internal "Pop-out / Open in new window" button
+        in the top-right corner. Because the iframe is served from a cross-origin domain (drive.google.com),
+        the browser's Same-Origin Policy strictly prohibits parent JavaScript/CSS from modifying, querying,
+        or removing elements within Google Drive's internal DOM.
+        
+        PRACTICAL UI-LEVEL PROTECTION:
+        We place a responsive, transparent pointer-interception overlay exclusively over the top-right corner
+        (w-14 sm:w-16, h-12 sm:h-14). This prevents parent touch/clicks from reaching the external pop-out button,
+        while leaving all actual video playback controls (center play/pause, bottom timeline scrubber,
+        volume, and bottom-right fullscreen) completely unobstructed and responsive.
+        
+        SECURITY NOTICE:
+        These are client-side UI deterrents to prevent casual redirection. They do not constitute DRM,
+        as network requests and video streaming chunks remain hosted on Google Drive.
       */}
       {parsed.isGoogleDrive && (
         <div
-          className="absolute top-0 right-0 w-16 h-14 z-20 cursor-default bg-transparent"
+          className="absolute top-0 right-0 w-14 sm:w-16 h-12 sm:h-14 z-20 cursor-default bg-transparent pointer-events-auto"
           aria-hidden="true"
           onClick={(e) => {
             e.preventDefault();
@@ -104,10 +137,18 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
             e.preventDefault();
             e.stopPropagation();
           }}
+          onTouchStart={(e) => {
+            e.preventDefault();
+            e.stopPropagation();
+          }}
+          onContextMenu={(e) => {
+            e.preventDefault();
+            e.stopPropagation();
+          }}
         />
       )}
 
-      {/* Direct Video Player */}
+      {/* Direct Video File Player */}
       {parsed.type === 'mp4' && (
         <video
           src={parsed.src}

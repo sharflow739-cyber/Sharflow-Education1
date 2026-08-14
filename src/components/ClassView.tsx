@@ -18,7 +18,7 @@ export const ClassView: React.FC<ClassViewProps> = ({
     : `${currentClass.class_number}`;
 
   return (
-    <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6">
+    <div className="w-full max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6">
       
       {/* Top Back Navigation */}
       <div>
@@ -32,18 +32,18 @@ export const ClassView: React.FC<ClassViewProps> = ({
       </div>
 
       {/* Class Title Header */}
-      <div className="space-y-2">
+      <div className="space-y-1.5">
         <div className="flex items-center gap-2">
           <span className="px-2.5 py-0.5 bg-orange-100 text-orange-800 rounded-md font-extrabold text-xs inline-block">
             ক্লাস {classNumDisplay}
           </span>
         </div>
-        <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight">
+        <h1 className="text-xl sm:text-2xl md:text-3xl font-extrabold text-slate-900 tracking-tight">
           {currentClass.title}
         </h1>
       </div>
 
-      {/* Embedded 16:9 Video Player */}
+      {/* Embedded 16:9 Responsive Video Player */}
       <VideoPlayer
         videoUrl={currentClass.video_url || currentClass.youtube_video_id}
         title={currentClass.title}
