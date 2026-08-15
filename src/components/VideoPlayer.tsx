@@ -13,18 +13,30 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
 }) => {
   const rawUrl = (videoUrl || youtubeId || '').trim();
 
-  // Helper to parse source type and get iframe or direct video src
+  /**
+   * Helper to parse video source and return proper player configuration.
+   * ROOT CAUSE EXPLANATION:
+   * If a Google Drive URL links to a PowerPoint presentation (.pptx, Google Slides, or document)
+   * instead of a video file (.mp4, .mkv, .mov), Google Drive embeds the PowerPoint document viewer
+   * with side thumbnails and toolbars rather than the HTML5 video playback interface.
+   *
+   * This component supports:
+   * 1. Google Drive direct video / file preview embedding (https://drive.google.com/file/d/FILE_ID/preview)
+   * 2. Direct HTML5 video file stream (.mp4, .webm, .ogg)
+   * 3. YouTube videos / embeds
+   * 4. External video iframe embeds
+   */
   const parseVideoSource = (input: string) => {
     if (!input) {
       return { type: 'none', src: '', isGoogleDrive: false };
     }
 
-    // 1. Google Drive Link
+    // 1. Google Drive Links (Video file preview)
     if (input.includes('drive.google.com')) {
       let embedSrc = input;
-      // Extract Google Drive File ID if present
-      const idMatch = input.match(/\/file\/d\/([a-zA-Z0-9_-]+)/) || 
-                      input.match(/[?&]id=([a-zA-Z0-9_-]+)/);
+      const idMatch =
+        input.match(/\/file\/d\/([a-zA-Z0-9_-]+)/) ||
+        input.match(/[?&]id=([a-zA-Z0-9_-]+)/);
 
       if (idMatch && idMatch[1]) {
         embedSrc = `https://drive.google.com/file/d/${idMatch[1]}/preview`;
@@ -61,12 +73,12 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
       };
     }
 
-    // 3. Direct Video File (.mp4, .webm, .ogg)
+    // 3. Direct HTML5 Video File (.mp4, .webm, .ogg)
     if (/\.(mp4|webm|ogg)($|\?)/i.test(input)) {
       return { type: 'mp4', src: input, isGoogleDrive: false };
     }
 
-    // 4. Other Iframe Embeds (e.g. TeraBox, Vimeo, etc.)
+    // 4. Other Iframe Embeds
     return { type: 'iframe', src: input, isGoogleDrive: false };
   };
 
@@ -157,7 +169,7 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
         />
       )}
 
-      {/* Direct Video File Player */}
+      {/* Direct Video File Player (MP4 / WebM / OGG) */}
       {parsed.type === 'mp4' && (
         <video
           src={parsed.src}
