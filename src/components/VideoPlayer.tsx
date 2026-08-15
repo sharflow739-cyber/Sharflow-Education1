@@ -13,7 +13,7 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
 }) => {
   const rawUrl = (videoUrl || youtubeId || '').trim();
 
-  // Helper to parse source type and get iframe or video src
+  // Helper to parse source type and get iframe or direct video src
   const parseVideoSource = (input: string) => {
     if (!input) {
       return { type: 'none', src: '', isGoogleDrive: false };
@@ -73,8 +73,14 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
   const parsed = parseVideoSource(rawUrl);
 
   return (
+    /* 
+      Responsive Video Wrapper:
+      - Strictly controls player dimensions with 16:9 aspect ratio across mobile (320px-430px), tablet, and desktop viewports.
+      - Uses relative positioning, overflow hidden, and automatic horizontal centering.
+      - Prevents any unwanted vertical blank space or layout shift.
+    */
     <div
-      className="relative w-full max-w-full aspect-video rounded-2xl overflow-hidden bg-black shadow-md border border-slate-800 select-none"
+      className="relative w-full max-w-full mx-auto aspect-video rounded-2xl overflow-hidden bg-black shadow-md border border-slate-800 select-none"
       style={{
         aspectRatio: '16 / 9',
         WebkitUserSelect: 'none',
@@ -84,18 +90,26 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
       onDragStart={(e) => e.preventDefault()}
     >
       {/* 
-        Responsive 16:9 Embedded Iframe:
-        - Positioned absolutely top:0, left:0 with 100% width and height inside the 16:9 relative container.
-        - Preserves correct aspect ratio across mobile (320px-430px), tablet, and desktop viewports without cropping.
-        - Uses sandbox attributes for Google Drive embeds (disallowing allow-top-navigation / allow-top-navigation-by-user-activation)
-          to prevent the iframe from redirecting the parent top-level course window.
+        Responsive Embedded Iframe:
+        - Positioned absolutely to fill the exact 16:9 container (inset: 0, width: 100%, height: 100%, border: 0).
+        - Prevents desktop fixed-height inheritance on mobile viewports.
+        - Uses sandbox attributes to disallow allow-top-navigation, preventing the iframe from redirecting the parent site.
       */}
       {parsed.type === 'iframe' && (
         <iframe
           src={parsed.src}
           title={title}
-          className="absolute top-0 left-0 w-full h-full border-0 block"
-          style={{ width: '100%', height: '100%', border: 0 }}
+          className="absolute inset-0 w-full h-full border-0 block"
+          style={{
+            position: 'absolute',
+            top: 0,
+            left: 0,
+            width: '100%',
+            height: '100%',
+            border: 0,
+            margin: 0,
+            padding: 0,
+          }}
           allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
           allowFullScreen
           sandbox={
@@ -107,23 +121,18 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
       )}
 
       {/* 
-        Google Drive Pop-Out / External Icon Mitigation:
+        Google Drive Pop-Out / External Icon Blocker:
         -------------------------------------------------------------
-        TECHNICAL NOTE & LIMITATIONS:
-        Google Drive embed iframes (/preview) render an internal "Pop-out / Open in new window" button
-        in the top-right corner. Because the iframe is served from a cross-origin domain (drive.google.com),
-        the browser's Same-Origin Policy strictly prohibits parent JavaScript/CSS from modifying, querying,
-        or removing elements within Google Drive's internal DOM.
+        CROSS-ORIGIN SECURITY NOTE & TECHNICAL LIMITATION:
+        Google Drive embeds (/preview) render an internal "Pop-out" button in the upper-right corner.
+        Because Google Drive is hosted on a cross-origin domain (drive.google.com), standard browser
+        Same-Origin Policy strictly forbids parent JavaScript or CSS from altering Google Drive's internal DOM.
         
         PRACTICAL UI-LEVEL PROTECTION:
-        We place a responsive, transparent pointer-interception overlay exclusively over the top-right corner
-        (w-14 sm:w-16, h-12 sm:h-14). This prevents parent touch/clicks from reaching the external pop-out button,
+        We place a small, transparent pointer-interception overlay exclusively over the top-right corner
+        (w-14 sm:w-16, h-12 sm:h-14 with pointer-events-auto). This intercepts clicks to the external icon
         while leaving all actual video playback controls (center play/pause, bottom timeline scrubber,
-        volume, and bottom-right fullscreen) completely unobstructed and responsive.
-        
-        SECURITY NOTICE:
-        These are client-side UI deterrents to prevent casual redirection. They do not constitute DRM,
-        as network requests and video streaming chunks remain hosted on Google Drive.
+        volume, and bottom-right fullscreen toggle) completely unobstructed.
       */}
       {parsed.isGoogleDrive && (
         <div
@@ -154,7 +163,7 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
           src={parsed.src}
           controls
           controlsList="nodownload"
-          className="absolute top-0 left-0 w-full h-full object-contain"
+          className="absolute inset-0 w-full h-full object-contain"
         >
           আপনার ব্রাউজার এই ভিডিও প্লেব্যাক সমর্থন করছে না।
         </video>
