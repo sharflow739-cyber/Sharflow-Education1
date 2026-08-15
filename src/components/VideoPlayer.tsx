@@ -15,16 +15,17 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
 
   /**
    * Helper to parse video source and return proper player configuration.
-   * ROOT CAUSE EXPLANATION:
-   * If a Google Drive URL links to a PowerPoint presentation (.pptx, Google Slides, or document)
-   * instead of a video file (.mp4, .mkv, .mov), Google Drive embeds the PowerPoint document viewer
-   * with side thumbnails and toolbars rather than the HTML5 video playback interface.
-   *
-   * This component supports:
-   * 1. Google Drive direct video / file preview embedding (https://drive.google.com/file/d/FILE_ID/preview)
-   * 2. Direct HTML5 video file stream (.mp4, .webm, .ogg)
-   * 3. YouTube videos / embeds
-   * 4. External video iframe embeds
+   * 
+   * ROOT CAUSE & MOBILE DISPLAY FIX:
+   * Google Drive `/preview` iframes include a ~52px top header bar (file name, popout button).
+   * Inside a compact 16:9 mobile player (e.g. 360px wide = ~202px tall), that 52px top header bar
+   * consumes roughly 25-30% of the entire player height and forces the video to render only in the lower half.
+   * 
+   * By shifting Google Drive iframes up by 52px (top: -52px; height: calc(100% + 52px)) within an
+   * overflow:hidden container:
+   * 1. The top empty header / popout icon is shifted outside the visible view.
+   * 2. The actual video content expands upward to occupy the entire full screen/container.
+   * 3. The bottom controls (timeline, play, volume, fullscreen) remain perfectly accessible at the bottom (0px offset).
    */
   const parseVideoSource = (input: string) => {
     if (!input) {
@@ -87,9 +88,8 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
   return (
     /* 
       Responsive Video Wrapper:
-      - Strictly controls player dimensions with 16:9 aspect ratio across mobile (320px-430px), tablet, and desktop viewports.
-      - Uses relative positioning, overflow hidden, and automatic horizontal centering.
-      - Prevents any unwanted vertical blank space or layout shift.
+      - 16:9 aspect ratio across mobile (320px-430px), tablet, and desktop viewports.
+      - Relative positioning and overflow hidden to cleanly clip and center the video stream.
     */
     <div
       className="relative w-full max-w-full mx-auto aspect-video rounded-2xl overflow-hidden bg-black shadow-md border border-slate-800 select-none"
@@ -102,22 +102,21 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
       onDragStart={(e) => e.preventDefault()}
     >
       {/* 
-        Responsive Embedded Iframe:
-        - Positioned absolutely to fill the exact 16:9 container (inset: 0, width: 100%, height: 100%, border: 0).
-        - Prevents desktop fixed-height inheritance on mobile viewports.
-        - Uses sandbox attributes to disallow allow-top-navigation, preventing the iframe from redirecting the parent site.
+        Embedded Iframe (Google Drive / YouTube / Embeds):
+        - For Google Drive: shifted top: -52px, height: calc(100% + 52px) so the video fills the full container and eliminates the top black void.
+        - For other embeds: top: 0, height: 100%.
       */}
       {parsed.type === 'iframe' && (
         <iframe
           src={parsed.src}
           title={title}
-          className="absolute inset-0 w-full h-full border-0 block"
+          className="absolute inset-x-0 w-full border-0 block"
           style={{
             position: 'absolute',
-            top: 0,
+            top: parsed.isGoogleDrive ? '-52px' : 0,
             left: 0,
             width: '100%',
-            height: '100%',
+            height: parsed.isGoogleDrive ? 'calc(100% + 52px)' : '100%',
             border: 0,
             margin: 0,
             padding: 0,
@@ -134,21 +133,11 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
 
       {/* 
         Google Drive Pop-Out / External Icon Blocker:
-        -------------------------------------------------------------
-        CROSS-ORIGIN SECURITY NOTE & TECHNICAL LIMITATION:
-        Google Drive embeds (/preview) render an internal "Pop-out" button in the upper-right corner.
-        Because Google Drive is hosted on a cross-origin domain (drive.google.com), standard browser
-        Same-Origin Policy strictly forbids parent JavaScript or CSS from altering Google Drive's internal DOM.
-        
-        PRACTICAL UI-LEVEL PROTECTION:
-        We place a small, transparent pointer-interception overlay exclusively over the top-right corner
-        (w-14 sm:w-16, h-12 sm:h-14 with pointer-events-auto). This intercepts clicks to the external icon
-        while leaving all actual video playback controls (center play/pause, bottom timeline scrubber,
-        volume, and bottom-right fullscreen toggle) completely unobstructed.
+        Fallback blocker overlay over the top-right area
       */}
       {parsed.isGoogleDrive && (
         <div
-          className="absolute top-0 right-0 w-14 sm:w-16 h-12 sm:h-14 z-20 cursor-default bg-transparent pointer-events-auto"
+          className="absolute top-0 right-0 w-14 sm:w-16 h-10 sm:h-12 z-20 cursor-default bg-transparent pointer-events-auto"
           aria-hidden="true"
           onClick={(e) => {
             e.preventDefault();
