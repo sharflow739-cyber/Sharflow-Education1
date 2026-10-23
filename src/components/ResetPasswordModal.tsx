@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { supabase } from '../lib/supabase';
+import { explainAuthError } from '../lib/authErrors';
 import { Lock, CheckCircle2, AlertCircle, X } from 'lucide-react';
 
 interface ResetPasswordModalProps {
@@ -27,8 +28,8 @@ export const ResetPasswordModal: React.FC<ResetPasswordModalProps> = ({
       setError('নতুন পাসওয়ার্ড প্রদান করুন');
       return;
     }
-    if (password.length < 6) {
-      setError('পাসওয়ার্ড ন্যূনতম ৬ অক্ষরের হতে হবে');
+    if (password.length < 8) {
+      setError('পাসওয়ার্ড কমপক্ষে ৮ অক্ষরের হতে হবে।');
       return;
     }
     if (password !== confirmPassword) {
@@ -56,8 +57,7 @@ export const ResetPasswordModal: React.FC<ResetPasswordModalProps> = ({
         onClose();
       }, 1800);
     } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : 'পাসওয়ার্ড পরিবর্তন ব্যর্থ হয়েছে';
-      setError(msg);
+      setError(explainAuthError(err));
     } finally {
       setLoading(false);
     }

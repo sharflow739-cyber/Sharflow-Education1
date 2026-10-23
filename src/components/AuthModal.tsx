@@ -2,7 +2,10 @@ import React, { useState } from 'react';
 import { UserProfile } from '../types';
 import { supabase, isSupabaseConfigured } from '../lib/supabase';
 import { useSettings } from '../contexts/SettingsContext';
+import { explainAuthError, isValidEmail, isValidBdPhone } from '../lib/authErrors';
 import { X, Lock, Mail, User, Phone, CheckCircle2, AlertCircle } from 'lucide-react';
+
+export { explainAuthError };
 
 interface AuthModalProps {
   isOpen: boolean;
@@ -35,15 +38,25 @@ export const AuthModal: React.FC<AuthModalProps> = ({
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
-    setLoading(true);
     setError(null);
     setSuccessMsg(null);
 
-    if (!isSupabaseConfigured || !supabase) {
-      setError('Supabase ডাটাবেজ কনফিগার করা হয়নি। .env ফাইলে VITE_SUPABASE_URL ও VITE_SUPABASE_ANON_KEY সেট করুন।');
-      setLoading(false);
+    // Client-side checks BEFORE sending to Supabase
+    if (!email.trim() || !isValidEmail(email)) {
+      setError('সঠিক ইমেইল এড্রেস লিখুন।');
       return;
     }
+    if (!password || password.length < 8) {
+      setError('পাসওয়ার্ড কমপক্ষে ৮ অক্ষরের হতে হবে।');
+      return;
+    }
+
+    if (!isSupabaseConfigured || !supabase) {
+      setError('Supabase ডাটাবেজ কনফিগার করা হয়নি। .env ফাইলে VITE_SUPABASE_URL ও VITE_SUPABASE_ANON_KEY সেট করুন।');
+      return;
+    }
+
+    setLoading(true);
 
     try {
       const { data, error: authErr } = await supabase.auth.signInWithPassword({
@@ -75,8 +88,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
         onClose();
       }
     } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : 'লগইন ব্যর্থ হয়েছে। সঠিক ইমেইল ও পাসওয়ার্ড দিন।';
-      setError(message);
+      setError(explainAuthError(err));
     } finally {
       setLoading(false);
     }
@@ -84,27 +96,38 @@ export const AuthModal: React.FC<AuthModalProps> = ({
 
   const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault();
-    setLoading(true);
     setError(null);
     setSuccessMsg(null);
 
+    // Client-side checks BEFORE sending to Supabase
+    if (!fullName.trim()) {
+      setError('অভিভাবকের নাম লিখুন।');
+      return;
+    }
+    if (!email.trim() || !isValidEmail(email)) {
+      setError('সঠিক ইমেইল এড্রেস লিখুন।');
+      return;
+    }
+    if (!password || password.length < 8) {
+      setError('পাসওয়ার্ড কমপক্ষে ৮ অক্ষরের হতে হবে।');
+      return;
+    }
+    if (phone.trim() && !isValidBdPhone(phone)) {
+      setError('সঠিক বাংলাদেশী মোবাইল নম্বর দিন (যেমন: 01712345678)।');
+      return;
+    }
+
     if (!settings.allow_registration) {
-      setError('বর্তমানে নতুন অভিভাবক নিবন্ধন সাময়িকভাবে বন্ধ আছে।');
-      setLoading(false);
+      setError('নতুন রেজিস্ট্রেশন এখন বন্ধ আছে।');
       return;
     }
 
     if (!isSupabaseConfigured || !supabase) {
       setError('Supabase ডাটাবেজ কনফিগার করা হয়নি।');
-      setLoading(false);
       return;
     }
 
-    if (!email || !password || !fullName) {
-      setError('অনুগ্রহ করে সকল প্রয়োজনীয় তথ্য প্রদান করুন।');
-      setLoading(false);
-      return;
-    }
+    setLoading(true);
 
     try {
       // NOTE: We deliberately do NOT send 'role' in client metadata!
@@ -143,8 +166,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
       // Email confirmation required
       setSuccessMsg('ইমেইল যাচাইকরণ লিংক পাঠানো হয়েছে! আপনার ইনবক্স চেক করে অ্যাকাউন্টটি নিশ্চিত করুন।');
     } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : 'নিবন্ধন ব্যর্থ হয়েছে। পুনরায় চেষ্টা করুন।';
-      setError(message);
+      setError(explainAuthError(err));
     } finally {
       setLoading(false);
     }
@@ -152,8 +174,12 @@ export const AuthModal: React.FC<AuthModalProps> = ({
 
   const handleForgotPassword = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!email) {
-      setError('পাসওয়ার্ড পুনরুদ্ধারের জন্য আপনার নিবন্ধিত ইমেইল প্রদান করুন।');
+    setError(null);
+    setSuccessMsg(null);
+
+    // Client-side checks BEFORE sending to Supabase
+    if (!email.trim() || !isValidEmail(email)) {
+      setError('সঠিক ইমেইল এড্রেস লিখুন।');
       return;
     }
 
@@ -164,8 +190,6 @@ export const AuthModal: React.FC<AuthModalProps> = ({
 
     try {
       setLoading(true);
-      setError(null);
-      setSuccessMsg(null);
 
       const { error: resetErr } = await supabase.auth.resetPasswordForEmail(email.trim(), {
         redirectTo: window.location.origin,
@@ -175,8 +199,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
 
       setSuccessMsg(`পাসওয়ার্ড রিসেট লিংক আপনার ইমেইলে (${email}) পাঠানো হয়েছে। অনুগ্রহ করে ইনবক্স চেক করুন।`);
     } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : 'রিসেট লিংক পাঠানো ব্যর্থ হয়েছে।';
-      setError(msg);
+      setError(explainAuthError(err));
     } finally {
       setLoading(false);
     }
