@@ -12,6 +12,7 @@ import { AuthModal } from './components/AuthModal';
 import { AccessDeniedView } from './components/AccessDeniedView';
 import { ResetPasswordModal } from './components/ResetPasswordModal';
 import { SetupRequiredView } from './components/SetupRequiredView';
+import { StudentEnrollmentStatusView } from './components/StudentEnrollmentStatusView';
 
 import { BookOpen, AlertOctagon, LogOut } from 'lucide-react';
 
@@ -31,12 +32,25 @@ export default function App() {
   const [classesLoading, setClassesLoading] = useState(false);
   const [classesError, setClassesError] = useState<string | null>(null);
 
-  // Pending Admin Requests (Owner only)
+  // Pending Admin Requests (Owner only) & Pending Students Count (All Admins)
   const [pendingRequestsCount, setPendingRequestsCount] = useState(0);
+  const [pendingStudentsCount, setPendingStudentsCount] = useState(0);
 
   // Modals
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
   const [isResetPasswordModalOpen, setIsResetPasswordModalOpen] = useState(false);
+
+  // Clean URL Hash after Supabase extracts token from confirmation/recovery links
+  useEffect(() => {
+    if (window.location.hash && (window.location.hash.includes('access_token') || window.location.hash.includes('type='))) {
+      const timer = setTimeout(() => {
+        if (window.location.hash && window.location.hash.includes('access_token')) {
+          window.history.replaceState(null, '', window.location.pathname + window.location.search);
+        }
+      }, 400);
+      return () => clearTimeout(timer);
+    }
+  }, []);
 
   // Sync /admin URL Route
   useEffect(() => {
@@ -86,7 +100,7 @@ export default function App() {
     }
   }, []);
 
-  // Fetch Pending Requests Count (Owner only)
+  // Fetch Pending Admin Requests Count (Owner only)
   const fetchPendingRequestsCount = useCallback(async () => {
     if (!isSupabaseConfigured || !supabase || !currentUser) return;
     if (currentUser.email.toLowerCase() !== OWNER_EMAIL) return;
@@ -105,7 +119,29 @@ export default function App() {
     }
   }, [currentUser]);
 
-  // Fetch Classes from Supabase ONLY
+  // Fetch Pending Students Count (All admins)
+  const fetchPendingStudentsCount = useCallback(async () => {
+    if (!isSupabaseConfigured || !supabase || !currentUser) return;
+    if (currentUser.role !== 'admin') return;
+
+    try {
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('id, enrollment_status')
+        .eq('role', 'parent');
+
+      if (!error && data) {
+        const pendingCount = data.filter(
+          (s) => !s.enrollment_status || s.enrollment_status === 'pending'
+        ).length;
+        setPendingStudentsCount(pendingCount);
+      }
+    } catch (err) {
+      console.error('Error fetching pending students count:', err);
+    }
+  }, [currentUser]);
+
+  // Fetch Classes from Supabase ONLY (RLS enforces student must be approved)
   const fetchClasses = useCallback(async () => {
     if (!isSupabaseConfigured || !supabase) return;
     try {
@@ -159,6 +195,10 @@ export default function App() {
       if (session?.user) {
         const profile = await fetchUserProfile(session.user.id);
         setCurrentUser(profile);
+        // Clean URL hash if present
+        if (window.location.hash && window.location.hash.includes('access_token')) {
+          window.history.replaceState(null, '', window.location.pathname + window.location.search);
+        }
       } else {
         setCurrentUser(null);
         if (activeView === 'class') {
@@ -171,23 +211,48 @@ export default function App() {
     return () => {
       subscription.unsubscribe();
     };
-  }, [fetchUserProfile]);
+  }, [fetchUserProfile, activeView]);
 
-  // Load Classes whenever an active user is logged in
+  // Re-read profile and queues on window focus
   useEffect(() => {
-    if (currentUser?.is_active) {
+    const handleFocus = async () => {
+      if (currentUser?.id) {
+        const updated = await fetchUserProfile(currentUser.id);
+        if (updated) setCurrentUser(updated);
+      }
+      if (currentUser?.role === 'admin') {
+        fetchPendingStudentsCount();
+        if (currentUser.email.toLowerCase() === OWNER_EMAIL) {
+          fetchPendingRequestsCount();
+        }
+      }
+    };
+
+    window.addEventListener('focus', handleFocus);
+    return () => window.removeEventListener('focus', handleFocus);
+  }, [currentUser?.id, currentUser?.role, currentUser?.email, fetchUserProfile, fetchPendingStudentsCount, fetchPendingRequestsCount]);
+
+  // Load Classes whenever an active approved student or admin is logged in
+  useEffect(() => {
+    const isApprovedOrAdmin =
+      currentUser?.role === 'admin' || currentUser?.enrollment_status === 'approved';
+
+    if (currentUser?.is_active && isApprovedOrAdmin) {
       fetchClasses();
     } else {
       setClasses([]);
     }
-  }, [currentUser?.id, currentUser?.is_active, currentUser?.role, fetchClasses]);
+  }, [currentUser?.id, currentUser?.is_active, currentUser?.role, currentUser?.enrollment_status, fetchClasses]);
 
-  // Load pending count for owner
+  // Load pending counts for admin
   useEffect(() => {
-    if (currentUser?.email.toLowerCase() === OWNER_EMAIL) {
-      fetchPendingRequestsCount();
+    if (currentUser?.role === 'admin') {
+      fetchPendingStudentsCount();
+      if (currentUser.email.toLowerCase() === OWNER_EMAIL) {
+        fetchPendingRequestsCount();
+      }
     }
-  }, [currentUser, fetchPendingRequestsCount]);
+  }, [currentUser, fetchPendingStudentsCount, fetchPendingRequestsCount]);
 
   // Handle Logout
   const handleLogout = async () => {
@@ -226,6 +291,8 @@ export default function App() {
           onOpenAuth={() => setIsAuthModalOpen(true)}
           activeView={activeView}
           setActiveView={navigateToView}
+          pendingRequestsCount={pendingRequestsCount}
+          pendingStudentsCount={pendingStudentsCount}
         />
         <main className="flex-1 flex items-center justify-center p-4">
           <div className="max-w-md w-full bg-white p-8 rounded-3xl border border-rose-200 shadow-xl text-center space-y-4">
@@ -254,6 +321,14 @@ export default function App() {
     );
   }
 
+  // Check student pending or rejected enrollment status
+  const isStudentUnapproved =
+    currentUser &&
+    currentUser.role !== 'admin' &&
+    (!currentUser.enrollment_status ||
+      currentUser.enrollment_status === 'pending' ||
+      currentUser.enrollment_status === 'rejected');
+
   return (
     <div className="min-h-screen flex flex-col bg-slate-50 text-slate-900 selection:bg-orange-500 selection:text-white">
       
@@ -268,6 +343,7 @@ export default function App() {
           if (v !== 'class') setCurrentClass(null);
         }}
         pendingRequestsCount={pendingRequestsCount}
+        pendingStudentsCount={pendingStudentsCount}
       />
 
       {/* Main Content Area */}
@@ -302,6 +378,20 @@ export default function App() {
               </div>
             </div>
           </div>
+        ) : isStudentUnapproved && activeView !== 'admin' ? (
+          /* ======================================================== */
+          /* PENDING OR REJECTED STUDENT ENROLLMENT SCREEN           */
+          /* ======================================================== */
+          <StudentEnrollmentStatusView
+            currentUser={currentUser}
+            onRefreshProfile={async () => {
+              const updated = await fetchUserProfile(currentUser.id);
+              if (updated) {
+                setCurrentUser(updated);
+              }
+            }}
+            onLogout={handleLogout}
+          />
         ) : (
           <>
             {/* VIEW 1: DASHBOARD (Class List) */}
@@ -354,6 +444,8 @@ export default function App() {
                   onBackToDashboard={() => navigateToView('dashboard')}
                   pendingRequestsCount={pendingRequestsCount}
                   onRefreshPendingCount={fetchPendingRequestsCount}
+                  pendingStudentsCount={pendingStudentsCount}
+                  onRefreshPendingStudentsCount={fetchPendingStudentsCount}
                 />
               ) : (
                 /* ACCESS DENIED FOR NON-ADMIN PARENTS - REQUEST ACCESS WORKFLOW */

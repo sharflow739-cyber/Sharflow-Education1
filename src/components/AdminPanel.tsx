@@ -4,11 +4,13 @@ import { supabase, isSupabaseConfigured, OWNER_EMAIL } from '../lib/supabase';
 import { useSettings } from '../contexts/SettingsContext';
 import { VideoPlayer } from './VideoPlayer';
 import { DEFAULT_CLASSES } from '../data/defaultCourses';
+import { sendStudentStatusEmail } from '../lib/studentEmail';
 import { 
   Plus, Edit3, Trash2, ArrowUp, ArrowDown, 
   CheckCircle2, XCircle, ArrowLeft, Save, Video, Eye, EyeOff,
   Users, ShieldAlert, Settings, BookOpen, Search, AlertCircle,
-  RotateCcw, Sparkles, Check, X, ShieldX, Info
+  RotateCcw, Sparkles, Check, X, ShieldX, Info,
+  GraduationCap, Mail, RefreshCw, Clock, Send
 } from 'lucide-react';
 
 interface AdminPanelProps {
@@ -18,6 +20,8 @@ interface AdminPanelProps {
   onBackToDashboard: () => void;
   pendingRequestsCount: number;
   onRefreshPendingCount: () => Promise<void>;
+  pendingStudentsCount?: number;
+  onRefreshPendingStudentsCount?: () => Promise<void>;
 }
 
 export const AdminPanel: React.FC<AdminPanelProps> = ({
@@ -27,12 +31,14 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
   onBackToDashboard,
   pendingRequestsCount,
   onRefreshPendingCount,
+  pendingStudentsCount: initialPendingStudentsCount,
+  onRefreshPendingStudentsCount,
 }) => {
   const isOwner = currentUser.email.toLowerCase() === OWNER_EMAIL;
   const { settings, updateSettings, resetSettingsGroup } = useSettings();
 
   // Active Admin Tab
-  const [activeTab, setActiveTab] = useState<'classes' | 'requests' | 'users' | 'settings'>('classes');
+  const [activeTab, setActiveTab] = useState<'classes' | 'students' | 'requests' | 'users' | 'settings'>('classes');
 
   // Toasts
   const [toast, setToast] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
@@ -183,7 +189,184 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
   };
 
   // ==========================================
-  // TAB 2: ADMIN REQUESTS STATE & ACTIONS
+  // TAB 2: STUDENT ENROLLMENT STATE & ACTIONS
+  // ==========================================
+  const [students, setStudents] = useState<UserProfile[]>([]);
+  const [loadingStudents, setLoadingStudents] = useState(false);
+  const [studentSubTab, setStudentSubTab] = useState<'pending' | 'approved' | 'rejected'>('pending');
+  const [studentSearch, setStudentSearch] = useState('');
+  const [rejectModalStudent, setRejectModalStudent] = useState<UserProfile | null>(null);
+  const [rejectReason, setRejectReason] = useState('');
+  const [actionLoadingId, setActionLoadingId] = useState<string | null>(null);
+
+  const fetchStudents = async () => {
+    if (!isSupabaseConfigured || !supabase) return;
+    try {
+      setLoadingStudents(true);
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('role', 'parent')
+        .order('created_at', { ascending: false });
+
+      if (error) {
+        showToast('error', `শিক্ষার্থীদের তালিকা লোড করতে ব্যর্থ: ${error.message}`);
+        return;
+      }
+      setStudents(data || []);
+      if (onRefreshPendingStudentsCount) {
+        await onRefreshPendingStudentsCount();
+      }
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'লোড ব্যর্থ হয়েছে';
+      showToast('error', msg);
+    } finally {
+      setLoadingStudents(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchStudents();
+  }, []);
+
+  useEffect(() => {
+    if (activeTab === 'students') {
+      fetchStudents();
+    }
+  }, [activeTab]);
+
+  const handleApproveStudent = async (student: UserProfile) => {
+    if (!isSupabaseConfigured || !supabase) return;
+    try {
+      setActionLoadingId(student.id);
+      const { error: rpcErr } = await supabase.rpc('set_student_status', {
+        target: student.id,
+        new_status: 'approved',
+        reason: null,
+      });
+
+      if (rpcErr) {
+        showToast('error', `ভর্তি অনুমোদন ব্যর্থ হয়েছে: ${rpcErr.message}`);
+        return;
+      }
+
+      // Send approval notification email
+      const emailRes = await sendStudentStatusEmail(student.id, 'approved');
+      if (emailRes.success) {
+        showToast('success', 'অনুমোদন হয়েছে ও ইমেইল পাঠানো হয়েছে');
+      } else {
+        showToast('error', `অনুমোদন হয়েছে কিন্তু ইমেইল পাঠানো যায়নি (${emailRes.error})`);
+      }
+
+      await fetchStudents();
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'অনুমোদন ব্যর্থ হয়েছে';
+      showToast('error', msg);
+    } finally {
+      setActionLoadingId(null);
+    }
+  };
+
+  const handleOpenRejectModal = (student: UserProfile) => {
+    setRejectModalStudent(student);
+    setRejectReason('');
+  };
+
+  const handleConfirmReject = async () => {
+    if (!rejectModalStudent || !isSupabaseConfigured || !supabase) return;
+    try {
+      setActionLoadingId(rejectModalStudent.id);
+      const reasonVal = rejectReason.trim() || null;
+      const { error: rpcErr } = await supabase.rpc('set_student_status', {
+        target: rejectModalStudent.id,
+        new_status: 'rejected',
+        reason: reasonVal,
+      });
+
+      if (rpcErr) {
+        showToast('error', `প্রত্যাখ্যান ব্যর্থ হয়েছে: ${rpcErr.message}`);
+        return;
+      }
+
+      // Send rejection notification email
+      const emailRes = await sendStudentStatusEmail(
+        rejectModalStudent.id,
+        'rejected',
+        reasonVal || undefined
+      );
+
+      if (emailRes.success) {
+        showToast('success', 'প্রত্যাখ্যান সম্পন্ন হয়েছে ও ইমেইল পাঠানো হয়েছে');
+      } else {
+        showToast('error', `প্রত্যাখ্যান হয়েছে কিন্তু ইমেইল পাঠানো যায়নি (${emailRes.error})`);
+      }
+
+      setRejectModalStudent(null);
+      setRejectReason('');
+      await fetchStudents();
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'প্রত্যাখ্যান ব্যর্থ হয়েছে';
+      showToast('error', msg);
+    } finally {
+      setActionLoadingId(null);
+    }
+  };
+
+  const handleRevertToPending = async (student: UserProfile) => {
+    if (!isSupabaseConfigured || !supabase) return;
+    try {
+      setActionLoadingId(student.id);
+      const { error: rpcErr } = await supabase.rpc('set_student_status', {
+        target: student.id,
+        new_status: 'pending',
+        reason: null,
+      });
+
+      if (rpcErr) {
+        showToast('error', `Pending-এ ফিরিয়ে নেওয়া ব্যর্থ হয়েছে: ${rpcErr.message}`);
+        return;
+      }
+
+      showToast('success', 'শিক্ষার্থীকে পুনরায় Pending তালিকায় রাখা হয়েছে');
+      await fetchStudents();
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'ব্যর্থ হয়েছে';
+      showToast('error', msg);
+    } finally {
+      setActionLoadingId(null);
+    }
+  };
+
+  const handleResendEmail = async (student: UserProfile) => {
+    if (!student.enrollment_status || student.enrollment_status === 'pending') return;
+    try {
+      setActionLoadingId(student.id);
+      const emailRes = await sendStudentStatusEmail(
+        student.id,
+        student.enrollment_status as 'approved' | 'rejected',
+        student.reject_reason || undefined
+      );
+
+      if (emailRes.success) {
+        showToast('success', 'ইমেইল সফলভাবে পুনরায় পাঠানো হয়েছে');
+      } else {
+        showToast('error', `ইমেইল পাঠানো যায়নি: ${emailRes.error}`);
+      }
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'ইমেইল পাঠানো ব্যর্থ হয়েছে';
+      showToast('error', msg);
+    } finally {
+      setActionLoadingId(null);
+    }
+  };
+
+  const pendingStudentsList = students.filter(s => !s.enrollment_status || s.enrollment_status === 'pending');
+  const approvedStudentsList = students.filter(s => s.enrollment_status === 'approved');
+  const rejectedStudentsList = students.filter(s => s.enrollment_status === 'rejected');
+  const localPendingStudentsCount = pendingStudentsList.length;
+
+  // ==========================================
+  // TAB 3: ADMIN REQUESTS STATE & ACTIONS
   // ==========================================
   const [requests, setRequests] = useState<AdminRequest[]>([]);
   const [loadingRequests, setLoadingRequests] = useState(false);
@@ -386,10 +569,27 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
           }`}
         >
           <BookOpen size={15} />
-          <span>ক্লাস (Classes)</span>
+          <span>ক্লাস</span>
           <span className="px-1.5 py-0.2 bg-slate-100 text-slate-700 rounded-full text-[10px]">
             {classes.length}
           </span>
+        </button>
+
+        <button
+          onClick={() => setActiveTab('students')}
+          className={`relative px-4 py-2.5 text-xs font-bold rounded-t-xl transition-all border-b-2 flex items-center gap-2 cursor-pointer shrink-0 ${
+            activeTab === 'students'
+              ? 'border-orange-500 text-orange-600 bg-white'
+              : 'border-transparent text-slate-500 hover:text-slate-800'
+          }`}
+        >
+          <GraduationCap size={15} />
+          <span>শিক্ষার্থী ভর্তি</span>
+          {localPendingStudentsCount > 0 && (
+            <span className="px-1.5 py-0.2 bg-rose-500 text-white rounded-full text-[10px] font-black">
+              {localPendingStudentsCount}
+            </span>
+          )}
         </button>
 
         {isOwner && (
@@ -402,7 +602,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
             }`}
           >
             <ShieldAlert size={15} />
-            <span>এডমিন অনুরোধ (Admin requests)</span>
+            <span>এডমিন অনুরোধ</span>
             {pendingRequestsCount > 0 && (
               <span className="px-1.5 py-0.2 bg-rose-500 text-white rounded-full text-[10px] font-black">
                 {pendingRequestsCount}
@@ -420,7 +620,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
           }`}
         >
           <Users size={15} />
-          <span>ব্যবহারকারী (Users)</span>
+          <span>ব্যবহারকারী</span>
         </button>
 
         <button
@@ -432,7 +632,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
           }`}
         >
           <Settings size={15} />
-          <span>সাইট সেটিংস (Site settings)</span>
+          <span>সাইট সেটিংস</span>
         </button>
       </div>
 
@@ -560,7 +760,329 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
       )}
 
       {/* ======================================================== */}
-      {/* TAB 2: ADMIN REQUESTS (Owner Only) */}
+      {/* TAB 2: STUDENT ENROLLMENT (Pending, Approved, Rejected) */}
+      {/* ======================================================== */}
+      {activeTab === 'students' && (
+        <div className="space-y-4">
+          
+          {/* Header, Search & Sub-tabs */}
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-white p-4 rounded-2xl border border-slate-200 shadow-2xs">
+            <div className="flex items-center gap-1.5 bg-slate-100 p-1 rounded-xl text-xs overflow-x-auto shrink-0">
+              <button
+                onClick={() => setStudentSubTab('pending')}
+                className={`px-3 py-1.5 rounded-lg font-bold flex items-center gap-1.5 transition-all cursor-pointer ${
+                  studentSubTab === 'pending'
+                    ? 'bg-white text-orange-600 shadow-2xs'
+                    : 'text-slate-600 hover:text-slate-900'
+                }`}
+              >
+                <Clock size={13} />
+                <span>Pending (অপেক্ষমাণ)</span>
+                {pendingStudentsList.length > 0 && (
+                  <span className="px-1.5 py-0.2 bg-rose-500 text-white rounded-full text-[10px] font-black">
+                    {pendingStudentsList.length}
+                  </span>
+                )}
+              </button>
+
+              <button
+                onClick={() => setStudentSubTab('approved')}
+                className={`px-3 py-1.5 rounded-lg font-bold flex items-center gap-1.5 transition-all cursor-pointer ${
+                  studentSubTab === 'approved'
+                    ? 'bg-white text-emerald-600 shadow-2xs'
+                    : 'text-slate-600 hover:text-slate-900'
+                }`}
+              >
+                <CheckCircle2 size={13} />
+                <span>Approved (অনুমোদিত)</span>
+                <span className="px-1.5 py-0.2 bg-slate-200 text-slate-700 rounded-full text-[10px] font-semibold">
+                  {approvedStudentsList.length}
+                </span>
+              </button>
+
+              <button
+                onClick={() => setStudentSubTab('rejected')}
+                className={`px-3 py-1.5 rounded-lg font-bold flex items-center gap-1.5 transition-all cursor-pointer ${
+                  studentSubTab === 'rejected'
+                    ? 'bg-white text-rose-600 shadow-2xs'
+                    : 'text-slate-600 hover:text-slate-900'
+                }`}
+              >
+                <XCircle size={13} />
+                <span>Rejected (প্রত্যাখ্যাত)</span>
+                <span className="px-1.5 py-0.2 bg-slate-200 text-slate-700 rounded-full text-[10px] font-semibold">
+                  {rejectedStudentsList.length}
+                </span>
+              </button>
+            </div>
+
+            {/* Search Box & Refresh */}
+            <div className="flex items-center gap-2 flex-1 sm:max-w-xs">
+              <div className="relative flex-1">
+                <Search size={14} className="absolute left-3 top-2.5 text-slate-400" />
+                <input
+                  type="text"
+                  value={studentSearch}
+                  onChange={(e) => setStudentSearch(e.target.value)}
+                  placeholder="নাম, ইমেইল বা ফোন দিয়ে খুঁজুন..."
+                  className="w-full pl-8 pr-3 py-1.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium focus:bg-white focus:outline-none focus:border-orange-500"
+                />
+              </div>
+
+              <button
+                onClick={fetchStudents}
+                disabled={loadingStudents}
+                className="p-2 text-slate-600 hover:text-orange-600 hover:bg-orange-50 rounded-xl border border-slate-200 transition-colors cursor-pointer"
+                title="তালিকা রিফ্রেশ করুন"
+              >
+                <RefreshCw size={14} className={loadingStudents ? 'animate-spin' : ''} />
+              </button>
+            </div>
+          </div>
+
+          {/* Student Rows */}
+          {loadingStudents ? (
+            <div className="bg-white p-12 text-center text-xs text-slate-400 rounded-2xl border border-slate-200">
+              শিক্ষার্থীদের তথ্য লোড হচ্ছে...
+            </div>
+          ) : (
+            <div className="space-y-3">
+              {(studentSubTab === 'pending'
+                ? pendingStudentsList
+                : studentSubTab === 'approved'
+                ? approvedStudentsList
+                : rejectedStudentsList
+              )
+                .filter((s) => {
+                  const q = studentSearch.toLowerCase().trim();
+                  if (!q) return true;
+                  return (
+                    (s.full_name && s.full_name.toLowerCase().includes(q)) ||
+                    (s.email && s.email.toLowerCase().includes(q)) ||
+                    (s.phone && s.phone.toLowerCase().includes(q)) ||
+                    (s.child_name && s.child_name.toLowerCase().includes(q))
+                  );
+                })
+                .map((student) => {
+                  const isProcessing = actionLoadingId === student.id;
+                  return (
+                    <div
+                      key={student.id}
+                      className="bg-white p-4 sm:p-5 rounded-2xl border border-slate-200 shadow-2xs flex flex-col sm:flex-row sm:items-center justify-between gap-4 transition-all hover:border-orange-200"
+                    >
+                      <div className="space-y-1.5 flex-1">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <span className="font-extrabold text-slate-900 text-sm">
+                            {student.full_name}
+                          </span>
+                          <span className="text-xs font-mono text-slate-500">
+                            ({student.email})
+                          </span>
+                          <span
+                            className={`px-2 py-0.5 rounded text-[10px] font-bold ${
+                              !student.enrollment_status || student.enrollment_status === 'pending'
+                                ? 'bg-amber-100 text-amber-800'
+                                : student.enrollment_status === 'approved'
+                                ? 'bg-emerald-100 text-emerald-800'
+                                : 'bg-rose-100 text-rose-800'
+                            }`}
+                          >
+                            {!student.enrollment_status || student.enrollment_status === 'pending'
+                              ? 'Pending'
+                              : student.enrollment_status === 'approved'
+                              ? 'Approved'
+                              : 'Rejected'}
+                          </span>
+                        </div>
+
+                        <div className="flex items-center gap-4 text-xs text-slate-600 flex-wrap">
+                          <span>
+                            <strong className="text-slate-400 font-semibold">মোবাইল: </strong>
+                            {student.phone || 'দেওয়া হয়নি'}
+                          </span>
+                          <span>
+                            <strong className="text-slate-400 font-semibold">সন্তান: </strong>
+                            {student.child_name || 'নাই'}{' '}
+                            {student.child_age ? `(${student.child_age} বছর)` : ''}
+                          </span>
+                          {student.created_at && (
+                            <span className="text-slate-400 text-[11px]">
+                              নিবন্ধন: {new Date(student.created_at).toLocaleDateString('bn-BD')}
+                            </span>
+                          )}
+                        </div>
+
+                        {student.enrollment_status === 'rejected' && student.reject_reason && (
+                          <div className="p-2 bg-rose-50 border border-rose-100 rounded-xl text-xs text-rose-800 max-w-xl">
+                            <strong className="font-bold">প্রত্যাখ্যানের কারণ: </strong>
+                            <span>{student.reject_reason}</span>
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Action Buttons */}
+                      <div className="flex items-center gap-2 self-end sm:self-center shrink-0">
+                        {(!student.enrollment_status || student.enrollment_status === 'pending') && (
+                          <>
+                            <button
+                              onClick={() => handleApproveStudent(student)}
+                              disabled={isProcessing}
+                              className="px-3.5 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-xl shadow-2xs flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
+                            >
+                              {isProcessing ? (
+                                <RefreshCw size={13} className="animate-spin" />
+                              ) : (
+                                <Check size={13} />
+                              )}
+                              <span>Approve</span>
+                            </button>
+
+                            <button
+                              onClick={() => handleOpenRejectModal(student)}
+                              disabled={isProcessing}
+                              className="px-3.5 py-1.5 bg-rose-50 hover:bg-rose-100 text-rose-700 font-bold text-xs rounded-xl border border-rose-200 flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
+                            >
+                              <X size={13} />
+                              <span>Reject</span>
+                            </button>
+                          </>
+                        )}
+
+                        {student.enrollment_status === 'approved' && (
+                          <>
+                            <button
+                              onClick={() => handleRevertToPending(student)}
+                              disabled={isProcessing}
+                              className="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs rounded-xl transition-all flex items-center gap-1 cursor-pointer disabled:opacity-50"
+                            >
+                              <Clock size={12} />
+                              <span>Pending-এ ফিরিয়ে নিন</span>
+                            </button>
+
+                            <button
+                              onClick={() => handleResendEmail(student)}
+                              disabled={isProcessing}
+                              className="px-3 py-1.5 bg-orange-50 hover:bg-orange-100 text-orange-700 font-bold text-xs rounded-xl border border-orange-200 transition-all flex items-center gap-1 cursor-pointer disabled:opacity-50"
+                              title="অনুমোদন ইমেইল পুনরায় পাঠান"
+                            >
+                              <Send size={12} />
+                              <span>ইমেইল আবার পাঠান</span>
+                            </button>
+                          </>
+                        )}
+
+                        {student.enrollment_status === 'rejected' && (
+                          <>
+                            <button
+                              onClick={() => handleRevertToPending(student)}
+                              disabled={isProcessing}
+                              className="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs rounded-xl transition-all flex items-center gap-1 cursor-pointer disabled:opacity-50"
+                            >
+                              <Clock size={12} />
+                              <span>Pending-এ ফিরিয়ে নিন</span>
+                            </button>
+
+                            <button
+                              onClick={() => handleResendEmail(student)}
+                              disabled={isProcessing}
+                              className="px-3 py-1.5 bg-rose-50 hover:bg-rose-100 text-rose-700 font-bold text-xs rounded-xl border border-rose-200 transition-all flex items-center gap-1 cursor-pointer disabled:opacity-50"
+                              title="প্রত্যাখ্যানের ইমেইল পুনরায় পাঠান"
+                            >
+                              <Send size={12} />
+                              <span>ইমেইল আবার পাঠান</span>
+                            </button>
+                          </>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
+
+              {(studentSubTab === 'pending'
+                ? pendingStudentsList
+                : studentSubTab === 'approved'
+                ? approvedStudentsList
+                : rejectedStudentsList
+              ).length === 0 && (
+                <div className="bg-white p-12 text-center text-xs text-slate-400 rounded-2xl border border-slate-200">
+                  {studentSubTab === 'pending'
+                    ? 'কোনো অপেক্ষমাণ (Pending) শিক্ষার্থী নেই।'
+                    : studentSubTab === 'approved'
+                    ? 'কোনো অনুমোদিত শিক্ষার্থী নেই।'
+                    : 'কোনো প্রত্যাখ্যাত শিক্ষার্থী নেই।'}
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Rejection Reason Modal */}
+          {rejectModalStudent && (
+            <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs">
+              <div className="bg-white rounded-2xl max-w-md w-full shadow-2xl border border-rose-100 p-6 space-y-4 relative">
+                <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+                  <h3 className="font-extrabold text-slate-900 text-sm flex items-center gap-2">
+                    <AlertCircle size={16} className="text-rose-600" />
+                    ভর্তি আবেদন প্রত্যাখ্যান
+                  </h3>
+                  <button
+                    onClick={() => { setRejectModalStudent(null); setRejectReason(''); }}
+                    className="text-slate-400 hover:text-slate-600 p-1 cursor-pointer"
+                  >
+                    <X size={16} />
+                  </button>
+                </div>
+
+                <div className="space-y-1 text-xs">
+                  <p className="font-bold text-slate-800">
+                    অভিভাবক: {rejectModalStudent.full_name}
+                  </p>
+                  <p className="text-slate-500 font-mono">
+                    {rejectModalStudent.email}
+                  </p>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 mb-1">
+                    প্রত্যাখ্যানের কারণ (ঐচ্ছিক - শিক্ষার্থীকে ইমেইলে পাঠানো হবে):
+                  </label>
+                  <textarea
+                    rows={3}
+                    value={rejectReason}
+                    onChange={(e) => setRejectReason(e.target.value)}
+                    placeholder="যেমন: তথ্য অসম্পূর্ণ, অথবা অন্য কোনো কারণ..."
+                    className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium focus:bg-white focus:outline-none focus:border-rose-500"
+                  />
+                </div>
+
+                <div className="flex items-center justify-end gap-2 pt-2">
+                  <button
+                    onClick={() => { setRejectModalStudent(null); setRejectReason(''); }}
+                    className="px-3.5 py-2 text-xs font-bold text-slate-600 hover:text-slate-800 rounded-xl cursor-pointer"
+                  >
+                    বাতিল
+                  </button>
+                  <button
+                    onClick={handleConfirmReject}
+                    disabled={actionLoadingId === rejectModalStudent.id}
+                    className="px-4 py-2 bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold rounded-xl shadow-xs flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
+                  >
+                    {actionLoadingId === rejectModalStudent.id ? (
+                      <RefreshCw size={13} className="animate-spin" />
+                    ) : (
+                      <X size={13} />
+                    )}
+                    <span>প্রত্যাখ্যান নিশ্চিত করুন</span>
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+
+        </div>
+      )}
+
+      {/* ======================================================== */}
+      {/* TAB 3: ADMIN REQUESTS (Owner Only) */}
       {/* ======================================================== */}
       {activeTab === 'requests' && isOwner && (
         <div className="space-y-4">
@@ -938,6 +1460,94 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                 <label htmlFor="allow_reg" className="font-bold text-slate-700 cursor-pointer">
                   নতুন অ্যাকাউন্ট নিবন্ধন চালু রাখুন (Allow Registration)
                 </label>
+              </div>
+            </div>
+          </div>
+
+          {/* GROUP 2.5: STUDENT ENROLLMENT MESSAGES */}
+          <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-2xs space-y-4">
+            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+              <h3 className="font-extrabold text-slate-900 text-sm">
+                ৩. শিক্ষার্থী নিবন্ধন ও অনুমোদন বার্তা (Student Registration & Approval)
+              </h3>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => handleResetGroup('শিক্ষার্থী ভর্তি বার্তা', ['register_success_title', 'register_success_text', 'pending_title', 'pending_text', 'rejected_text', 'review_hours'])}
+                  className="px-2.5 py-1 text-slate-500 hover:text-slate-800 text-xs font-semibold flex items-center gap-1 cursor-pointer"
+                >
+                  <RotateCcw size={12} /> ডিফল্টে ফিরুন
+                </button>
+                <button
+                  onClick={() => handleSaveGroup('শিক্ষার্থী ভর্তি বার্তা', ['register_success_title', 'register_success_text', 'pending_title', 'pending_text', 'rejected_text', 'review_hours'])}
+                  disabled={savingSettingsGroup === 'শিক্ষার্থী ভর্তি বার্তা'}
+                  className="px-4 py-1.5 bg-orange-500 hover:bg-orange-600 text-white rounded-xl text-xs font-bold shadow-xs flex items-center gap-1 cursor-pointer disabled:opacity-50"
+                >
+                  <Save size={13} /> {savingSettingsGroup === 'শিক্ষার্থী ভর্তি বার্তা' ? 'সংরক্ষণ হচ্ছে...' : 'সংরক্ষণ করুন'}
+                </button>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
+              <div>
+                <label className="block font-bold text-slate-700 mb-1">রেজিস্ট্রেশন সফল পপআপ টাইটেল</label>
+                <input
+                  type="text"
+                  value={formSettings.register_success_title}
+                  onChange={(e) => setFormSettings({ ...formSettings, register_success_title: e.target.value })}
+                  className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:outline-none focus:border-orange-500 font-medium"
+                />
+              </div>
+
+              <div>
+                <label className="block font-bold text-slate-700 mb-1">যাচাই সময়কাল (ঘণ্টা)</label>
+                <input
+                  type="number"
+                  min={1}
+                  max={168}
+                  value={formSettings.review_hours}
+                  onChange={(e) => setFormSettings({ ...formSettings, review_hours: Number(e.target.value) || 24 })}
+                  className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:outline-none focus:border-orange-500 font-medium"
+                />
+              </div>
+
+              <div className="sm:col-span-2">
+                <label className="block font-bold text-slate-700 mb-1">রেজিস্ট্রেশন সফল পপআপ বার্তা</label>
+                <textarea
+                  rows={2}
+                  value={formSettings.register_success_text}
+                  onChange={(e) => setFormSettings({ ...formSettings, register_success_text: e.target.value })}
+                  className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:outline-none focus:border-orange-500 font-medium"
+                />
+              </div>
+
+              <div>
+                <label className="block font-bold text-slate-700 mb-1">অপেক্ষমাণ (Pending) পেজ টাইটেল</label>
+                <input
+                  type="text"
+                  value={formSettings.pending_title}
+                  onChange={(e) => setFormSettings({ ...formSettings, pending_title: e.target.value })}
+                  className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:outline-none focus:border-orange-500 font-medium"
+                />
+              </div>
+
+              <div>
+                <label className="block font-bold text-slate-700 mb-1">অপেক্ষমাণ (Pending) বার্তা</label>
+                <textarea
+                  rows={2}
+                  value={formSettings.pending_text}
+                  onChange={(e) => setFormSettings({ ...formSettings, pending_text: e.target.value })}
+                  className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:outline-none focus:border-orange-500 font-medium"
+                />
+              </div>
+
+              <div className="sm:col-span-2">
+                <label className="block font-bold text-slate-700 mb-1">প্রত্যাখ্যান (Rejected) বার্তা</label>
+                <textarea
+                  rows={2}
+                  value={formSettings.rejected_text}
+                  onChange={(e) => setFormSettings({ ...formSettings, rejected_text: e.target.value })}
+                  className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:outline-none focus:border-orange-500 font-medium"
+                />
               </div>
             </div>
           </div>

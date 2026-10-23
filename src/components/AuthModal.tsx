@@ -3,6 +3,7 @@ import { UserProfile } from '../types';
 import { supabase, isSupabaseConfigured } from '../lib/supabase';
 import { useSettings } from '../contexts/SettingsContext';
 import { explainAuthError, isValidEmail, isValidBdPhone } from '../lib/authErrors';
+import { sendRegisteredWelcomeEmail } from '../lib/studentEmail';
 import { X, Lock, Mail, User, Phone, CheckCircle2, AlertCircle } from 'lucide-react';
 
 export { explainAuthError };
@@ -27,12 +28,15 @@ export const AuthModal: React.FC<AuthModalProps> = ({
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
 
   // Form states
+  // Form states
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [fullName, setFullName] = useState('');
   const [phone, setPhone] = useState('');
   const [childName, setChildName] = useState('');
   const [childAge, setChildAge] = useState<number | ''>(7);
+  const [showRegisterSuccessModal, setShowRegisterSuccessModal] = useState(false);
+  const [registeredProfile, setRegisteredProfile] = useState<UserProfile | null>(null);
 
   if (!isOpen) return null;
 
@@ -149,7 +153,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
       if (authErr) throw authErr;
 
       if (data.session && data.user) {
-        // Direct session created (email confirmation is off or auto-confirmed)
+        // Direct session created (email confirmation is off)
         const { data: profileData } = await supabase
           .from('profiles')
           .select('*')
@@ -157,14 +161,22 @@ export const AuthModal: React.FC<AuthModalProps> = ({
           .single();
 
         if (profileData) {
-          onLoginSuccess(profileData);
-          onClose();
-          return;
+          setRegisteredProfile(profileData);
         }
-      }
 
-      // Email confirmation required
-      setSuccessMsg('ইমেইল যাচাইকরণ লিংক পাঠানো হয়েছে! আপনার ইনবক্স চেক করে অ্যাকাউন্টটি নিশ্চিত করুন।');
+        // Trigger background welcome email without blocking UI
+        sendRegisteredWelcomeEmail(data.session.access_token).catch((err) => {
+          console.warn('Background welcome email error:', err);
+        });
+
+        // Show dedicated registration success popup modal
+        setShowRegisterSuccessModal(true);
+      } else if (data.user && !data.session) {
+        // Fallback if Supabase "Confirm email" was left ON
+        setError('ইমেইল যাচাই করুন: আপনার ইনবক্সে পাঠানো লিংকে ক্লিক করে অ্যাকাউন্ট সক্রিয় করুন।');
+      } else {
+        setShowRegisterSuccessModal(true);
+      }
     } catch (err: unknown) {
       setError(explainAuthError(err));
     } finally {
@@ -209,6 +221,41 @@ export const AuthModal: React.FC<AuthModalProps> = ({
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs">
       <div className="bg-white rounded-2xl max-w-md w-full shadow-2xl border border-orange-100 overflow-hidden relative">
         
+        {/* Registration Success Popup Modal */}
+        {showRegisterSuccessModal && (
+          <div className="absolute inset-0 z-50 bg-white p-6 sm:p-8 flex flex-col items-center justify-center text-center">
+            <div className="w-16 h-16 rounded-2xl bg-emerald-100 text-emerald-600 flex items-center justify-center font-bold mb-4 shadow-sm">
+              <CheckCircle2 size={38} className="text-emerald-500" />
+            </div>
+
+            <h3 className="text-xl font-extrabold text-slate-900 mb-3">
+              {settings.register_success_title || 'রেজিস্ট্রেশন গ্রহণ করা হয়েছে ✅'}
+            </h3>
+
+            <div className="p-4 bg-emerald-50/60 border border-emerald-100 rounded-2xl mb-6">
+              <p className="text-xs sm:text-sm text-slate-700 leading-relaxed font-medium">
+                {settings.register_success_text || `আপনার আবেদন আমরা পেয়েছি। আপনার তথ্য যাচাই করে ${settings.review_hours || 24} ঘণ্টার মধ্যে ইমেইলের মাধ্যমে জানানো হবে।`}
+              </p>
+            </div>
+
+            <button
+              onClick={() => {
+                setShowRegisterSuccessModal(false);
+                if (registeredProfile) {
+                  onLoginSuccess(registeredProfile);
+                  onClose();
+                } else {
+                  setActiveTab('login');
+                  onClose();
+                }
+              }}
+              className="w-full py-3 bg-orange-500 hover:bg-orange-600 text-white font-extrabold text-xs sm:text-sm rounded-xl shadow-md shadow-orange-500/20 transition-all cursor-pointer"
+            >
+              ঠিক আছে (OK)
+            </button>
+          </div>
+        )}
+
         {/* Top Header Banner */}
         <div className="bg-gradient-to-r from-orange-500 to-amber-500 p-6 text-white relative">
           <button

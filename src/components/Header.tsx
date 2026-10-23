@@ -10,6 +10,7 @@ interface HeaderProps {
   activeView: 'dashboard' | 'class' | 'admin';
   setActiveView: (view: 'dashboard' | 'class' | 'admin') => void;
   pendingRequestsCount?: number;
+  pendingStudentsCount?: number;
 }
 
 export const Header: React.FC<HeaderProps> = ({
@@ -19,6 +20,7 @@ export const Header: React.FC<HeaderProps> = ({
   activeView,
   setActiveView,
   pendingRequestsCount = 0,
+  pendingStudentsCount = 0,
 }) => {
   const { settings } = useSettings();
   const isAdmin = currentUser?.role === 'admin';
@@ -65,7 +67,7 @@ export const Header: React.FC<HeaderProps> = ({
             {isAdmin && (
               <button
                 onClick={() => setActiveView('admin')}
-                className={`relative px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 ${
+                className={`relative px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer ${
                   activeView === 'admin'
                     ? 'bg-slate-900 text-white shadow-xs'
                     : 'bg-slate-100 hover:bg-slate-200 text-slate-800'
@@ -73,8 +75,19 @@ export const Header: React.FC<HeaderProps> = ({
               >
                 <ShieldAlert size={14} className={activeView === 'admin' ? 'text-amber-400' : 'text-slate-600'} />
                 <span>এডমিন</span>
+                {pendingStudentsCount > 0 && (
+                  <span 
+                    className="ml-1 px-1.5 py-0.2 bg-rose-500 text-white rounded-full text-[10px] font-extrabold leading-tight"
+                    title={`${pendingStudentsCount} জন শিক্ষার্থী অনুমোদনের অপেক্ষায়`}
+                  >
+                    {pendingStudentsCount}
+                  </span>
+                )}
                 {pendingRequestsCount > 0 && (
-                  <span className="ml-1 px-1.5 py-0.2 bg-rose-500 text-white rounded-full text-[10px] font-extrabold leading-tight">
+                  <span 
+                    className="ml-0.5 px-1.5 py-0.2 bg-amber-500 text-slate-900 rounded-full text-[10px] font-extrabold leading-tight"
+                    title={`${pendingRequestsCount} টি এডমিন অনুরোধ`}
+                  >
                     {pendingRequestsCount}
                   </span>
                 )}

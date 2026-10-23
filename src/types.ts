@@ -10,6 +10,9 @@ export interface UserProfile {
   child_name?: string;
   child_age?: number;
   created_at?: string;
+  enrollment_status?: 'pending' | 'approved' | 'rejected';
+  reviewed_at?: string | null;
+  reject_reason?: string | null;
 }
 
 export interface ClassItem {
@@ -42,12 +45,20 @@ export interface SiteSettings {
   logo_emoji: string;
   browser_title: string;
 
-  // Login page
+  // Login page & Registration
   login_badge: string;
   login_headline: string;
   login_subtext: string;
   login_button_label: string;
   allow_registration: boolean;
+
+  // Student Registration & Approval texts
+  register_success_title: string;
+  register_success_text: string;
+  pending_title: string;
+  pending_text: string;
+  rejected_text: string;
+  review_hours: number;
 
   // Dashboard
   dashboard_title: string;
@@ -83,12 +94,20 @@ export const DEFAULT_SITE_SETTINGS: SiteSettings = {
   logo_emoji: '🧮',
   browser_title: 'অ্যাবাকাস পেরেন্ট ট্রেনিং প্রোগ্রাম | Abacus Parent Training',
 
-  // Login page
+  // Login page & Registration
   login_badge: 'অ্যাবাকাস Parent Training',
   login_headline: 'আপনার সন্তানকে ঘরে বসেই প্রফেশনাল উপায়ে অ্যাবাকাস শেখান',
   login_subtext: 'কোর্স কন্টেন্ট ও ভিডিও লেসন দেখতে আপনার নিবন্ধিত অ্যাকাউন্ট দিয়ে লগইন করুন।',
   login_button_label: 'লগইন করুন',
   allow_registration: true,
+
+  // Student Registration & Approval texts
+  register_success_title: 'রেজিস্ট্রেশন গ্রহণ করা হয়েছে ✅',
+  register_success_text: 'আপনার আবেদন আমরা পেয়েছি। আপনার তথ্য যাচাই করে ২৪ ঘণ্টার মধ্যে ইমেইলের মাধ্যমে জানানো হবে। অনুগ্রহ করে ইমেইলে পাঠানো লিংকে ক্লিক করে আপনার ইমেইল যাচাই করুন।',
+  pending_title: 'অনুমোদনের অপেক্ষায় (Pending)',
+  pending_text: 'আপনার আবেদনটি পর্যালোচনার জন্য অপেক্ষমাণ রয়েছে। সাধারণত ২৪ ঘণ্টার মধ্যে তথ্য যাচাই করে ইমেইলের মাধ্যমে এক্সেস উন্মুক্ত করা হয়।',
+  rejected_text: 'আপনার ভর্তি আবেদন এই মুহূর্তে গ্রহণ করা সম্ভব হয়নি। বিস্তারিত জানতে আমাদের সাপোর্টে যোগাযোগ করুন।',
+  review_hours: 24,
 
   // Dashboard
   dashboard_title: 'অ্যাবাকাস Parent Training',
