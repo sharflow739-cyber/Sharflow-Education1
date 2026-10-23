@@ -1,5 +1,6 @@
 import React from 'react';
 import { ClassItem } from '../types';
+import { useSettings } from '../contexts/SettingsContext';
 import { ChevronRight, Play } from 'lucide-react';
 
 interface DashboardProps {
@@ -11,19 +12,20 @@ export const Dashboard: React.FC<DashboardProps> = ({
   classes,
   onSelectClass,
 }) => {
-  // Only show published classes to parents if is_published field is present
+  const { settings } = useSettings();
+  // Only show published classes to parents
   const displayClasses = classes.filter((c) => c.is_published !== false);
 
   return (
     <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
       
-      {/* Simple Page Header */}
+      {/* Page Header */}
       <div className="border-b border-slate-200 pb-4">
         <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight">
-          অ্যাবাকাস Parent Training
+          {settings.dashboard_title || 'অ্যাবাকাস Parent Training'}
         </h1>
         <p className="text-xs sm:text-sm text-slate-500 mt-1">
-          ক্লাস নির্বাচন করে ট্রেনিং ভিডিও শুরু করুন।
+          {settings.dashboard_subtitle || 'ক্লাস নির্বাচন করে ট্রেনিং ভিডিও শুরু করুন।'}
         </p>
       </div>
 
@@ -69,7 +71,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
 
         {displayClasses.length === 0 && (
           <div className="p-8 text-center bg-white rounded-2xl border border-slate-200 text-slate-500 text-xs">
-            এখনও কোনো প্রকাশকৃত ক্লাস নেই।
+            {settings.empty_classes_text || 'এখনও কোনো প্রকাশকৃত ক্লাস নেই।'}
           </div>
         )}
       </div>

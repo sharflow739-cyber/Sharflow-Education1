@@ -1,6 +1,7 @@
 import React from 'react';
 import { UserProfile } from '../types';
-import { LogOut, User, BookOpen } from 'lucide-react';
+import { useSettings } from '../contexts/SettingsContext';
+import { LogOut, User, BookOpen, ShieldAlert } from 'lucide-react';
 
 interface HeaderProps {
   currentUser: UserProfile | null;
@@ -8,6 +9,7 @@ interface HeaderProps {
   onOpenAuth: () => void;
   activeView: 'dashboard' | 'class' | 'admin';
   setActiveView: (view: 'dashboard' | 'class' | 'admin') => void;
+  pendingRequestsCount?: number;
 }
 
 export const Header: React.FC<HeaderProps> = ({
@@ -16,7 +18,11 @@ export const Header: React.FC<HeaderProps> = ({
   onOpenAuth,
   activeView,
   setActiveView,
+  pendingRequestsCount = 0,
 }) => {
+  const { settings } = useSettings();
+  const isAdmin = currentUser?.role === 'admin';
+
   return (
     <header className="sticky top-0 z-40 bg-white/95 backdrop-blur-md border-b border-orange-100 shadow-xs">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -28,24 +34,24 @@ export const Header: React.FC<HeaderProps> = ({
             className="flex items-center gap-3 cursor-pointer group"
           >
             <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-orange-600 to-amber-500 text-white flex items-center justify-center font-black text-xl shadow-md shadow-orange-500/20 group-hover:scale-105 transition-transform">
-              🧮
+              {settings.logo_emoji || '🧮'}
             </div>
             <div>
               <span className="font-extrabold text-slate-900 text-lg sm:text-xl tracking-tight leading-none block">
-                অ্যাবাকাস Parent Training
+                {settings.site_name || 'অ্যাবাকাস Parent Training'}
               </span>
               <span className="text-[11px] text-slate-500 font-medium hidden sm:inline-block">
-                অনলাইন অভিভাবক ট্রেনিং প্ল্যাটফর্ম
+                {settings.site_subtitle || 'অনলাইন অভিভাবক ট্রেনিং প্ল্যাটফর্ম'}
               </span>
             </div>
           </div>
 
-          {/* Navigation Link for Parent */}
-          {currentUser && (
-            <div className="flex items-center gap-2">
+          {/* Navigation Links */}
+          <div className="flex items-center gap-2">
+            {currentUser && (
               <button
                 onClick={() => setActiveView('dashboard')}
-                className={`px-4 py-1.5 rounded-lg text-xs font-bold transition-all ${
+                className={`px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all ${
                   activeView === 'dashboard' || activeView === 'class'
                     ? 'bg-orange-50 text-orange-600 border border-orange-200'
                     : 'text-slate-600 hover:text-slate-900'
@@ -53,8 +59,28 @@ export const Header: React.FC<HeaderProps> = ({
               >
                 ক্লাসসমূহ
               </button>
-            </div>
-          )}
+            )}
+
+            {/* Admin Button - ONLY visible to admins */}
+            {isAdmin && (
+              <button
+                onClick={() => setActiveView('admin')}
+                className={`relative px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 ${
+                  activeView === 'admin'
+                    ? 'bg-slate-900 text-white shadow-xs'
+                    : 'bg-slate-100 hover:bg-slate-200 text-slate-800'
+                }`}
+              >
+                <ShieldAlert size={14} className={activeView === 'admin' ? 'text-amber-400' : 'text-slate-600'} />
+                <span>এডমিন</span>
+                {pendingRequestsCount > 0 && (
+                  <span className="ml-1 px-1.5 py-0.2 bg-rose-500 text-white rounded-full text-[10px] font-extrabold leading-tight">
+                    {pendingRequestsCount}
+                  </span>
+                )}
+              </button>
+            )}
+          </div>
 
           {/* Right Action Menu */}
           <div className="flex items-center gap-2">
@@ -64,6 +90,11 @@ export const Header: React.FC<HeaderProps> = ({
                   <span className="text-xs font-bold text-slate-800 line-clamp-1">
                     {currentUser.full_name}
                   </span>
+                  {currentUser.role === 'admin' && (
+                    <span className="text-[10px] text-orange-600 font-semibold leading-none">
+                      এডমিন
+                    </span>
+                  )}
                 </div>
 
                 <div className="w-8 h-8 rounded-full bg-orange-100 border border-orange-300 text-orange-700 flex items-center justify-center font-bold text-xs">
@@ -72,7 +103,7 @@ export const Header: React.FC<HeaderProps> = ({
 
                 <button
                   onClick={onLogout}
-                  className="p-2 text-slate-500 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors flex items-center gap-1 text-xs font-semibold"
+                  className="p-2 text-slate-500 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors flex items-center gap-1 text-xs font-semibold cursor-pointer"
                   title="লগআউট করুন"
                 >
                   <LogOut size={16} />
@@ -82,10 +113,10 @@ export const Header: React.FC<HeaderProps> = ({
             ) : (
               <button
                 onClick={onOpenAuth}
-                className="px-4 py-2 bg-orange-500 hover:bg-orange-600 text-white rounded-xl text-xs font-bold shadow-md shadow-orange-500/20 transition-all active:scale-95 flex items-center gap-1.5"
+                className="px-4 py-2 bg-orange-500 hover:bg-orange-600 text-white rounded-xl text-xs font-bold shadow-md shadow-orange-500/20 transition-all active:scale-95 flex items-center gap-1.5 cursor-pointer"
               >
                 <BookOpen size={15} />
-                লগইন
+                {settings.login_button_label || 'লগইন'}
               </button>
             )}
           </div>
@@ -94,4 +125,3 @@ export const Header: React.FC<HeaderProps> = ({
     </header>
   );
 };
-

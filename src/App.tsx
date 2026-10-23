@@ -1,9 +1,7 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { UserProfile, ClassItem } from './types';
-import { 
-  supabase, isSupabaseConfigured, getCurrentUser, setCurrentUser, 
-  getStoredClasses, saveStoredClasses, getStoredUsers, saveStoredUsers 
-} from './lib/supabase';
+import { supabase, isSupabaseConfigured, OWNER_EMAIL } from './lib/supabase';
+import { useSettings } from './contexts/SettingsContext';
 
 import { Header } from './components/Header';
 import { Footer } from './components/Footer';
@@ -12,27 +10,44 @@ import { ClassView } from './components/ClassView';
 import { AdminPanel } from './components/AdminPanel';
 import { AuthModal } from './components/AuthModal';
 import { AccessDeniedView } from './components/AccessDeniedView';
+import { ResetPasswordModal } from './components/ResetPasswordModal';
+import { SetupRequiredView } from './components/SetupRequiredView';
 
-import { BookOpen, ShieldCheck } from 'lucide-react';
+import { BookOpen, AlertOctagon, LogOut } from 'lucide-react';
 
 export default function App() {
-  const [currentUser, setCurrentUserState] = useState<UserProfile | null>(null);
+  const { settings } = useSettings();
+
+  // Auth & Profile
+  const [currentUser, setCurrentUser] = useState<UserProfile | null>(null);
+  const [authLoading, setAuthLoading] = useState(true);
+
+  // Navigation
   const [activeView, setActiveView] = useState<'dashboard' | 'class' | 'admin'>('dashboard');
   const [currentClass, setCurrentClass] = useState<ClassItem | null>(null);
 
-  // App Data
+  // App Data (Loaded ONLY from Supabase)
   const [classes, setClasses] = useState<ClassItem[]>([]);
-  const [allUsers, setAllUsers] = useState<UserProfile[]>([]);
+  const [classesLoading, setClassesLoading] = useState(false);
+  const [classesError, setClassesError] = useState<string | null>(null);
+
+  // Pending Admin Requests (Owner only)
+  const [pendingRequestsCount, setPendingRequestsCount] = useState(0);
 
   // Modals
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
+  const [isResetPasswordModalOpen, setIsResetPasswordModalOpen] = useState(false);
 
-  // Sync URL Path for Secret /admin Route
+  // Sync /admin URL Route
   useEffect(() => {
     const handleLocation = () => {
       const path = window.location.pathname;
       if (path === '/admin') {
         setActiveView('admin');
+      } else {
+        if (activeView === 'admin') {
+          setActiveView('dashboard');
+        }
       }
     };
 
@@ -41,7 +56,6 @@ export default function App() {
     return () => window.removeEventListener('popstate', handleLocation);
   }, []);
 
-  // Sync view navigation to window history
   const navigateToView = (view: 'dashboard' | 'class' | 'admin') => {
     setActiveView(view);
     if (view === 'admin') {
@@ -51,116 +65,199 @@ export default function App() {
     }
   };
 
-  // Initialize App Data
-  useEffect(() => {
-    const existing = getCurrentUser();
-    if (existing) {
-      setCurrentUserState(existing);
-    } else {
-      // Default to initial parent user for immediate preview
-      const initialUsers = getStoredUsers();
-      const defaultParent = initialUsers.find((u) => u.role === 'parent') || initialUsers[0];
-      setCurrentUserState(defaultParent);
-      setCurrentUser(defaultParent);
-    }
-
-    const loadedClasses = getStoredClasses();
-    setClasses(loadedClasses);
-
-    const loadedUsers = getStoredUsers();
-    setAllUsers(loadedUsers);
-
-    // Fetch classes from Supabase if configured
-    if (isSupabaseConfigured && supabase) {
-      supabase
-        .from('classes')
+  // Fetch User Profile by Auth ID
+  const fetchUserProfile = useCallback(async (userId: string): Promise<UserProfile | null> => {
+    if (!isSupabaseConfigured || !supabase) return null;
+    try {
+      const { data, error } = await supabase
+        .from('profiles')
         .select('*')
-        .order('class_number', { ascending: true })
-        .then(({ data, error }) => {
-          if (data && !error && data.length > 0) {
-            setClasses(data);
-            saveStoredClasses(data);
-          }
-        });
+        .eq('id', userId)
+        .maybeSingle();
+
+      if (error) {
+        console.error('Error fetching user profile:', error);
+        return null;
+      }
+      return data;
+    } catch (err) {
+      console.error(err);
+      return null;
     }
   }, []);
 
-  // Handle Logout
-  const handleLogout = () => {
-    setCurrentUser(null);
-    setCurrentUserState(null);
-    navigateToView('dashboard');
-    setCurrentClass(null);
-  };
+  // Fetch Pending Requests Count (Owner only)
+  const fetchPendingRequestsCount = useCallback(async () => {
+    if (!isSupabaseConfigured || !supabase || !currentUser) return;
+    if (currentUser.email.toLowerCase() !== OWNER_EMAIL) return;
 
-  // Admin Actions: Save Class
-  const handleSaveClass = (updatedClass: ClassItem) => {
-    const exists = classes.some((c) => c.id === updatedClass.id);
-    let nextList: ClassItem[] = [];
-    if (exists) {
-      nextList = classes.map((c) => (c.id === updatedClass.id ? updatedClass : c));
+    try {
+      const { count, error } = await supabase
+        .from('admin_requests')
+        .select('*', { count: 'exact', head: true })
+        .eq('status', 'pending');
+
+      if (!error && count !== null) {
+        setPendingRequestsCount(count);
+      }
+    } catch (err) {
+      console.error('Error fetching pending requests count:', err);
+    }
+  }, [currentUser]);
+
+  // Fetch Classes from Supabase ONLY
+  const fetchClasses = useCallback(async () => {
+    if (!isSupabaseConfigured || !supabase) return;
+    try {
+      setClassesLoading(true);
+      setClassesError(null);
+      const { data, error } = await supabase
+        .from('classes')
+        .select('*')
+        .order('class_number', { ascending: true });
+
+      if (error) {
+        setClassesError(error.message);
+        console.error('Error fetching classes:', error);
+      } else {
+        setClasses(data || []);
+      }
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'ক্লাস লোড করতে ব্যর্থ হয়েছে';
+      setClassesError(msg);
+    } finally {
+      setClassesLoading(false);
+    }
+  }, []);
+
+  // Subscribe to real Supabase Auth State
+  useEffect(() => {
+    if (!isSupabaseConfigured || !supabase) {
+      setAuthLoading(false);
+      return;
+    }
+
+    // Initial session check
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (session?.user) {
+        fetchUserProfile(session.user.id).then((profile) => {
+          setCurrentUser(profile);
+          setAuthLoading(false);
+        });
+      } else {
+        setCurrentUser(null);
+        setAuthLoading(false);
+      }
+    });
+
+    // Auth state changes
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+      if (event === 'PASSWORD_RECOVERY') {
+        setIsResetPasswordModalOpen(true);
+      }
+
+      if (session?.user) {
+        const profile = await fetchUserProfile(session.user.id);
+        setCurrentUser(profile);
+      } else {
+        setCurrentUser(null);
+        if (activeView === 'class') {
+          setCurrentClass(null);
+        }
+      }
+      setAuthLoading(false);
+    });
+
+    return () => {
+      subscription.unsubscribe();
+    };
+  }, [fetchUserProfile]);
+
+  // Load Classes whenever an active user is logged in
+  useEffect(() => {
+    if (currentUser?.is_active) {
+      fetchClasses();
     } else {
-      nextList = [...classes, updatedClass];
+      setClasses([]);
     }
+  }, [currentUser?.id, currentUser?.is_active, currentUser?.role, fetchClasses]);
 
-    // Sort by class_number
-    nextList.sort((a, b) => a.class_number - b.class_number);
-
-    setClasses(nextList);
-    saveStoredClasses(nextList);
-
-    // Sync to Supabase
-    if (isSupabaseConfigured && supabase) {
-      supabase.from('classes').upsert(updatedClass);
+  // Load pending count for owner
+  useEffect(() => {
+    if (currentUser?.email.toLowerCase() === OWNER_EMAIL) {
+      fetchPendingRequestsCount();
     }
+  }, [currentUser, fetchPendingRequestsCount]);
+
+  // Handle Logout
+  const handleLogout = async () => {
+    if (supabase) {
+      await supabase.auth.signOut();
+    }
+    setCurrentUser(null);
+    setCurrentClass(null);
+    navigateToView('dashboard');
   };
 
-  // Admin Actions: Delete Class
-  const handleDeleteClass = (classId: string) => {
-    const nextList = classes.filter((c) => c.id !== classId);
-    setClasses(nextList);
-    saveStoredClasses(nextList);
+  // If Supabase credentials are not configured, display clear setup screen
+  if (!isSupabaseConfigured) {
+    return <SetupRequiredView />;
+  }
 
-    if (isSupabaseConfigured && supabase) {
-      supabase.from('classes').delete().eq('id', classId);
-    }
-  };
+  // Auth Loading Screen
+  if (authLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-slate-50 text-slate-500 text-xs">
+        <div className="flex flex-col items-center gap-3">
+          <div className="w-8 h-8 rounded-full border-2 border-orange-500 border-t-transparent animate-spin"></div>
+          <span>লোড হচ্ছে...</span>
+        </div>
+      </div>
+    );
+  }
 
-  // Admin Actions: Reorder Classes
-  const handleReorderClasses = (reorderedList: ClassItem[]) => {
-    setClasses(reorderedList);
-    saveStoredClasses(reorderedList);
-
-    if (isSupabaseConfigured && supabase) {
-      supabase.from('classes').upsert(reorderedList);
-    }
-  };
-
-  // Secret Admin Access (000 Trigger)
-  const handleAdminSecretLogin = () => {
-    const loadedUsers = getStoredUsers();
-    let adminUser = loadedUsers.find((u) => u.role === 'admin');
-    if (!adminUser) {
-      adminUser = {
-        id: 'user-admin-01',
-        email: 'admin@abacus.bd',
-        full_name: 'প্রধান এডমিন (000 Access)',
-        role: 'admin',
-        is_active: true,
-        created_at: new Date().toISOString(),
-      };
-      loadedUsers.push(adminUser);
-      saveStoredUsers(loadedUsers);
-    }
-    setCurrentUser(adminUser);
-    setCurrentUserState(adminUser);
-    navigateToView('admin');
-  };
+  // If User is logged in but deactivated
+  if (currentUser && !currentUser.is_active) {
+    return (
+      <div className="min-h-screen flex flex-col bg-slate-50">
+        <Header
+          currentUser={currentUser}
+          onLogout={handleLogout}
+          onOpenAuth={() => setIsAuthModalOpen(true)}
+          activeView={activeView}
+          setActiveView={navigateToView}
+        />
+        <main className="flex-1 flex items-center justify-center p-4">
+          <div className="max-w-md w-full bg-white p-8 rounded-3xl border border-rose-200 shadow-xl text-center space-y-4">
+            <div className="w-16 h-16 rounded-2xl bg-rose-100 text-rose-600 mx-auto flex items-center justify-center font-bold">
+              <AlertOctagon size={32} />
+            </div>
+            <h1 className="text-xl font-extrabold text-slate-900">
+              অ্যাকাউন্ট নিষ্ক্রিয় (Account Deactivated)
+            </h1>
+            <p className="text-xs text-slate-600 leading-relaxed">
+              আপনার অ্যাকাউন্টটি বর্তমানে নিষ্ক্রিয় করা আছে। পুনরায় সক্রিয় করতে অনুগ্রহ করে হেল্পডেস্ক বা প্রধান এডমিনের সাথে যোগাযোগ করুন।
+            </p>
+            <div className="pt-2">
+              <button
+                onClick={handleLogout}
+                className="px-5 py-2.5 bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs rounded-xl shadow-xs transition-all inline-flex items-center gap-2 cursor-pointer"
+              >
+                <LogOut size={16} />
+                লগআউট করুন
+              </button>
+            </div>
+          </div>
+        </main>
+        <Footer />
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen flex flex-col bg-slate-50 text-slate-900 selection:bg-orange-500 selection:text-white">
       
-      {/* Minimal Header (No Admin links or buttons) */}
+      {/* Clean Header */}
       <Header
         currentUser={currentUser}
         onLogout={handleLogout}
@@ -170,34 +267,37 @@ export default function App() {
           navigateToView(v);
           if (v !== 'class') setCurrentClass(null);
         }}
+        pendingRequestsCount={pendingRequestsCount}
       />
 
       {/* Main Content Area */}
       <main className="flex-1">
         
-        {/* LOGIN GUARD FOR PARENT PORTAL */}
+        {/* ======================================================== */}
+        {/* LOGIN GUARD: Unauthenticated visitors see ONLY login screen */}
+        {/* ======================================================== */}
         {!currentUser ? (
           <div className="max-w-4xl mx-auto px-4 py-16 text-center space-y-8">
             <div className="bg-gradient-to-r from-orange-500 to-amber-500 rounded-3xl p-8 sm:p-12 text-white shadow-xl space-y-4">
               <span className="px-3.5 py-1 bg-white/20 text-white rounded-full font-bold text-xs inline-block">
-                অ্যাবাকাস Parent Training
+                {settings.login_badge || 'অ্যাবাকাস Parent Training'}
               </span>
 
               <h1 className="text-3xl sm:text-4xl font-extrabold tracking-tight">
-                আপনার সন্তানকে ঘরে বসেই প্রফেশনাল উপায়ে অ্যাবাকাস শেখান
+                {settings.login_headline || 'আপনার সন্তানকে ঘরে বসেই প্রফেশনাল উপায়ে অ্যাবাকাস শেখান'}
               </h1>
 
               <p className="text-sm text-orange-100 max-w-xl mx-auto leading-relaxed">
-                কোর্স কন্টেন্ট ও ভিডিও লেসন দেখতে আপনার নিবন্ধিত অ্যাকাউন্ট দিয়ে লগইন করুন।
+                {settings.login_subtext || 'কোর্স কন্টেন্ট ও ভিডিও লেসন দেখতে আপনার নিবন্ধিত অ্যাকাউন্ট দিয়ে লগইন করুন।'}
               </p>
 
               <div className="pt-4 flex items-center justify-center">
                 <button
                   onClick={() => setIsAuthModalOpen(true)}
-                  className="px-6 py-3 bg-white text-orange-600 hover:bg-orange-50 font-extrabold text-sm rounded-xl shadow-md transition-all flex items-center gap-2"
+                  className="px-6 py-3 bg-white text-orange-600 hover:bg-orange-50 font-extrabold text-sm rounded-xl shadow-md transition-all flex items-center gap-2 cursor-pointer"
                 >
                   <BookOpen size={18} />
-                  লগইন করুন
+                  {settings.login_button_label || 'লগইন করুন'}
                 </button>
               </div>
             </div>
@@ -206,13 +306,29 @@ export default function App() {
           <>
             {/* VIEW 1: DASHBOARD (Class List) */}
             {activeView === 'dashboard' && (
-              <Dashboard
-                classes={classes}
-                onSelectClass={(cls) => {
-                  setCurrentClass(cls);
-                  navigateToView('class');
-                }}
-              />
+              <>
+                {classesLoading && (
+                  <div className="py-16 text-center text-xs text-slate-400">
+                    ক্লাস লোড হচ্ছে...
+                  </div>
+                )}
+                {classesError && (
+                  <div className="max-w-4xl mx-auto px-4 py-6">
+                    <div className="p-4 bg-rose-50 border border-rose-200 text-rose-800 rounded-2xl text-xs">
+                      {classesError}
+                    </div>
+                  </div>
+                )}
+                {!classesLoading && !classesError && (
+                  <Dashboard
+                    classes={classes}
+                    onSelectClass={(cls) => {
+                      setCurrentClass(cls);
+                      navigateToView('class');
+                    }}
+                  />
+                )}
+              </>
             )}
 
             {/* VIEW 2: CLASS PAGE (Title, Description, Video Player) */}
@@ -220,6 +336,7 @@ export default function App() {
               <ClassView
                 currentClass={currentClass}
                 allClasses={classes}
+                currentUser={currentUser}
                 onBackToDashboard={() => {
                   navigateToView('dashboard');
                   setCurrentClass(null);
@@ -227,22 +344,26 @@ export default function App() {
               />
             )}
 
-            {/* SECRET /admin ROUTE HANDLING */}
+            {/* VIEW 3: /admin ROUTE HANDLING */}
             {activeView === 'admin' && (
               currentUser.role === 'admin' ? (
                 <AdminPanel
                   currentUser={currentUser}
                   classes={classes}
-                  onSaveClass={handleSaveClass}
-                  onDeleteClass={handleDeleteClass}
-                  onReorderClasses={handleReorderClasses}
+                  onReloadClasses={fetchClasses}
                   onBackToDashboard={() => navigateToView('dashboard')}
+                  pendingRequestsCount={pendingRequestsCount}
+                  onRefreshPendingCount={fetchPendingRequestsCount}
                 />
               ) : (
-                /* ACCESS DENIED FOR NON-ADMIN PARENTS */
+                /* ACCESS DENIED FOR NON-ADMIN PARENTS - REQUEST ACCESS WORKFLOW */
                 <AccessDeniedView
+                  currentUser={currentUser}
                   onGoHome={() => navigateToView('dashboard')}
-                  onSwitchToAdmin={handleAdminSecretLogin}
+                  onRefreshProfile={async () => {
+                    const updated = await fetchUserProfile(currentUser.id);
+                    if (updated) setCurrentUser(updated);
+                  }}
                 />
               )
             )}
@@ -251,15 +372,25 @@ export default function App() {
 
       </main>
 
-      {/* Clean Footer with Secret 000 Admin Trigger */}
-      <Footer onOpenAdminSecret={handleAdminSecretLogin} />
+      {/* Clean Footer with Site Settings */}
+      <Footer />
 
       {/* Auth Modal */}
       <AuthModal
         isOpen={isAuthModalOpen}
         onClose={() => setIsAuthModalOpen(false)}
         onLoginSuccess={(user) => {
-          setCurrentUserState(user);
+          setCurrentUser(user);
+          navigateToView('dashboard');
+        }}
+      />
+
+      {/* Password Recovery Modal */}
+      <ResetPasswordModal
+        isOpen={isResetPasswordModalOpen}
+        onClose={() => setIsResetPasswordModalOpen(false)}
+        onSuccess={() => {
+          setIsResetPasswordModalOpen(false);
           navigateToView('dashboard');
         }}
       />

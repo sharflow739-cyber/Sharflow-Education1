@@ -1,16 +1,18 @@
 import React from 'react';
-import { ClassItem } from '../types';
+import { ClassItem, UserProfile } from '../types';
 import { VideoPlayer } from './VideoPlayer';
 import { ArrowLeft } from 'lucide-react';
 
 interface ClassViewProps {
   currentClass: ClassItem;
   allClasses: ClassItem[];
+  currentUser?: UserProfile | null;
   onBackToDashboard: () => void;
 }
 
 export const ClassView: React.FC<ClassViewProps> = ({
   currentClass,
+  currentUser,
   onBackToDashboard,
 }) => {
   const classNumDisplay = currentClass.class_number < 10 
@@ -43,10 +45,12 @@ export const ClassView: React.FC<ClassViewProps> = ({
         </h1>
       </div>
 
-      {/* Embedded 16:9 Responsive Video Player */}
+      {/* Embedded 16:9 Responsive Video Player with viewer watermark info */}
       <VideoPlayer
         videoUrl={currentClass.video_url || currentClass.youtube_video_id}
         title={currentClass.title}
+        viewerEmail={currentUser?.email}
+        viewerPhone={currentUser?.phone}
       />
 
       {/* Short Class Description */}
@@ -55,7 +59,7 @@ export const ClassView: React.FC<ClassViewProps> = ({
           <h2 className="text-xs font-bold text-slate-400 uppercase tracking-wider">
             ক্লাস বিবরণ
           </h2>
-          <p className="text-sm text-slate-700 leading-relaxed">
+          <p className="text-sm text-slate-700 leading-relaxed whitespace-pre-line">
             {currentClass.description || currentClass.short_intro}
           </p>
         </div>

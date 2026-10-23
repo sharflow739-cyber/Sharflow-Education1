@@ -24,3 +24,35 @@
 ::-webkit-scrollbar-thumb:hover {
   background: #94a3b8;
 }
+
+@keyframes watermarkDrift {
+  0% {
+    top: 12%;
+    left: 8%;
+    opacity: 0.25;
+  }
+  25% {
+    top: 28%;
+    left: 50%;
+    opacity: 0.35;
+  }
+  50% {
+    top: 40%;
+    left: 30%;
+    opacity: 0.22;
+  }
+  75% {
+    top: 18%;
+    left: 45%;
+    opacity: 0.32;
+  }
+  100% {
+    top: 12%;
+    left: 8%;
+    opacity: 0.25;
+  }
+}
+
+.animate-watermark-drift {
+  animation: watermarkDrift 28s ease-in-out infinite;
+}

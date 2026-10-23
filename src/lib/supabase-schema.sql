@@ -1,161 +1,258 @@
--- ====================================================================
--- SUPABASE DATABASE SCHEMA FOR ABACUS PARENT TRAINING PROGRAM
--- ====================================================================
+-- =====================================================================
+-- ABACUS PARENT TRAINING - SECURE SCHEMA (idempotent, safe to re-run)
+-- Owner email: rssharifu@gmail.com
+-- Run once in Supabase -> SQL Editor.
+-- =====================================================================
 
--- 1. EXTENSIONS
-CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
+create extension if not exists "uuid-ossp";
 
--- 2. PROFILES TABLE
-CREATE TABLE IF NOT EXISTS public.profiles (
-  id UUID REFERENCES auth.users(id) ON DELETE CASCADE PRIMARY KEY,
-  email TEXT UNIQUE NOT NULL,
-  full_name TEXT NOT NULL,
-  phone TEXT,
-  role TEXT NOT NULL DEFAULT 'parent' CHECK (role IN ('parent', 'admin')),
-  is_active BOOLEAN NOT NULL DEFAULT true,
-  child_name TEXT,
-  child_age INTEGER,
-  created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
+-- ---------------------------------------------------------------------
+-- 1. HELPER FUNCTIONS (SECURITY DEFINER avoids RLS recursion on profiles)
+-- ---------------------------------------------------------------------
+create or replace function public.owner_email() returns text
+language sql immutable as $$ select 'rssharifu@gmail.com'::text $$;
+
+-- profiles table (kept compatible with the old one)
+create table if not exists public.profiles (
+  id uuid references auth.users(id) on delete cascade primary key,
+  email text unique not null,
+  full_name text not null,
+  phone text,
+  role text not null default 'parent' check (role in ('parent','admin')),
+  is_active boolean not null default true,
+  child_name text,
+  child_age integer,
+  created_at timestamptz not null default timezone('utc', now())
 );
 
--- 3. COURSES TABLE
-CREATE TABLE IF NOT EXISTS public.courses (
-  id TEXT PRIMARY KEY,
-  title TEXT NOT NULL,
-  description TEXT NOT NULL,
-  total_classes INTEGER NOT NULL DEFAULT 8,
-  badge TEXT,
-  created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
-);
+create or replace function public.is_admin() returns boolean
+language sql security definer stable set search_path = public as $$
+  select exists (
+    select 1 from public.profiles p
+    where p.id = auth.uid() and p.role = 'admin' and p.is_active
+  )
+$$;
 
--- 4. CLASSES TABLE
-CREATE TABLE IF NOT EXISTS public.classes (
-  id TEXT PRIMARY KEY,
-  course_id TEXT REFERENCES public.courses(id) ON DELETE CASCADE,
-  class_number INTEGER NOT NULL,
-  title TEXT NOT NULL,
-  title_en TEXT,
-  short_intro TEXT NOT NULL,
-  youtube_video_id TEXT NOT NULL,
-  duration_minutes INTEGER NOT NULL DEFAULT 15,
-  practice_instructions JSONB NOT NULL DEFAULT '[]'::jsonb,
-  homework_title TEXT NOT NULL,
-  homework_instructions TEXT NOT NULL,
-  is_locked_by_default BOOLEAN NOT NULL DEFAULT true,
-  module_name TEXT NOT NULL,
-  created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL,
-  UNIQUE(course_id, class_number)
-);
+-- owner = admin AND the signed JWT email equals the owner email
+create or replace function public.is_owner() returns boolean
+language sql security definer stable set search_path = public as $$
+  select public.is_admin()
+     and lower(coalesce(auth.jwt() ->> 'email', '')) = public.owner_email()
+$$;
 
--- 5. PROGRESS TABLE
-CREATE TABLE IF NOT EXISTS public.progress (
-  id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
-  user_id UUID REFERENCES public.profiles(id) ON DELETE CASCADE NOT NULL,
-  class_id TEXT REFERENCES public.classes(id) ON DELETE CASCADE NOT NULL,
-  is_completed BOOLEAN NOT NULL DEFAULT false,
-  completed_at TIMESTAMP WITH TIME ZONE,
-  homework_submission TEXT,
-  updated_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL,
-  UNIQUE(user_id, class_id)
-);
+create or replace function public.is_active_user() returns boolean
+language sql security definer stable set search_path = public as $$
+  select exists (select 1 from public.profiles p where p.id = auth.uid() and p.is_active)
+$$;
 
--- 6. HOMEWORK SUBMISSIONS TABLE
-CREATE TABLE IF NOT EXISTS public.homework_submissions (
-  id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
-  user_id UUID REFERENCES public.profiles(id) ON DELETE CASCADE NOT NULL,
-  class_id TEXT REFERENCES public.classes(id) ON DELETE CASCADE NOT NULL,
-  answer_text TEXT NOT NULL,
-  status TEXT NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'approved', 'needs_revision')),
-  feedback TEXT,
-  submitted_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
-);
-
--- 7. ANNOUNCEMENTS TABLE
-CREATE TABLE IF NOT EXISTS public.announcements (
-  id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
-  title TEXT NOT NULL,
-  content TEXT NOT NULL,
-  date DATE DEFAULT CURRENT_DATE NOT NULL,
-  is_important BOOLEAN DEFAULT false,
-  created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
-);
-
--- ====================================================================
--- ROW LEVEL SECURITY (RLS) POLICIES
--- ====================================================================
-
-ALTER TABLE public.profiles ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.courses ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.classes ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.progress ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.homework_submissions ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.announcements ENABLE ROW LEVEL SECURITY;
-
--- PROFILES POLICIES
-CREATE POLICY "Users can view their own profile or Admins can view all" 
-ON public.profiles FOR SELECT 
-USING (auth.uid() = id OR EXISTS (SELECT 1 FROM public.profiles WHERE id = auth.uid() AND role = 'admin'));
-
-CREATE POLICY "Users can update their own profile" 
-ON public.profiles FOR UPDATE 
-USING (auth.uid() = id);
-
--- COURSES & CLASSES POLICIES (Public read for authenticated users)
-CREATE POLICY "Authenticated users can view courses" 
-ON public.courses FOR SELECT 
-TO authenticated 
-USING (true);
-
-CREATE POLICY "Admins can manage courses" 
-ON public.courses FOR ALL 
-USING (EXISTS (SELECT 1 FROM public.profiles WHERE id = auth.uid() AND role = 'admin'));
-
-CREATE POLICY "Authenticated users can view active classes" 
-ON public.classes FOR SELECT 
-TO authenticated 
-USING (true);
-
-CREATE POLICY "Admins can insert/update/delete classes" 
-ON public.classes FOR ALL 
-USING (EXISTS (SELECT 1 FROM public.profiles WHERE id = auth.uid() AND role = 'admin'));
-
--- PROGRESS POLICIES
-CREATE POLICY "Users can view and update their own progress" 
-ON public.progress FOR ALL 
-USING (auth.uid() = user_id OR EXISTS (SELECT 1 FROM public.profiles WHERE id = auth.uid() AND role = 'admin'));
-
--- HOMEWORK SUBMISSIONS POLICIES
-CREATE POLICY "Users can view and submit their homework" 
-ON public.homework_submissions FOR ALL 
-USING (auth.uid() = user_id OR EXISTS (SELECT 1 FROM public.profiles WHERE id = auth.uid() AND role = 'admin'));
-
--- ANNOUNCEMENTS POLICIES
-CREATE POLICY "Authenticated users can read announcements" 
-ON public.announcements FOR SELECT 
-TO authenticated 
-USING (true);
-
-CREATE POLICY "Admins can manage announcements" 
-ON public.announcements FOR ALL 
-USING (EXISTS (SELECT 1 FROM public.profiles WHERE id = auth.uid() AND role = 'admin'));
-
--- ====================================================================
--- AUTO-CREATE PROFILE TRIGGER ON SIGNUP
--- ====================================================================
-CREATE OR REPLACE FUNCTION public.handle_new_user()
-RETURNS trigger AS $$
-BEGIN
-  INSERT INTO public.profiles (id, email, full_name, role)
-  VALUES (
+-- ---------------------------------------------------------------------
+-- 2. SIGNUP TRIGGER: role is NEVER taken from client metadata.
+--    Only the owner email becomes admin. Everyone else is 'parent'.
+-- ---------------------------------------------------------------------
+create or replace function public.handle_new_user() returns trigger
+language plpgsql security definer set search_path = public as $$
+begin
+  insert into public.profiles (id, email, full_name, phone, role, is_active, child_name, child_age)
+  values (
     new.id,
     new.email,
-    COALESCE(new.raw_user_meta_data->>'full_name', 'অভিভাবক'),
-    COALESCE(new.raw_user_meta_data->>'role', 'parent')
-  );
-  RETURN new;
-END;
-$$ LANGUAGE plpgsql SECURITY DEFINER;
+    coalesce(nullif(new.raw_user_meta_data ->> 'full_name', ''), 'অভিভাবক'),
+    new.raw_user_meta_data ->> 'phone',
+    case when lower(new.email) = public.owner_email() then 'admin' else 'parent' end,
+    true,
+    new.raw_user_meta_data ->> 'child_name',
+    nullif(new.raw_user_meta_data ->> 'child_age', '')::int
+  )
+  on conflict (id) do nothing;
+  return new;
+end $$;
 
-CREATE OR REPLACE TRIGGER on_auth_user_created
-  AFTER INSERT ON auth.users
-  FOR EACH ROW EXECUTE FUNCTION public.handle_new_user();
+drop trigger if exists on_auth_user_created on auth.users;
+create trigger on_auth_user_created
+  after insert on auth.users
+  for each row execute function public.handle_new_user();
+
+-- ---------------------------------------------------------------------
+-- 3. GUARD: normal users cannot change role / is_active / email.
+--    Only the owner can change roles. The owner can never be demoted.
+-- ---------------------------------------------------------------------
+create or replace function public.guard_profile_update() returns trigger
+language plpgsql security definer set search_path = public as $$
+begin
+  if auth.uid() is not null and not public.is_admin() then
+    if new.role is distinct from old.role
+       or new.is_active is distinct from old.is_active
+       or new.email is distinct from old.email
+       or new.id is distinct from old.id then
+      raise exception 'Not allowed to change role, status or email';
+    end if;
+  end if;
+  if auth.uid() is not null and new.role is distinct from old.role and not public.is_owner() then
+    raise exception 'Only the owner can change roles';
+  end if;
+  if lower(old.email) = public.owner_email() and (new.role <> 'admin' or new.is_active = false) then
+    raise exception 'The owner account cannot be demoted or deactivated';
+  end if;
+  return new;
+end $$;
+
+drop trigger if exists guard_profile_update on public.profiles;
+create trigger guard_profile_update
+  before update on public.profiles
+  for each row execute function public.guard_profile_update();
+
+-- ---------------------------------------------------------------------
+-- 4. ADMIN ACCESS REQUESTS (pending until the owner approves)
+-- ---------------------------------------------------------------------
+create table if not exists public.admin_requests (
+  id uuid primary key default uuid_generate_v4(),
+  user_id uuid not null unique references public.profiles(id) on delete cascade,
+  email text not null,
+  full_name text,
+  status text not null default 'pending' check (status in ('pending','approved','rejected')),
+  created_at timestamptz not null default now(),
+  decided_at timestamptz
+);
+
+create or replace function public.request_admin_access() returns void
+language plpgsql security definer set search_path = public as $$
+declare p public.profiles;
+begin
+  select * into p from public.profiles where id = auth.uid() and is_active;
+  if p.id is null then raise exception 'Not signed in'; end if;
+  if p.role = 'admin' then return; end if;
+  insert into public.admin_requests (user_id, email, full_name)
+  values (p.id, p.email, p.full_name)
+  on conflict (user_id) do update
+    set status = 'pending', decided_at = null
+    where public.admin_requests.status = 'rejected';
+end $$;
+
+create or replace function public.decide_admin_request(req_id uuid, approve boolean) returns void
+language plpgsql security definer set search_path = public as $$
+declare r public.admin_requests;
+begin
+  if not public.is_owner() then raise exception 'Only the owner can decide admin requests'; end if;
+  select * into r from public.admin_requests where id = req_id;
+  if r.id is null then raise exception 'Request not found'; end if;
+  update public.admin_requests
+     set status = case when approve then 'approved' else 'rejected' end,
+         decided_at = now()
+   where id = req_id;
+  update public.profiles
+     set role = case when approve then 'admin' else 'parent' end
+   where id = r.user_id;
+end $$;
+
+-- ---------------------------------------------------------------------
+-- 5. SITE SETTINGS (editable from the admin panel; single row)
+-- ---------------------------------------------------------------------
+create table if not exists public.site_settings (
+  id int primary key default 1 check (id = 1),
+  data jsonb not null default '{}'::jsonb,
+  updated_at timestamptz not null default now()
+);
+insert into public.site_settings (id) values (1) on conflict do nothing;
+
+-- ---------------------------------------------------------------------
+-- 6. CLASSES: migrate to the columns the app really uses
+-- ---------------------------------------------------------------------
+create table if not exists public.classes (
+  id text primary key,
+  class_number int not null,
+  title text not null
+);
+alter table public.classes add column if not exists description text not null default '';
+alter table public.classes add column if not exists video_url text not null default '';
+alter table public.classes add column if not exists is_published boolean not null default true;
+alter table public.classes add column if not exists created_at timestamptz default now();
+
+-- old schema had many NOT NULL columns the app never fills; relax them
+do $$
+declare c record;
+begin
+  for c in
+    select column_name from information_schema.columns
+    where table_schema = 'public' and table_name = 'classes' and is_nullable = 'NO'
+      and column_name not in ('id','class_number','title','description','video_url','is_published')
+  loop
+    execute format('alter table public.classes alter column %I drop not null', c.column_name);
+  end loop;
+end $$;
+
+-- ---------------------------------------------------------------------
+-- 7. ROW LEVEL SECURITY
+-- ---------------------------------------------------------------------
+alter table public.profiles enable row level security;
+alter table public.admin_requests enable row level security;
+alter table public.site_settings enable row level security;
+alter table public.classes enable row level security;
+
+-- drop every old policy (names from the previous schema + new names)
+do $$
+declare pol record;
+begin
+  for pol in
+    select schemaname, tablename, policyname from pg_policies
+    where schemaname = 'public'
+      and tablename in ('profiles','admin_requests','site_settings','classes',
+                        'courses','progress','homework_submissions','announcements')
+  loop
+    execute format('drop policy if exists %I on %I.%I', pol.policyname, pol.schemaname, pol.tablename);
+  end loop;
+end $$;
+
+-- profiles
+create policy profiles_select on public.profiles for select to authenticated
+  using (id = auth.uid() or public.is_admin());
+create policy profiles_update_self on public.profiles for update to authenticated
+  using (id = auth.uid()) with check (id = auth.uid());
+create policy profiles_update_admin on public.profiles for update to authenticated
+  using (public.is_admin()) with check (public.is_admin());
+
+-- admin_requests: read own, owner reads all; writes only through the two functions
+create policy admin_requests_select on public.admin_requests for select to authenticated
+  using (user_id = auth.uid() or public.is_owner());
+
+-- site_settings: public read (login page + footer need it), admin write
+create policy site_settings_read on public.site_settings for select to anon, authenticated
+  using (true);
+create policy site_settings_insert on public.site_settings for insert to authenticated
+  with check (public.is_admin());
+create policy site_settings_update on public.site_settings for update to authenticated
+  using (public.is_admin()) with check (public.is_admin());
+
+-- classes: only active signed-in users see PUBLISHED classes; admins see/manage all
+create policy classes_read on public.classes for select to authenticated
+  using (public.is_active_user() and (is_published or public.is_admin()));
+create policy classes_admin_write on public.classes for all to authenticated
+  using (public.is_admin()) with check (public.is_admin());
+
+-- legacy tables (unused by the app now) - keep them locked down
+do $$
+begin
+  if to_regclass('public.courses') is not null then
+    execute 'alter table public.courses enable row level security';
+    execute 'create policy courses_read on public.courses for select to authenticated using (public.is_active_user())';
+    execute 'create policy courses_admin on public.courses for all to authenticated using (public.is_admin()) with check (public.is_admin())';
+  end if;
+  if to_regclass('public.progress') is not null then
+    execute 'alter table public.progress enable row level security';
+    execute 'create policy progress_own on public.progress for all to authenticated using (user_id = auth.uid() or public.is_admin()) with check (user_id = auth.uid() or public.is_admin())';
+  end if;
+  if to_regclass('public.homework_submissions') is not null then
+    execute 'alter table public.homework_submissions enable row level security';
+    execute 'create policy homework_own on public.homework_submissions for all to authenticated using (user_id = auth.uid() or public.is_admin()) with check (user_id = auth.uid() or public.is_admin())';
+  end if;
+  if to_regclass('public.announcements') is not null then
+    execute 'alter table public.announcements enable row level security';
+    execute 'create policy announcements_read on public.announcements for select to authenticated using (public.is_active_user())';
+    execute 'create policy announcements_admin on public.announcements for all to authenticated using (public.is_admin()) with check (public.is_admin())';
+  end if;
+end $$;
+
+-- ---------------------------------------------------------------------
+-- 8. ONE-TIME: if the owner already has an account, promote it now
+-- ---------------------------------------------------------------------
+update public.profiles set role = 'admin', is_active = true
+where lower(email) = public.owner_email();

@@ -1,16 +1,24 @@
 import React, { useState } from 'react';
 import { UserProfile } from '../types';
-import { supabase, isSupabaseConfigured, getStoredUsers, saveStoredUsers, setCurrentUser } from '../lib/supabase';
-import { X, Lock, Mail, User, Phone, Sparkles, CheckCircle2, AlertCircle } from 'lucide-react';
+import { supabase, isSupabaseConfigured } from '../lib/supabase';
+import { useSettings } from '../contexts/SettingsContext';
+import { X, Lock, Mail, User, Phone, CheckCircle2, AlertCircle } from 'lucide-react';
 
 interface AuthModalProps {
   isOpen: boolean;
   onClose: () => void;
   onLoginSuccess: (user: UserProfile) => void;
+  initialTab?: 'login' | 'register' | 'forgot';
 }
 
-export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSuccess }) => {
-  const [activeTab, setActiveTab] = useState<'login' | 'register' | 'forgot'>('login');
+export const AuthModal: React.FC<AuthModalProps> = ({
+  isOpen,
+  onClose,
+  onLoginSuccess,
+  initialTab = 'login',
+}) => {
+  const { settings } = useSettings();
+  const [activeTab, setActiveTab] = useState<'login' | 'register' | 'forgot'>(initialTab);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
@@ -25,94 +33,47 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSu
 
   if (!isOpen) return null;
 
-  // Instant fill for testing
-  const handleQuickDemoFill = (role: 'parent' | 'admin') => {
-    setError(null);
-    setSuccessMsg(null);
-    if (role === 'parent') {
-      setEmail('parent@abacus.bd');
-      setPassword('123456');
-    } else {
-      setEmail('admin@abacus.bd');
-      setPassword('admin123');
-    }
-  };
-
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
     setError(null);
     setSuccessMsg(null);
 
+    if (!isSupabaseConfigured || !supabase) {
+      setError('Supabase ডাটাবেজ কনফিগার করা হয়নি। .env ফাইলে VITE_SUPABASE_URL ও VITE_SUPABASE_ANON_KEY সেট করুন।');
+      setLoading(false);
+      return;
+    }
+
     try {
-      if (isSupabaseConfigured && supabase) {
-        // Real Supabase Auth Login
-        const { data, error: authErr } = await supabase.auth.signInWithPassword({
-          email,
-          password,
-        });
+      const { data, error: authErr } = await supabase.auth.signInWithPassword({
+        email: email.trim(),
+        password,
+      });
 
-        if (authErr) throw authErr;
+      if (authErr) throw authErr;
 
-        if (data.user) {
-          // Fetch profile
-          const { data: profileData } = await supabase
-            .from('profiles')
-            .select('*')
-            .eq('id', data.user.id)
-            .single();
+      if (data.user) {
+        // Fetch real profile from profiles table
+        const { data: profileData, error: profileErr } = await supabase
+          .from('profiles')
+          .select('*')
+          .eq('id', data.user.id)
+          .single();
 
-          const profile: UserProfile = profileData || {
-            id: data.user.id,
-            email: data.user.email || email,
-            full_name: data.user.user_metadata?.full_name || 'অভিভাবক',
-            role: 'parent',
-            is_active: true,
-            created_at: new Date().toISOString(),
-          };
+        if (profileErr) {
+          throw new Error('ব্যবহারকারীর প্রোফাইল পাওয়া যায়নি: ' + profileErr.message);
+        }
 
-          setCurrentUser(profile);
-          onLoginSuccess(profile);
-          onClose();
+        if (profileData && !profileData.is_active) {
+          await supabase.auth.signOut();
+          setError('আপনার অ্যাকাউন্টটি নিষ্ক্রিয় (Deactivated) করা আছে। এডমিনের সাথে যোগাযোগ করুন।');
           return;
         }
-      }
 
-      // Local Fallback Login Logic
-      const allUsers = getStoredUsers();
-      const foundUser = allUsers.find(
-        (u) => u.email.toLowerCase() === email.trim().toLowerCase()
-      );
-
-      if (!foundUser) {
-        // If demo user typed anything else, create or allow login
-        const newUser: UserProfile = {
-          id: `user-${Date.now()}`,
-          email,
-          full_name: fullName || email.split('@')[0] || 'অভিভাবক',
-          role: email.includes('admin') ? 'admin' : 'parent',
-          is_active: true,
-          phone,
-          child_name: childName || 'সন্তান',
-          created_at: new Date().toISOString(),
-        };
-        allUsers.push(newUser);
-        saveStoredUsers(allUsers);
-        setCurrentUser(newUser);
-        onLoginSuccess(newUser);
+        onLoginSuccess(profileData);
         onClose();
-        return;
       }
-
-      if (!foundUser.is_active) {
-        setError('আপনার অ্যাকাউন্টটি নিষ্ক্রিয় (Deactivated) করা আছে। এডমিনের সাথে যোগাযোগ করুন।');
-        setLoading(false);
-        return;
-      }
-
-      setCurrentUser(foundUser);
-      onLoginSuccess(foundUser);
-      onClose();
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : 'লগইন ব্যর্থ হয়েছে। সঠিক ইমেইল ও পাসওয়ার্ড দিন।';
       setError(message);
@@ -127,6 +88,18 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSu
     setError(null);
     setSuccessMsg(null);
 
+    if (!settings.allow_registration) {
+      setError('বর্তমানে নতুন অভিভাবক নিবন্ধন সাময়িকভাবে বন্ধ আছে।');
+      setLoading(false);
+      return;
+    }
+
+    if (!isSupabaseConfigured || !supabase) {
+      setError('Supabase ডাটাবেজ কনফিগার করা হয়নি।');
+      setLoading(false);
+      return;
+    }
+
     if (!email || !password || !fullName) {
       setError('অনুগ্রহ করে সকল প্রয়োজনীয় তথ্য প্রদান করুন।');
       setLoading(false);
@@ -134,68 +107,41 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSu
     }
 
     try {
-      if (isSupabaseConfigured && supabase) {
-        const { data, error: authErr } = await supabase.auth.signUp({
-          email,
-          password,
-          options: {
-            data: {
-              full_name: fullName,
-              phone,
-              child_name: childName,
-              child_age: childAge ? Number(childAge) : 7,
-              role: 'parent',
-            },
+      // NOTE: We deliberately do NOT send 'role' in client metadata!
+      // Server-side SQL trigger assigns role ('admin' only for owner email, else 'parent').
+      const { data, error: authErr } = await supabase.auth.signUp({
+        email: email.trim(),
+        password,
+        options: {
+          data: {
+            full_name: fullName.trim(),
+            phone: phone.trim(),
+            child_name: childName.trim(),
+            child_age: childAge ? Number(childAge) : null,
           },
-        });
+          emailRedirectTo: window.location.origin,
+        },
+      });
 
-        if (authErr) throw authErr;
+      if (authErr) throw authErr;
 
-        if (data.user) {
-          const profile: UserProfile = {
-            id: data.user.id,
-            email,
-            full_name: fullName,
-            phone,
-            role: 'parent',
-            is_active: true,
-            child_name: childName,
-            child_age: childAge ? Number(childAge) : 7,
-            created_at: new Date().toISOString(),
-          };
+      if (data.session && data.user) {
+        // Direct session created (email confirmation is off or auto-confirmed)
+        const { data: profileData } = await supabase
+          .from('profiles')
+          .select('*')
+          .eq('id', data.user.id)
+          .single();
 
-          setCurrentUser(profile);
-          onLoginSuccess(profile);
+        if (profileData) {
+          onLoginSuccess(profileData);
           onClose();
           return;
         }
       }
 
-      // Local Registration Fallback
-      const allUsers = getStoredUsers();
-      if (allUsers.some((u) => u.email.toLowerCase() === email.trim().toLowerCase())) {
-        setError('এই ইমেইল দিয়ে ইতোমধ্যেই একটি একাউন্ট খোলা আছে।');
-        setLoading(false);
-        return;
-      }
-
-      const newUser: UserProfile = {
-        id: `user-${Date.now()}`,
-        email,
-        full_name: fullName,
-        phone,
-        role: 'parent',
-        is_active: true,
-        child_name: childName,
-        child_age: childAge ? Number(childAge) : undefined,
-        created_at: new Date().toISOString(),
-      };
-
-      allUsers.push(newUser);
-      saveStoredUsers(allUsers);
-      setCurrentUser(newUser);
-      onLoginSuccess(newUser);
-      onClose();
+      // Email confirmation required
+      setSuccessMsg('ইমেইল যাচাইকরণ লিংক পাঠানো হয়েছে! আপনার ইনবক্স চেক করে অ্যাকাউন্টটি নিশ্চিত করুন।');
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : 'নিবন্ধন ব্যর্থ হয়েছে। পুনরায় চেষ্টা করুন।';
       setError(message);
@@ -204,67 +150,62 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSu
     }
   };
 
-  const handleForgotPassword = (e: React.FormEvent) => {
+  const handleForgotPassword = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!email) {
       setError('পাসওয়ার্ড পুনরুদ্ধারের জন্য আপনার নিবন্ধিত ইমেইল প্রদান করুন।');
       return;
     }
-    setSuccessMsg(`পাসওয়ার্ড পুনর্বিন্যাস নির্দেশাবলী ${email} এ পাঠানো হয়েছে।`);
-    setError(null);
+
+    if (!isSupabaseConfigured || !supabase) {
+      setError('Supabase ডাটাবেজ কনফিগার করা হয়নি।');
+      return;
+    }
+
+    try {
+      setLoading(true);
+      setError(null);
+      setSuccessMsg(null);
+
+      const { error: resetErr } = await supabase.auth.resetPasswordForEmail(email.trim(), {
+        redirectTo: window.location.origin,
+      });
+
+      if (resetErr) throw resetErr;
+
+      setSuccessMsg(`পাসওয়ার্ড রিসেট লিংক আপনার ইমেইলে (${email}) পাঠানো হয়েছে। অনুগ্রহ করে ইনবক্স চেক করুন।`);
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'রিসেট লিংক পাঠানো ব্যর্থ হয়েছে।';
+      setError(msg);
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs animate-fade-in">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs">
       <div className="bg-white rounded-2xl max-w-md w-full shadow-2xl border border-orange-100 overflow-hidden relative">
         
         {/* Top Header Banner */}
         <div className="bg-gradient-to-r from-orange-500 to-amber-500 p-6 text-white relative">
           <button
             onClick={onClose}
-            className="absolute top-4 right-4 p-1.5 rounded-full bg-white/20 hover:bg-white/30 text-white transition-colors"
+            className="absolute top-4 right-4 p-1.5 rounded-full bg-white/20 hover:bg-white/30 text-white transition-colors cursor-pointer"
           >
             <X size={18} />
           </button>
           
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-xl bg-white/20 text-white flex items-center justify-center font-bold text-xl">
-              🧮
+              {settings.logo_emoji || '🧮'}
             </div>
             <div>
               <h3 className="font-extrabold text-xl leading-tight">
-                অ্যাবাকাস পেরেন্ট পোর্টালে স্বাগতম
+                {settings.site_name || 'অ্যাবাকাস পেরেন্ট পোর্টাল'}
               </h3>
               <p className="text-xs text-orange-100">
-                অভিভাবকদের প্রফেশনাল অনলাইন কোর্স প্ল্যাটফর্ম
+                {settings.site_subtitle || 'অভিভাবকদের প্রফেশনাল অনলাইন কোর্স প্ল্যাটফর্ম'}
               </p>
-            </div>
-          </div>
-
-          {/* Quick Fill Helper */}
-          <div className="mt-4 pt-3 border-t border-white/20 flex items-center justify-between gap-2 text-xs">
-            <span className="text-orange-100 text-[11px]">ডেমো লগইন টেস্ট:</span>
-            <div className="flex items-center gap-1.5">
-              <button
-                type="button"
-                onClick={() => {
-                  setActiveTab('login');
-                  handleQuickDemoFill('parent');
-                }}
-                className="px-2 py-1 bg-white/20 hover:bg-white/30 rounded text-[11px] font-bold text-white transition-colors flex items-center gap-1"
-              >
-                <Sparkles size={11} /> অভিভাবক ডেমো
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  setActiveTab('login');
-                  handleQuickDemoFill('admin');
-                }}
-                className="px-2 py-1 bg-white/20 hover:bg-white/30 rounded text-[11px] font-bold text-white transition-colors"
-              >
-                এডমিন ডেমো
-              </button>
             </div>
           </div>
         </div>
@@ -273,7 +214,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSu
         <div className="flex border-b border-slate-100 bg-slate-50">
           <button
             onClick={() => { setActiveTab('login'); setError(null); setSuccessMsg(null); }}
-            className={`flex-1 py-3 text-xs font-bold transition-all border-b-2 ${
+            className={`flex-1 py-3 text-xs font-bold transition-all border-b-2 cursor-pointer ${
               activeTab === 'login'
                 ? 'border-orange-500 text-orange-600 bg-white'
                 : 'border-transparent text-slate-500 hover:text-slate-800'
@@ -281,16 +222,18 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSu
           >
             লগইন (Login)
           </button>
-          <button
-            onClick={() => { setActiveTab('register'); setError(null); setSuccessMsg(null); }}
-            className={`flex-1 py-3 text-xs font-bold transition-all border-b-2 ${
-              activeTab === 'register'
-                ? 'border-orange-500 text-orange-600 bg-white'
-                : 'border-transparent text-slate-500 hover:text-slate-800'
-            }`}
-          >
-            নতুন অ্যাকাউন্ট (Register)
-          </button>
+          {settings.allow_registration && (
+            <button
+              onClick={() => { setActiveTab('register'); setError(null); setSuccessMsg(null); }}
+              className={`flex-1 py-3 text-xs font-bold transition-all border-b-2 cursor-pointer ${
+                activeTab === 'register'
+                  ? 'border-orange-500 text-orange-600 bg-white'
+                  : 'border-transparent text-slate-500 hover:text-slate-800'
+              }`}
+            >
+              নতুন অ্যাকাউন্ট (Register)
+            </button>
+          )}
         </div>
 
         {/* Content Body */}
@@ -325,7 +268,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSu
                     required
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
-                    placeholder="parent@example.com"
+                    placeholder="name@example.com"
                     className="w-full pl-9 pr-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium focus:bg-white focus:border-orange-500 focus:outline-none transition-colors"
                   />
                 </div>
@@ -338,8 +281,8 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSu
                   </label>
                   <button
                     type="button"
-                    onClick={() => setActiveTab('forgot')}
-                    className="text-[11px] font-semibold text-orange-600 hover:underline"
+                    onClick={() => { setActiveTab('forgot'); setError(null); setSuccessMsg(null); }}
+                    className="text-[11px] font-semibold text-orange-600 hover:underline cursor-pointer"
                   >
                     পাসওয়ার্ড ভুলে গেছেন?
                   </button>
@@ -360,9 +303,9 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSu
               <button
                 type="submit"
                 disabled={loading}
-                className="w-full py-2.5 bg-orange-500 hover:bg-orange-600 text-white font-bold text-xs rounded-xl shadow-md shadow-orange-500/20 transition-all active:scale-98 disabled:opacity-50"
+                className="w-full py-2.5 bg-orange-500 hover:bg-orange-600 text-white font-bold text-xs rounded-xl shadow-md shadow-orange-500/20 transition-all active:scale-98 disabled:opacity-50 cursor-pointer"
               >
-                {loading ? 'লগইন হচ্ছে...' : 'লগইন করুন (Login)'}
+                {loading ? 'লগইন হচ্ছে...' : (settings.login_button_label || 'লগইন করুন')}
               </button>
             </form>
           )}
@@ -372,7 +315,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSu
             <form onSubmit={handleRegister} className="space-y-3">
               <div>
                 <label className="block text-xs font-bold text-slate-700 mb-1">
-                  অভিভাবকের নাম (Parent's Full Name) *
+                  অভিভাবকের পূর্ণ নাম *
                 </label>
                 <div className="relative">
                   <User className="absolute left-3 top-2.5 text-slate-400" size={16} />
@@ -381,7 +324,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSu
                     required
                     value={fullName}
                     onChange={(e) => setFullName(e.target.value)}
-                    placeholder="মো: রফিকুল ইসলাম"
+                    placeholder="আপনার নাম"
                     className="w-full pl-9 pr-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium focus:bg-white focus:border-orange-500 focus:outline-none transition-colors"
                   />
                 </div>
@@ -389,7 +332,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSu
 
               <div>
                 <label className="block text-xs font-bold text-slate-700 mb-1">
-                  ইমেইল এড্রেস (Email) *
+                  ইমেইল এড্রেস *
                 </label>
                 <div className="relative">
                   <Mail className="absolute left-3 top-2.5 text-slate-400" size={16} />
@@ -398,7 +341,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSu
                     required
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
-                    placeholder="parent@example.com"
+                    placeholder="name@example.com"
                     className="w-full pl-9 pr-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium focus:bg-white focus:border-orange-500 focus:outline-none transition-colors"
                   />
                 </div>
@@ -415,7 +358,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSu
                       type="text"
                       value={phone}
                       onChange={(e) => setPhone(e.target.value)}
-                      placeholder="01712345678"
+                      placeholder="017XXXXXXXX"
                       className="w-full pl-8 pr-2 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium focus:bg-white focus:border-orange-500 focus:outline-none"
                     />
                   </div>
@@ -442,19 +385,19 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSu
               <div className="grid grid-cols-3 gap-2 bg-orange-50/60 p-2.5 rounded-xl border border-orange-100">
                 <div className="col-span-2">
                   <label className="block text-[11px] font-bold text-slate-700 mb-1">
-                    সন্তানের নাম (Child Name)
+                    সন্তানের নাম
                   </label>
                   <input
                     type="text"
                     value={childName}
                     onChange={(e) => setChildName(e.target.value)}
-                    placeholder="আফিয়া ইসলাম"
+                    placeholder="সন্তানের নাম"
                     className="w-full px-2.5 py-1.5 bg-white border border-slate-200 rounded-lg text-xs font-medium"
                   />
                 </div>
                 <div>
                   <label className="block text-[11px] font-bold text-slate-700 mb-1">
-                    বয়স (Age)
+                    বয়স
                   </label>
                   <input
                     type="number"
@@ -469,7 +412,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSu
               <button
                 type="submit"
                 disabled={loading}
-                className="w-full py-2.5 bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white font-bold text-xs rounded-xl shadow-md shadow-orange-500/20 transition-all disabled:opacity-50"
+                className="w-full py-2.5 bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white font-bold text-xs rounded-xl shadow-md shadow-orange-500/20 transition-all disabled:opacity-50 cursor-pointer"
               >
                 {loading ? 'নিবন্ধন করা হচ্ছে...' : 'অ্যাকাউন্ট তৈরি করুন (Register)'}
               </button>
@@ -480,7 +423,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSu
           {activeTab === 'forgot' && (
             <form onSubmit={handleForgotPassword} className="space-y-3">
               <p className="text-xs text-slate-600 leading-relaxed">
-                আপনার নিবন্ধিত ইমেইল এড্রেস লিখুন। আমরা একটি পাসওয়ার্ড পুনরুদ্ধারের সিকিউর লিংক পাঠাব।
+                আপনার নিবন্ধিত ইমেইল এড্রেস লিখুন। আমরা একটি পাসওয়ার্ড রিসেট লিংক পাঠাব।
               </p>
               <div>
                 <label className="block text-xs font-bold text-slate-700 mb-1">
@@ -493,7 +436,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSu
                     required
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
-                    placeholder="parent@example.com"
+                    placeholder="name@example.com"
                     className="w-full pl-9 pr-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium focus:bg-white focus:border-orange-500 focus:outline-none"
                   />
                 </div>
@@ -502,16 +445,17 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSu
               <div className="flex gap-2">
                 <button
                   type="button"
-                  onClick={() => setActiveTab('login')}
-                  className="flex-1 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs rounded-xl"
+                  onClick={() => { setActiveTab('login'); setError(null); setSuccessMsg(null); }}
+                  className="flex-1 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs rounded-xl cursor-pointer"
                 >
                   ফিরে যান
                 </button>
                 <button
                   type="submit"
-                  className="flex-1 py-2 bg-orange-500 hover:bg-orange-600 text-white font-bold text-xs rounded-xl shadow-xs"
+                  disabled={loading}
+                  className="flex-1 py-2 bg-orange-500 hover:bg-orange-600 text-white font-bold text-xs rounded-xl shadow-xs cursor-pointer disabled:opacity-50"
                 >
-                  লিংক পাঠান
+                  {loading ? 'পাঠানো হচ্ছে...' : 'লিংক পাঠান'}
                 </button>
               </div>
             </form>
