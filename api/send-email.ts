@@ -1,9 +1,9 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { createClient } from '@supabase/supabase-js';
+import nodemailer from 'nodemailer';
 
-// In-memory rate limiting maps (ephemeral per lambda container)
-const lastDecisionMap = new Map<string, number>(); // studentId -> timestamp
-const lastWelcomeMap = new Map<string, number>();  // userId -> timestamp
+// In-memory rate limiting map (studentId -> timestamp) to prevent spamming
+const lastDecisionMap = new Map<string, number>();
 
 function escapeHtml(str: string): string {
   return str
@@ -59,182 +59,24 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return res.status(401).json({ error: 'অবৈধ বা মেয়াদোত্তীর্ণ টোকেন (Invalid session)' });
   }
 
-  // 3. Parse request body
+  // 3. Parse request body (Only 'approved' and 'rejected' decisions are handled)
   const { type, studentId, reason } = (req.body || {}) as {
-    type?: 'registered' | 'approved' | 'rejected';
+    type?: 'approved' | 'rejected';
     studentId?: string;
     reason?: string;
   };
 
-  if (!type || (type !== 'registered' && type !== 'approved' && type !== 'rejected')) {
+  if (!type || (type !== 'approved' && type !== 'rejected')) {
     return res.status(400).json({
-      error: 'ভুল প্যারামিটার: type ("registered", "approved" বা "rejected") আবশ্যক',
+      error: 'ভুল প্যারামিটার: type ("approved" বা "rejected") আবশ্যক',
     });
   }
 
-  // Resend API configuration
-  const resendApiKey = process.env.RESEND_API_KEY;
-  const mailFrom = process.env.MAIL_FROM || 'অ্যাবাকাস Parent Training <onboarding@resend.dev>';
-  const siteName = process.env.SITE_NAME || 'অ্যাবাকাস Parent Training';
-  let siteUrl = process.env.SITE_URL || '';
-  if (!siteUrl && process.env.VERCEL_PROJECT_PRODUCTION_URL) {
-    siteUrl = `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}`;
-  }
-  if (!siteUrl) {
-    siteUrl = 'https://abacus-parent.vercel.app';
-  }
-
-  // ==========================================
-  // CASE 1: TYPE === 'registered' (Welcome Email)
-  // ==========================================
-  if (type === 'registered') {
-    // Caller only emails themselves
-    const { data: callerProfile, error: profileErr } = await userSupabase
-      .from('profiles')
-      .select('id, email, full_name, enrollment_status, created_at')
-      .eq('id', callerUser.id)
-      .single();
-
-    if (profileErr || !callerProfile) {
-      return res.status(404).json({ error: 'প্রোফাইল পাওয়া যায়নি' });
-    }
-
-    // Safety checks:
-    // 1. Enrollment status must be 'pending' (or default)
-    // 2. Created within the last 15 minutes
-    // 3. Not emailed in last 10 minutes (lastWelcomeMap)
-    const now = Date.now();
-    const createdAtMs = new Date(callerProfile.created_at || now).getTime();
-    const isRecentlyCreated = now - createdAtMs <= 15 * 60 * 1000;
-    const isPending = !callerProfile.enrollment_status || callerProfile.enrollment_status === 'pending';
-
-    const lastWelcome = lastWelcomeMap.get(callerUser.id);
-    const wasWelcomedRecently = lastWelcome && now - lastWelcome < 10 * 60 * 1000;
-
-    if (!isRecentlyCreated || !isPending || wasWelcomedRecently) {
-      // Idempotent return without sending duplicate email
-      return res.status(200).json({
-        skipped: true,
-        message: 'স্বাগতম ইমেইল ইতিমধ্যে পাঠানো হয়েছে অথবা প্রোফাইল পর্যালোচনায় নেই।',
-      });
-    }
-
-    if (!resendApiKey) {
-      console.warn('RESEND_API_KEY is not set on Vercel.');
-      return res.status(500).json({
-        error: 'RESEND_API_KEY পরিবেশ চলক (Environment Variable) Vercel-এ কনফিগার করা নেই।',
-      });
-    }
-
-    const safeName = escapeHtml(callerProfile.full_name || 'অভিভাবক');
-    const safeSiteName = escapeHtml(siteName);
-    const safeSiteUrl = escapeHtml(siteUrl);
-
-    const subject = `[${siteName}] রেজিস্ট্রেশন সফল — আবেদন পর্যালোচনাধীন`;
-    const text = `প্রিয় ${callerProfile.full_name || 'অভিভাবক'},\n\n` +
-      `অ্যাবাকাস পেরেন্ট ট্রেনিং প্রোগ্রামে আপনার রেজিস্ট্রেশন সফলভাবে সম্পন্ন হয়েছে।\n\n` +
-      `আমাদের টিম আপনার আবেদন পর্যালোচনা করছে (সাধারণত ২৪ ঘণ্টার মধ্যে)।\n` +
-      `আবেদন অনুমোদিত হলে আপনি আরেকটি ইমেইল পাবেন এবং ক্লাসে প্রবেশ করতে পারবেন।\n\n` +
-      `সাইট লিংক: ${siteUrl}\n\n` +
-      `ধন্যবাদ,\n${siteName} টিম`;
-
-    const html = `
-<!DOCTYPE html>
-<html lang="bn">
-<head>
-  <meta charset="utf-8">
-  <title>${escapeHtml(subject)}</title>
-</head>
-<body style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #f8fafc; margin: 0; padding: 24px; color: #1e293b;">
-  <div style="max-width: 560px; margin: 0 auto; background: #ffffff; border-radius: 16px; border: 1px solid #fed7aa; padding: 32px; box-shadow: 0 4px 12px rgba(234, 88, 12, 0.08);">
-    <div style="text-align: center; margin-bottom: 24px;">
-      <div style="display: inline-block; background: #ffedd5; color: #ea580c; width: 56px; height: 56px; line-height: 56px; border-radius: 16px; font-size: 28px;">🧮</div>
-      <h2 style="color: #ea580c; margin: 12px 0 4px 0; font-size: 22px;">${safeSiteName}</h2>
-      <p style="color: #64748b; margin: 0; font-size: 13px;">অনলাইন অভিভাবক ট্রেনিং প্ল্যাটফর্ম</p>
-    </div>
-    
-    <div style="border-top: 1px solid #f1f5f9; padding-top: 20px;">
-      <h3 style="color: #0f172a; font-size: 18px; margin-top: 0;">প্রিয় ${safeName},</h3>
-      <p style="font-size: 14px; line-height: 1.6; color: #334155;">
-        অ্যাবাকাস পেরেন্ট ট্রেনিং প্রোগ্রামে আপনার রেজিস্ট্রেশন সফলভাবে সম্পন্ন হয়েছে। 
-      </p>
-      
-      <div style="background-color: #fff7ed; border-left: 4px solid #f97316; padding: 14px 18px; border-radius: 8px; margin: 18px 0;">
-        <strong style="color: #c2410c; font-size: 13px;">⏳ আবেদন পর্যালোচনাধীন:</strong>
-        <p style="margin: 4px 0 0 0; color: #9a3412; font-size: 13px; line-height: 1.5;">
-          আমাদের টিম আপনার আবেদন পর্যালোচনা করছে (সাধারণত ২৪ ঘণ্টার মধ্যে)। আবেদন অনুমোদিত হলে আপনি কনফার্মেশন ইমেইল পাবেন এবং কোর্স আনলক হবে।
-        </p>
-      </div>
-
-      <div style="text-align: center; margin: 26px 0;">
-        <a href="${safeSiteUrl}" style="background-color: #f97316; color: #ffffff; text-decoration: none; padding: 12px 28px; border-radius: 10px; font-weight: bold; font-size: 14px; display: inline-block;">
-          ওয়েবসাইট ভিজিট করুন &rarr;
-        </a>
-      </div>
-
-      <p style="font-size: 12px; color: #64748b; line-height: 1.5; margin-bottom: 0;">
-        বাটন কাজ না করলে এই লিংকটি ব্রাউজারে খুলুন:<br/>
-        <a href="${safeSiteUrl}" style="color: #ea580c;">${safeSiteUrl}</a>
-      </p>
-    </div>
-    
-    <div style="margin-top: 32px; border-top: 1px solid #f1f5f9; padding-top: 16px; text-align: center; font-size: 11px; color: #94a3b8;">
-      &copy; ${new Date().getFullYear()} ${safeSiteName}. সর্বস্বত্ব সংরক্ষিত।
-    </div>
-  </div>
-</body>
-</html>
-    `;
-
-    try {
-      const resendRes = await fetch('https://api.resend.com/emails', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${resendApiKey}`,
-        },
-        body: JSON.stringify({
-          from: mailFrom,
-          to: [callerProfile.email],
-          subject,
-          html,
-          text,
-        }),
-      });
-
-      const resendData = await resendRes.json().catch(() => null);
-
-      if (!resendRes.ok) {
-        const errorMsg = resendData?.message || resendData?.error || `HTTP ${resendRes.status}`;
-        console.error('Resend welcome email failed:', resendRes.status, errorMsg);
-        return res.status(502).json({
-          error: `Resend এরর (${resendRes.status}): ${errorMsg}`,
-        });
-      }
-
-      lastWelcomeMap.set(callerUser.id, Date.now());
-
-      return res.status(200).json({
-        success: true,
-        message: 'স্বাগতম ইমেইল সফলভাবে পাঠানো হয়েছে',
-        id: resendData?.id,
-      });
-    } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : 'অজানা নেটওয়ার্ক ত্রুটি';
-      return res.status(502).json({
-        error: `Resend API-তে সংযোগ করা যায়নি: ${msg}`,
-      });
-    }
-  }
-
-  // ==========================================
-  // CASE 2: TYPE === 'approved' | 'rejected' (Admin Decision)
-  // ==========================================
   if (!studentId) {
     return res.status(400).json({ error: 'ভুল প্যারামিটার: studentId আবশ্যক' });
   }
 
-  // Check that caller is an admin
+  // 4. Check that caller is an admin
   try {
     const { data: isAdmin, error: adminErr } = await userSupabase.rpc('is_admin');
     if (adminErr || !isAdmin) {
@@ -247,7 +89,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return res.status(403).json({ error: 'অ্যাডমিন অধিকার যাচাই ব্যর্থ হয়েছে।' });
   }
 
-  // Rate limit: 30 seconds per studentId
+  // 5. Rate limit: 30 seconds per studentId
   const now = Date.now();
   const lastSent = lastDecisionMap.get(studentId);
   if (lastSent && now - lastSent < 30_000) {
@@ -257,7 +99,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     });
   }
 
-  // Read student's profile
+  // 6. Read student's profile from database
   const { data: student, error: fetchErr } = await userSupabase
     .from('profiles')
     .select('id, email, full_name, enrollment_status')
@@ -275,10 +117,29 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     });
   }
 
-  if (!resendApiKey) {
+  // 7. SMTP (nodemailer) Configuration
+  const smtpHost = process.env.SMTP_HOST || 'smtp.gmail.com';
+  const smtpPort = Number(process.env.SMTP_PORT) || 465;
+  const isSecure = smtpPort === 465;
+  const smtpUser = process.env.SMTP_USER;
+  const smtpPass = process.env.SMTP_PASS;
+
+  if (!smtpUser || !smtpPass) {
+    console.error('SMTP credentials missing on Vercel: SMTP_USER or SMTP_PASS is not set.');
     return res.status(500).json({
-      error: 'RESEND_API_KEY পরিবেশ চলক (Environment Variable) Vercel-এ কনফিগার করা নেই।',
+      error: 'SMTP কনফিগারেশন ত্রুটি: SMTP_USER বা SMTP_PASS পরিবেশ চলক Vercel-এ কনফিগার করা নেই।',
     });
+  }
+
+  const siteName = process.env.SITE_NAME || 'অ্যাবাকাস Parent Training';
+  const mailFrom = process.env.MAIL_FROM || `"${siteName}" <${smtpUser}>`;
+
+  let siteUrl = process.env.SITE_URL || '';
+  if (!siteUrl && process.env.VERCEL_PROJECT_PRODUCTION_URL) {
+    siteUrl = `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}`;
+  }
+  if (!siteUrl) {
+    siteUrl = 'https://abacus-parent.vercel.app';
   }
 
   const recipientName = student.full_name || 'অভিভাবক';
@@ -395,32 +256,25 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     `;
   }
 
-  // Send email via Resend HTTP API
+  // 8. Send email using Nodemailer SMTP transporter
   try {
-    const resendResponse = await fetch('https://api.resend.com/emails', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${resendApiKey}`,
+    const transporter = nodemailer.createTransport({
+      host: smtpHost,
+      port: smtpPort,
+      secure: isSecure,
+      auth: {
+        user: smtpUser,
+        pass: smtpPass,
       },
-      body: JSON.stringify({
-        from: mailFrom,
-        to: [student.email],
-        subject,
-        html,
-        text,
-      }),
     });
 
-    const resendData = await resendResponse.json().catch(() => null);
-
-    if (!resendResponse.ok) {
-      const errorMsg = resendData?.message || resendData?.error || `HTTP ${resendResponse.status}`;
-      console.error('Resend email failed:', resendResponse.status, errorMsg);
-      return res.status(502).json({
-        error: `Resend এরর (${resendResponse.status}): ${errorMsg}`,
-      });
-    }
+    const info = await transporter.sendMail({
+      from: mailFrom,
+      to: student.email,
+      subject,
+      text,
+      html,
+    });
 
     // Update in-memory rate limit
     lastDecisionMap.set(studentId, Date.now());
@@ -428,13 +282,13 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return res.status(200).json({
       success: true,
       message: 'ইমেইল সফলভাবে পাঠানো হয়েছে',
-      id: resendData?.id,
+      messageId: info.messageId,
     });
   } catch (err: unknown) {
-    const msg = err instanceof Error ? err.message : 'অজানা নেটওয়ার্ক ত্রুটি';
-    console.error('Fetch to Resend failed:', msg);
+    const msg = err instanceof Error ? err.message : 'অজানা SMTP নেটওয়ার্ক ত্রুটি';
+    console.error('Nodemailer SMTP sending failed:', msg);
     return res.status(502).json({
-      error: `Resend API-তে সংযোগ করা যায়নি: ${msg}`,
+      error: `SMTP সার্ভারে ইমেইল পাঠানো ব্যর্থ হয়েছে: ${msg}`,
     });
   }
 }

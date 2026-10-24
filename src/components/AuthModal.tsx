@@ -3,7 +3,6 @@ import { UserProfile } from '../types';
 import { supabase, isSupabaseConfigured } from '../lib/supabase';
 import { useSettings } from '../contexts/SettingsContext';
 import { explainAuthError, isValidEmail, isValidBdPhone } from '../lib/authErrors';
-import { sendRegisteredWelcomeEmail } from '../lib/studentEmail';
 import { X, Lock, Mail, User, Phone, CheckCircle2, AlertCircle } from 'lucide-react';
 
 export { explainAuthError };
@@ -37,6 +36,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
   const [childAge, setChildAge] = useState<number | ''>(7);
   const [showRegisterSuccessModal, setShowRegisterSuccessModal] = useState(false);
   const [registeredProfile, setRegisteredProfile] = useState<UserProfile | null>(null);
+  const [registrationModalMessage, setRegistrationModalMessage] = useState<string | null>(null);
 
   if (!isOpen) return null;
 
@@ -153,7 +153,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
       if (authErr) throw authErr;
 
       if (data.session && data.user) {
-        // Direct session created (email confirmation is off)
+        // Direct session created (if email confirmation was disabled)
         const { data: profileData } = await supabase
           .from('profiles')
           .select('*')
@@ -164,17 +164,18 @@ export const AuthModal: React.FC<AuthModalProps> = ({
           setRegisteredProfile(profileData);
         }
 
-        // Trigger background welcome email without blocking UI
-        sendRegisteredWelcomeEmail(data.session.access_token).catch((err) => {
-          console.warn('Background welcome email error:', err);
-        });
-
-        // Show dedicated registration success popup modal
+        setRegistrationModalMessage(
+          settings.register_success_text ||
+          'আপনার আবেদন পেয়েছি। ইমেইলে পাঠানো লিংকে ক্লিক করে ইমেইল যাচাই করুন, তারপর ২৪ ঘণ্টার মধ্যে আমরা জানাব।'
+        );
         setShowRegisterSuccessModal(true);
-      } else if (data.user && !data.session) {
-        // Fallback if Supabase "Confirm email" was left ON
-        setError('ইমেইল যাচাই করুন: আপনার ইনবক্সে পাঠানো লিংকে ক্লিক করে অ্যাকাউন্ট সক্রিয় করুন।');
       } else {
+        // Supabase email confirmation is ON (data.session is null)
+        setRegisteredProfile(null);
+        setRegistrationModalMessage(
+          settings.register_success_text ||
+          'আপনার আবেদন পেয়েছি। ইমেইলে পাঠানো লিংকে ক্লিক করে ইমেইল যাচাই করুন, তারপর ২৪ ঘণ্টার মধ্যে আমরা জানাব।'
+        );
         setShowRegisterSuccessModal(true);
       }
     } catch (err: unknown) {
@@ -234,7 +235,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
 
             <div className="p-4 bg-emerald-50/60 border border-emerald-100 rounded-2xl mb-6">
               <p className="text-xs sm:text-sm text-slate-700 leading-relaxed font-medium">
-                {settings.register_success_text || `আপনার আবেদন আমরা পেয়েছি। আপনার তথ্য যাচাই করে ${settings.review_hours || 24} ঘণ্টার মধ্যে ইমেইলের মাধ্যমে জানানো হবে।`}
+                {registrationModalMessage || settings.register_success_text || 'আপনার আবেদন পেয়েছি। ইমেইলে পাঠানো লিংকে ক্লিক করে ইমেইল যাচাই করুন, তারপর ২৪ ঘণ্টার মধ্যে আমরা জানাব।'}
               </p>
             </div>
 

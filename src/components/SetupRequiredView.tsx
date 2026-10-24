@@ -44,11 +44,11 @@ export const SetupRequiredView: React.FC = () => {
             <div className="p-3.5 bg-slate-50 rounded-xl border border-slate-200 space-y-1">
               <div className="font-bold text-slate-900 flex items-center gap-2">
                 <span className="w-5 h-5 rounded-full bg-orange-500 text-white flex items-center justify-center text-[10px]">১</span>
-                <span>ইমেইল নিশ্চিতকরণ বন্ধ রাখুন (Confirm Email: OFF)</span>
+                <span>ইমেইল নিশ্চিতকরণ চালু রাখুন (Confirm Email: ON)</span>
               </div>
               <p className="text-slate-500 pl-7 text-[11px] leading-relaxed">
                 Supabase → <strong>Authentication</strong> → <strong>Providers</strong> → <strong>Email</strong>: 
-                <span className="text-orange-600 font-semibold"> Confirm email OFF </span> রাখুন। অভিভাবকগণের রেজিস্ট্রেশন আবেদন এডমিন প্যানেল থেকে পর্যালোচনা ও অনুমোদিত হয়, এবং Resend সার্ভারলেস ফাংশনের মাধ্যমে নোটিফিকেশন ইমেইল পৌঁছায়।
+                <span className="text-orange-600 font-semibold"> Confirm email ON </span> রাখুন (কাস্টম Gmail SMTP টেমপ্লেট দিয়ে ভেরিফিকেশন ইমেইল পৌঁছায়)। শিক্ষার্থী লিংকে ক্লিক করে যাচাই করার পর পেন্ডিং স্ক্রিনে অবস্থান করবে।
               </p>
             </div>
 
@@ -81,8 +81,11 @@ export const SetupRequiredView: React.FC = () => {
                 Vercel → Project → <strong>Settings</strong> → <strong>Environment Variables</strong>:<br />
                 - <code className="bg-slate-200 px-1 rounded font-mono">VITE_SUPABASE_URL</code><br />
                 - <code className="bg-slate-200 px-1 rounded font-mono">VITE_SUPABASE_ANON_KEY</code><br />
-                - <code className="bg-slate-200 px-1 rounded font-mono">RESEND_API_KEY</code> (Resend এর সিক্রেট API Key)<br />
-                - <code className="bg-slate-200 px-1 rounded font-mono">MAIL_FROM</code> (যেমন: onboarding@resend.dev অথবা ভেরিফাইড প্রেরক)<br />
+                - <code className="bg-slate-200 px-1 rounded font-mono">SMTP_HOST</code> (ডিফল্ট: smtp.gmail.com)<br />
+                - <code className="bg-slate-200 px-1 rounded font-mono">SMTP_PORT</code> (ডিফল্ট: 465)<br />
+                - <code className="bg-slate-200 px-1 rounded font-mono">SMTP_USER</code> (Gmail বা SMTP ইউজারনেম)<br />
+                - <code className="bg-slate-200 px-1 rounded font-mono">SMTP_PASS</code> (Gmail 16-অক্ষরের App Password বা পাসওয়ার্ড)<br />
+                - <code className="bg-slate-200 px-1 rounded font-mono">MAIL_FROM</code> (প্রেরকের নাম ও ইমেইল)<br />
                 - <code className="bg-slate-200 px-1 rounded font-mono">SITE_URL</code> (যেমন: https://your-app.vercel.app)<br />
                 - <code className="bg-slate-200 px-1 rounded font-mono">VITE_OWNER_EMAIL</code> (ডিফল্ট: rssharifu@gmail.com)<br />
                 এরপর Vercel-এ Redeploy করুন।
