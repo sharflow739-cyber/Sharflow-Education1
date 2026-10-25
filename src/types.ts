@@ -79,12 +79,18 @@ export interface SiteSettings {
   show_certified_badge: boolean;
   certified_badge_label: string;
 
+  // Student Registration & Approval texts
+  welcome_popup_title: string;
+  welcome_popup_text: string;
+
   // Video
   drive_hide_header: boolean;
   drive_header_offset: number; // 0-80 px
   block_popout_overlay: boolean;
   watermark_enabled: boolean;
   watermark_mode: 'email' | 'phone' | 'both';
+  watermark_opacity: number; // 10-60 %
+  watermark_interval_seconds: number; // 5-60 sec
 }
 
 export const DEFAULT_SITE_SETTINGS: SiteSettings = {
@@ -103,7 +109,9 @@ export const DEFAULT_SITE_SETTINGS: SiteSettings = {
 
   // Student Registration & Approval texts
   register_success_title: 'রেজিস্ট্রেশন গ্রহণ করা হয়েছে ✅',
-  register_success_text: 'আপনার আবেদন পেয়েছি। ইমেইলে পাঠানো লিংকে ক্লিক করে ইমেইল যাচাই করুন, তারপর ২৪ ঘণ্টার মধ্যে আমরা জানাব।',
+  register_success_text: 'আপনার ইমেইলে একটি ভেরিফিকেশন কোড পাঠানো হয়েছে। কোডটি দিয়ে ভেরিফাই করুন।',
+  welcome_popup_title: 'স্বাগতম! 🎉',
+  welcome_popup_text: 'আপনার ইমেইল যাচাই হয়েছে এবং আবেদন গ্রহণ করা হয়েছে। আমরা তথ্য যাচাই করে ২৪ ঘণ্টার মধ্যে ইমেইলে জানাব।',
   pending_title: 'অনুমোদনের অপেক্ষায় (Pending)',
   pending_text: 'আপনার আবেদনটি পর্যালোচনার জন্য অপেক্ষমাণ রয়েছে। সাধারণত ২৪ ঘণ্টার মধ্যে তথ্য যাচাই করে ইমেইলের মাধ্যমে এক্সেস উন্মুক্ত করা হয়।',
   rejected_text: 'আপনার ভর্তি আবেদন এই মুহূর্তে গ্রহণ করা সম্ভব হয়নি। বিস্তারিত জানতে আমাদের সাপোর্টে যোগাযোগ করুন।',
@@ -132,6 +140,8 @@ export const DEFAULT_SITE_SETTINGS: SiteSettings = {
   drive_hide_header: true,
   drive_header_offset: 52,
   block_popout_overlay: true,
-  watermark_enabled: false,
+  watermark_enabled: true,
   watermark_mode: 'email',
+  watermark_opacity: 30,
+  watermark_interval_seconds: 15,
 };

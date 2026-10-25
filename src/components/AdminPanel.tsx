@@ -1520,13 +1520,21 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
               </h3>
               <div className="flex items-center gap-2">
                 <button
-                  onClick={() => handleResetGroup('শিক্ষার্থী ভর্তি বার্তা', ['register_success_title', 'register_success_text', 'pending_title', 'pending_text', 'rejected_text', 'review_hours'])}
+                  onClick={() => handleResetGroup('শিক্ষার্থী ভর্তি বার্তা', [
+                    'register_success_title', 'register_success_text',
+                    'welcome_popup_title', 'welcome_popup_text',
+                    'pending_title', 'pending_text', 'rejected_text', 'review_hours'
+                  ])}
                   className="px-2.5 py-1 text-slate-500 hover:text-slate-800 text-xs font-semibold flex items-center gap-1 cursor-pointer"
                 >
                   <RotateCcw size={12} /> ডিফল্টে ফিরুন
                 </button>
                 <button
-                  onClick={() => handleSaveGroup('শিক্ষার্থী ভর্তি বার্তা', ['register_success_title', 'register_success_text', 'pending_title', 'pending_text', 'rejected_text', 'review_hours'])}
+                  onClick={() => handleSaveGroup('শিক্ষার্থী ভর্তি বার্তা', [
+                    'register_success_title', 'register_success_text',
+                    'welcome_popup_title', 'welcome_popup_text',
+                    'pending_title', 'pending_text', 'rejected_text', 'review_hours'
+                  ])}
                   disabled={savingSettingsGroup === 'শিক্ষার্থী ভর্তি বার্তা'}
                   className="px-4 py-1.5 bg-orange-500 hover:bg-orange-600 text-white rounded-xl text-xs font-bold shadow-xs flex items-center gap-1 cursor-pointer disabled:opacity-50"
                 >
@@ -1537,7 +1545,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
               <div>
-                <label className="block font-bold text-slate-700 mb-1">রেজিস্ট্রেশন সফল পপআপ টাইটেল</label>
+                <label className="block font-bold text-slate-700 mb-1">রেজিস্ট্রেশন গ্রহণ পপআপ টাইটেল</label>
                 <input
                   type="text"
                   value={formSettings.register_success_title}
@@ -1559,11 +1567,31 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
               </div>
 
               <div className="sm:col-span-2">
-                <label className="block font-bold text-slate-700 mb-1">রেজিস্ট্রেশন সফল পপআপ বার্তা</label>
+                <label className="block font-bold text-slate-700 mb-1">রেজিস্ট্রেশন গ্রহণ পপআপ বার্তা</label>
                 <textarea
                   rows={2}
                   value={formSettings.register_success_text}
                   onChange={(e) => setFormSettings({ ...formSettings, register_success_text: e.target.value })}
+                  className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:outline-none focus:border-orange-500 font-medium"
+                />
+              </div>
+
+              <div>
+                <label className="block font-bold text-slate-700 mb-1">স্বাগতম পপআপ টাইটেল (Welcome Title)</label>
+                <input
+                  type="text"
+                  value={formSettings.welcome_popup_title}
+                  onChange={(e) => setFormSettings({ ...formSettings, welcome_popup_title: e.target.value })}
+                  className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:outline-none focus:border-orange-500 font-medium"
+                />
+              </div>
+
+              <div>
+                <label className="block font-bold text-slate-700 mb-1">স্বাগতম পপআপ বার্তা (Welcome Text)</label>
+                <textarea
+                  rows={2}
+                  value={formSettings.welcome_popup_text}
+                  onChange={(e) => setFormSettings({ ...formSettings, welcome_popup_text: e.target.value })}
                   className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:outline-none focus:border-orange-500 font-medium"
                 />
               </div>
@@ -1792,7 +1820,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                 <button
                   onClick={() => handleResetGroup('ভিডিও সেটিংস', [
                     'drive_hide_header', 'drive_header_offset', 'block_popout_overlay',
-                    'watermark_enabled', 'watermark_mode'
+                    'watermark_enabled', 'watermark_mode', 'watermark_opacity', 'watermark_interval_seconds'
                   ])}
                   className="px-2.5 py-1 text-slate-500 hover:text-slate-800 text-xs font-semibold flex items-center gap-1 cursor-pointer"
                 >
@@ -1801,7 +1829,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                 <button
                   onClick={() => handleSaveGroup('ভিডিও সেটিংস', [
                     'drive_hide_header', 'drive_header_offset', 'block_popout_overlay',
-                    'watermark_enabled', 'watermark_mode'
+                    'watermark_enabled', 'watermark_mode', 'watermark_opacity', 'watermark_interval_seconds'
                   ])}
                   disabled={savingSettingsGroup === 'ভিডিও সেটিংস'}
                   className="px-4 py-1.5 bg-orange-500 hover:bg-orange-600 text-white rounded-xl text-xs font-bold shadow-xs flex items-center gap-1 cursor-pointer disabled:opacity-50"
@@ -1856,11 +1884,11 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                 />
               </div>
 
-              <div className="p-3.5 bg-slate-50 rounded-xl border border-slate-200 space-y-3">
+              <div className="p-3.5 bg-slate-50 rounded-xl border border-slate-200 space-y-4">
                 <div className="flex items-center justify-between">
                   <div>
-                    <div className="font-bold text-slate-900">ভিডিও স্ক্রিন রেকর্ড প্রতিরোধক ডায়নামিক ওয়াটারমার্ক (Watermark)</div>
-                    <div className="text-[11px] text-slate-500">ভিডিওর উপর অভিভাবকের ইমেইল বা ফোন নম্বর অস্পষ্টভাবে ভেসে বেড়াবে।</div>
+                    <div className="font-bold text-slate-900">ভিডিও স্ক্রিন রেকর্ড ও লিক প্রতিরোধক ডায়নামিক ওয়াটারমার্ক (Watermark)</div>
+                    <div className="text-[11px] text-slate-500">ভিডিওর উপর দর্শকের পরিচয়যুক্ত ডায়নামিক মুভিং ওয়াটারমার্ক ভেসে বেড়াবে।</div>
                   </div>
                   <input
                     type="checkbox"
@@ -1871,41 +1899,117 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                 </div>
 
                 {formSettings.watermark_enabled && (
-                  <div className="pt-2 border-t border-slate-200 flex items-center gap-4">
-                    <span className="font-bold text-slate-700">ওয়াটারমার্ক মোড:</span>
-                    <label className="flex items-center gap-1.5 cursor-pointer">
+                  <div className="pt-3 border-t border-slate-200 space-y-4">
+                    {/* Mode selection */}
+                    <div className="flex flex-wrap items-center gap-4">
+                      <span className="font-bold text-slate-700">ওয়াটারমার্ক মোড:</span>
+                      <label className="flex items-center gap-1.5 cursor-pointer">
+                        <input
+                          type="radio"
+                          name="wm_mode"
+                          value="email"
+                          checked={formSettings.watermark_mode === 'email'}
+                          onChange={() => setFormSettings({ ...formSettings, watermark_mode: 'email' })}
+                          className="text-orange-600"
+                        />
+                        <span>ইমেইল</span>
+                      </label>
+                      <label className="flex items-center gap-1.5 cursor-pointer">
+                        <input
+                          type="radio"
+                          name="wm_mode"
+                          value="phone"
+                          checked={formSettings.watermark_mode === 'phone'}
+                          onChange={() => setFormSettings({ ...formSettings, watermark_mode: 'phone' })}
+                          className="text-orange-600"
+                        />
+                        <span>মোবাইল নম্বর</span>
+                      </label>
+                      <label className="flex items-center gap-1.5 cursor-pointer">
+                        <input
+                          type="radio"
+                          name="wm_mode"
+                          value="both"
+                          checked={formSettings.watermark_mode === 'both'}
+                          onChange={() => setFormSettings({ ...formSettings, watermark_mode: 'both' })}
+                          className="text-orange-600"
+                        />
+                        <span>উভয়টি (Email & Phone)</span>
+                      </label>
+                    </div>
+
+                    {/* Opacity slider */}
+                    <div className="space-y-1.5">
+                      <div className="flex justify-between items-center">
+                        <label className="font-bold text-slate-700">ওয়াটারমার্ক অপাসিটি / দৃশ্যমানতা (১০% - ৬০%)</label>
+                        <span className="font-mono font-bold text-orange-600">{formSettings.watermark_opacity ?? 30}%</span>
+                      </div>
                       <input
-                        type="radio"
-                        name="wm_mode"
-                        value="email"
-                        checked={formSettings.watermark_mode === 'email'}
-                        onChange={() => setFormSettings({ ...formSettings, watermark_mode: 'email' })}
-                        className="text-orange-600"
+                        type="range"
+                        min="10"
+                        max="60"
+                        step="5"
+                        value={formSettings.watermark_opacity ?? 30}
+                        onChange={(e) => setFormSettings({ ...formSettings, watermark_opacity: Number(e.target.value) })}
+                        className="w-full accent-orange-500 cursor-pointer"
                       />
-                      <span>ইমেইল</span>
-                    </label>
-                    <label className="flex items-center gap-1.5 cursor-pointer">
+                      <p className="text-[11px] text-slate-400">ডিফল্ট মান: ৩০% (কন্টেন্ট দেখতে কোনো সমস্যা না করে সহজে পাঠযোগ্য)</p>
+                    </div>
+
+                    {/* Movement interval slider */}
+                    <div className="space-y-1.5">
+                      <div className="flex justify-between items-center">
+                        <label className="font-bold text-slate-700">স্থান পরিবর্তন ব্যবধান (৫ - ৬০ সেকেন্ড)</label>
+                        <span className="font-mono font-bold text-orange-600">{formSettings.watermark_interval_seconds ?? 15} সেকেন্ড</span>
+                      </div>
                       <input
-                        type="radio"
-                        name="wm_mode"
-                        value="phone"
-                        checked={formSettings.watermark_mode === 'phone'}
-                        onChange={() => setFormSettings({ ...formSettings, watermark_mode: 'phone' })}
-                        className="text-orange-600"
+                        type="range"
+                        min="5"
+                        max="60"
+                        step="1"
+                        value={formSettings.watermark_interval_seconds ?? 15}
+                        onChange={(e) => setFormSettings({ ...formSettings, watermark_interval_seconds: Number(e.target.value) })}
+                        className="w-full accent-orange-500 cursor-pointer"
                       />
-                      <span>মোবাইল নম্বর</span>
-                    </label>
-                    <label className="flex items-center gap-1.5 cursor-pointer">
-                      <input
-                        type="radio"
-                        name="wm_mode"
-                        value="both"
-                        checked={formSettings.watermark_mode === 'both'}
-                        onChange={() => setFormSettings({ ...formSettings, watermark_mode: 'both' })}
-                        className="text-orange-600"
-                      />
-                      <span>উভয়টি</span>
-                    </label>
+                      <p className="text-[11px] text-slate-400">ডিফল্ট মান: ১৫ সেকেন্ড পরপর স্ক্রিনের নিরাপদ স্থানে সরে যায়</p>
+                    </div>
+
+                    {/* Live Watermark Interactive Preview */}
+                    <div className="pt-3 border-t border-slate-200 space-y-2">
+                      <div className="flex items-center justify-between">
+                        <span className="font-bold text-slate-800 flex items-center gap-1.5">
+                          <Eye size={14} className="text-orange-500" />
+                          ওয়াটারমার্ক লাইভ প্রিভিউ (Live Preview):
+                        </span>
+                        <span className="text-[11px] text-slate-500">
+                          বর্তমান সেটিংস অনুযায়ী গতিশীল প্রিভিউ
+                        </span>
+                      </div>
+
+                      <div className="rounded-2xl overflow-hidden border border-slate-800 bg-slate-950 p-0 shadow-inner">
+                        <VideoPlayer
+                          videoUrl=""
+                          title="ওয়াটারমার্ক লাইভ প্রিভিউ"
+                          viewerEmail={currentUser.email || 'parent@example.com'}
+                          viewerPhone={currentUser.phone || '01712345678'}
+                          watermarkEnabled={formSettings.watermark_enabled}
+                          watermarkMode={formSettings.watermark_mode}
+                          watermarkOpacity={formSettings.watermark_opacity}
+                          watermarkIntervalSeconds={formSettings.watermark_interval_seconds}
+                          isLivePreview={true}
+                        />
+                      </div>
+
+                      {/* Deterrent note */}
+                      <div className="p-3.5 bg-amber-50/80 border border-amber-200 rounded-xl text-[11px] text-amber-900 leading-relaxed flex items-start gap-2">
+                        <Info size={16} className="text-amber-600 shrink-0 mt-0.5" />
+                        <div>
+                          <span className="font-bold">সিকিউরিটি নির্দেশিকা:</span>{' '}
+                          স্ক্রিন রেকর্ডিং কোনো ব্রাউজারে শতভাগ ব্লক করা সম্ভব নয়; দর্শকের পরিচয়যুক্ত ডায়নামিক মুভিং ওয়াটারমার্ক ভিডিও লিক বা রেকর্ড করার বিরুদ্ধে একটি শক্তিশালী প্রতিরোধক (deterrent) এবং লিক হলে উৎস শনাক্তযোগ্য (traceable) করে তোলে।
+                        </div>
+                      </div>
+                    </div>
+
                   </div>
                 )}
               </div>
@@ -1991,6 +2095,9 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                     <VideoPlayer
                       videoUrl={editingClass.video_url}
                       title={editingClass.title || 'ক্লাস প্রিভিউ'}
+                      viewerEmail={currentUser.email}
+                      viewerPhone={currentUser.phone}
+                      isLivePreview={true}
                     />
                   </div>
                 </div>

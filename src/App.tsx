@@ -14,7 +14,7 @@ import { ResetPasswordModal } from './components/ResetPasswordModal';
 import { SetupRequiredView } from './components/SetupRequiredView';
 import { StudentEnrollmentStatusView } from './components/StudentEnrollmentStatusView';
 
-import { BookOpen, AlertOctagon, LogOut } from 'lucide-react';
+import { BookOpen, AlertOctagon, LogOut, AlertCircle, X } from 'lucide-react';
 
 export default function App() {
   const { settings } = useSettings();
@@ -36,13 +36,18 @@ export default function App() {
   const [pendingRequestsCount, setPendingRequestsCount] = useState(0);
   const [pendingStudentsCount, setPendingStudentsCount] = useState(0);
 
-  // Modals
+  // Modals & Notices
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
   const [isResetPasswordModalOpen, setIsResetPasswordModalOpen] = useState(false);
+  const [legacyLinkNotice, setLegacyLinkNotice] = useState<string | null>(null);
 
-  // Clean URL Hash after Supabase extracts token from confirmation/recovery links
+  // Clean URL Hash after Supabase extracts token, or handle expired old link error
   useEffect(() => {
-    if (window.location.hash && (window.location.hash.includes('access_token') || window.location.hash.includes('type='))) {
+    const hash = window.location.hash;
+    if (hash && (hash.includes('error_code=otp_expired') || hash.includes('error=') || hash.includes('error_code='))) {
+      window.history.replaceState(null, '', window.location.pathname + window.location.search);
+      setLegacyLinkNotice('লিংকের বদলে ইমেইলের কোড ব্যবহার করুন।');
+    } else if (hash && (hash.includes('access_token') || hash.includes('type='))) {
       const timer = setTimeout(() => {
         if (window.location.hash && window.location.hash.includes('access_token')) {
           window.history.replaceState(null, '', window.location.pathname + window.location.search);
@@ -345,6 +350,36 @@ export default function App() {
         pendingRequestsCount={pendingRequestsCount}
         pendingStudentsCount={pendingStudentsCount}
       />
+
+      {/* Notice for visitors arriving from legacy email links */}
+      {legacyLinkNotice && (
+        <div className="bg-amber-500 text-white px-4 py-3 flex items-center justify-between text-xs font-bold shadow-sm">
+          <div className="max-w-4xl mx-auto w-full flex items-center justify-between gap-3">
+            <div className="flex items-center gap-2">
+              <AlertCircle size={16} className="shrink-0" />
+              <span>{legacyLinkNotice}</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => {
+                  setIsAuthModalOpen(true);
+                  setLegacyLinkNotice(null);
+                }}
+                className="bg-white text-amber-900 px-3 py-1 rounded-lg text-xs font-black hover:bg-amber-50 cursor-pointer shadow-xs"
+              >
+                কোড দিন
+              </button>
+              <button
+                onClick={() => setLegacyLinkNotice(null)}
+                className="text-white/80 hover:text-white p-1 cursor-pointer"
+                title="বন্ধ করুন"
+              >
+                <X size={16} />
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Main Content Area */}
       <main className="flex-1">

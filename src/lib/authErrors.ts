@@ -67,7 +67,7 @@ export function explainAuthError(err: unknown): string {
     combined.includes('email_not_confirmed') ||
     combined.includes('email not confirmed')
   ) {
-    return 'ইমেইল যাচাই হয়নি। ইনবক্স ও স্প্যাম ফোল্ডারে যাচাইয়ের লিংক দেখুন।';
+    return 'ইমেইল যাচাই হয়নি। আপনার ইমেইলে পাঠানো ভেরিফিকেশন কোডটি ব্যবহার করুন।';
   }
 
   // 5. email_address_invalid / "invalid format"

@@ -44,11 +44,11 @@ export const SetupRequiredView: React.FC = () => {
             <div className="p-3.5 bg-slate-50 rounded-xl border border-slate-200 space-y-1">
               <div className="font-bold text-slate-900 flex items-center gap-2">
                 <span className="w-5 h-5 rounded-full bg-orange-500 text-white flex items-center justify-center text-[10px]">১</span>
-                <span>ইমেইল নিশ্চিতকরণ চালু রাখুন (Confirm Email: ON)</span>
+                <span>ইমেইল নিশ্চিতকরণ ও ওটিপি কোড টেমপ্লেট (Confirm Email & OTP)</span>
               </div>
               <p className="text-slate-500 pl-7 text-[11px] leading-relaxed">
                 Supabase → <strong>Authentication</strong> → <strong>Providers</strong> → <strong>Email</strong>: 
-                <span className="text-orange-600 font-semibold"> Confirm email ON </span> রাখুন (কাস্টম Gmail SMTP টেমপ্লেট দিয়ে ভেরিফিকেশন ইমেইল পৌঁছায়)। শিক্ষার্থী লিংকে ক্লিক করে যাচাই করার পর পেন্ডিং স্ক্রিনে অবস্থান করবে।
+                <span className="text-orange-600 font-semibold"> Confirm email ON </span> রাখুন। <strong>Email Templates</strong> → <strong>Confirm signup</strong>-এ লিংকের বদলে <code className="bg-slate-200 px-1 rounded font-mono font-bold text-orange-700">&#123;&#123; .Token &#125;&#125;</code> টোকেন কোড বসান। শিক্ষার্থী ইমেইলে প্রাপ্ত কোড দিয়ে সরাসরি ভেরিফাই করবেন।
               </p>
             </div>
 
