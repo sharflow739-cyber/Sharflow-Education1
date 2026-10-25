@@ -13,6 +13,12 @@ import {
   GraduationCap, Mail, RefreshCw, Clock, Send
 } from 'lucide-react';
 
+const QUICK_REJECT_REASONS = [
+  'পেমেন্ট পাওয়া যায়নি',
+  'তথ্য অসম্পূর্ণ বা ভুল',
+  'ইমেইল বা মোবাইল নম্বর ঠিক নয়',
+] as const;
+
 interface AdminPanelProps {
   currentUser: UserProfile;
   classes: ClassItem[];
@@ -284,8 +290,20 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
       });
 
       if (rpcErr) {
-        showToast('error', `প্রত্যাখ্যান ব্যর্থ হয়েছে: ${rpcErr.message}`);
-        return;
+        // Fallback to direct update on profiles
+        const { error: updateErr } = await supabase
+          .from('profiles')
+          .update({
+            enrollment_status: 'rejected',
+            reject_reason: reasonVal,
+            reviewed_at: new Date().toISOString(),
+          })
+          .eq('id', rejectModalStudent.id);
+
+        if (updateErr) {
+          showToast('error', `প্রত্যাখ্যান ব্যর্থ হয়েছে: ${rpcErr.message}`);
+          return;
+        }
       }
 
       // Send rejection notification email
@@ -1041,10 +1059,37 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                   </p>
                 </div>
 
-                <div>
-                  <label className="block text-xs font-bold text-slate-700 mb-1">
+                <div className="space-y-2">
+                  <label className="block text-xs font-bold text-slate-700">
                     প্রত্যাখ্যানের কারণ (ঐচ্ছিক - শিক্ষার্থীকে ইমেইলে পাঠানো হবে):
                   </label>
+
+                  {/* Quick Reason Buttons */}
+                  <div className="space-y-1.5">
+                    <span className="text-[11px] font-semibold text-slate-500">
+                      দ্রুত কারণ নির্বাচন করুন:
+                    </span>
+                    <div className="flex flex-wrap gap-1.5">
+                      {QUICK_REJECT_REASONS.map((reason) => {
+                        const isSelected = rejectReason === reason;
+                        return (
+                          <button
+                            key={reason}
+                            type="button"
+                            onClick={() => setRejectReason(reason)}
+                            className={`px-2.5 py-1 rounded-lg text-xs font-medium border transition-all cursor-pointer text-left ${
+                              isSelected
+                                ? 'bg-rose-50 border-rose-300 text-rose-700 font-bold shadow-2xs'
+                                : 'bg-slate-50 hover:bg-slate-100 border-slate-200 text-slate-700'
+                            }`}
+                          >
+                            {isSelected ? '✓ ' : '+ '}{reason}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+
                   <textarea
                     rows={3}
                     value={rejectReason}
@@ -1052,6 +1097,9 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                     placeholder="যেমন: তথ্য অসম্পূর্ণ, অথবা অন্য কোনো কারণ..."
                     className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium focus:bg-white focus:outline-none focus:border-rose-500"
                   />
+                  <p className="text-[11px] text-slate-400">
+                    * বাটন ক্লিক করে কারণ বসাতে পারেন অথবা বক্সটিতে নিজের মতো লিখে সম্পাদনা করতে পারেন।
+                  </p>
                 </div>
 
                 <div className="flex items-center justify-end gap-2 pt-2">

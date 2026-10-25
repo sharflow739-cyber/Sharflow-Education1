@@ -102,7 +102,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   // 6. Read student's profile from database
   const { data: student, error: fetchErr } = await userSupabase
     .from('profiles')
-    .select('id, email, full_name, enrollment_status')
+    .select('id, email, full_name, enrollment_status, reject_reason')
     .eq('id', studentId)
     .single();
 
@@ -201,10 +201,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   } else {
     // Rejected
     subject = `[${siteName}] ভর্তি আবেদন সংক্রান্ত তথ্য`;
-    const reasonText = reason ? `\n\nপ্রত্যাখ্যানের কারণ: ${reason}` : '';
+    const finalReason = (reason && reason.trim()) || student.reject_reason || '';
+    const reasonText = finalReason ? `\n\nপ্রত্যাখ্যানের কারণ: ${finalReason}` : '';
     text = `দুঃখিত ${recipientName},\n\nআপনার আবেদন এই মুহূর্তে গ্রহণ করা সম্ভব হয়নি।${reasonText}\n\nকোনো প্রশ্ন থাকলে অনুগ্রহ করে আমাদের হেল্পডেস্কে যোগাযোগ করুন।\n\nওয়েবসাইট: ${siteUrl}\n\nধন্যবাদ,\n${siteName} টিম`;
 
-    const safeReason = reason ? escapeHtml(reason) : '';
+    const safeReason = finalReason ? escapeHtml(finalReason) : '';
 
     html = `
 <!DOCTYPE html>
