@@ -1,7 +1,7 @@
 import React from 'react';
 import { UserProfile } from '../types';
 import { useSettings } from '../contexts/SettingsContext';
-import { LogOut, User, BookOpen, ShieldAlert } from 'lucide-react';
+import { LogOut, User, BookOpen, ShieldAlert, Calculator } from 'lucide-react';
 
 interface HeaderProps {
   currentUser: UserProfile | null;
@@ -51,16 +51,25 @@ export const Header: React.FC<HeaderProps> = ({
           {/* Navigation Links */}
           <div className="flex items-center gap-2">
             {currentUser && (
-              <button
-                onClick={() => setActiveView('dashboard')}
-                className={`px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all ${
-                  activeView === 'dashboard' || activeView === 'class'
-                    ? 'bg-orange-50 text-orange-600 border border-orange-200'
-                    : 'text-slate-600 hover:text-slate-900'
-                }`}
-              >
-                ক্লাসসমূহ
-              </button>
+              <>
+                <button
+                  onClick={() => setActiveView('dashboard')}
+                  className={`px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all ${
+                    activeView === 'dashboard' || activeView === 'class'
+                      ? 'bg-orange-50 text-orange-600 border border-orange-200'
+                      : 'text-slate-600 hover:text-slate-900'
+                  }`}
+                >
+                  ক্লাসসমূহ
+                </button>
+                <a
+                  href="/abacus"
+                  className="px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 text-slate-600 hover:text-slate-900 hover:bg-slate-50"
+                >
+                  <Calculator size={14} className="text-slate-500" />
+                  <span>ভার্চুয়াল অ্যাবাকাস</span>
+                </a>
+              </>
             )}
 
             {/* Admin Button - ONLY visible to admins */}

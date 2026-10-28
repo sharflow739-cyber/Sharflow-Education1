@@ -1,8 +1,7 @@
 {
   "rewrites": [
-    {
-      "source": "/((?!api/).*)",
-      "destination": "/index.html"
-    }
+    { "source": "/abacus", "destination": "https://sharflow-education2.vercel.app/" },
+    { "source": "/abacus/", "destination": "https://sharflow-education2.vercel.app/" },
+    { "source": "/((?!api/|abacus).*)", "destination": "/index.html" }
   ]
 }
