@@ -237,17 +237,14 @@ export default function App() {
     return () => window.removeEventListener('focus', handleFocus);
   }, [currentUser?.id, currentUser?.role, currentUser?.email, fetchUserProfile, fetchPendingStudentsCount, fetchPendingRequestsCount]);
 
-  // Load Classes whenever an active approved student or admin is logged in
+  // Load Classes whenever any active user is logged in
   useEffect(() => {
-    const isApprovedOrAdmin =
-      currentUser?.role === 'admin' || currentUser?.enrollment_status === 'approved';
-
-    if (currentUser?.is_active && isApprovedOrAdmin) {
+    if (currentUser?.is_active) {
       fetchClasses();
     } else {
       setClasses([]);
     }
-  }, [currentUser?.id, currentUser?.is_active, currentUser?.role, currentUser?.enrollment_status, fetchClasses]);
+  }, [currentUser?.id, currentUser?.is_active, fetchClasses]);
 
   // Load pending counts for admin
   useEffect(() => {
@@ -297,7 +294,7 @@ export default function App() {
           activeView={activeView}
           setActiveView={navigateToView}
           pendingRequestsCount={pendingRequestsCount}
-          pendingStudentsCount={pendingStudentsCount}
+          pendingStudentsCount={0}
         />
         <main className="flex-1 flex items-center justify-center p-4">
           <div className="max-w-md w-full bg-white p-8 rounded-3xl border border-rose-200 shadow-xl text-center space-y-4">
@@ -326,14 +323,6 @@ export default function App() {
     );
   }
 
-  // Check student pending or rejected enrollment status
-  const isStudentUnapproved =
-    currentUser &&
-    currentUser.role !== 'admin' &&
-    (!currentUser.enrollment_status ||
-      currentUser.enrollment_status === 'pending' ||
-      currentUser.enrollment_status === 'rejected');
-
   return (
     <div className="min-h-screen flex flex-col bg-slate-50 text-slate-900 selection:bg-orange-500 selection:text-white">
       
@@ -348,7 +337,7 @@ export default function App() {
           if (v !== 'class') setCurrentClass(null);
         }}
         pendingRequestsCount={pendingRequestsCount}
-        pendingStudentsCount={pendingStudentsCount}
+        pendingStudentsCount={0}
       />
 
       {/* Notice for visitors arriving from legacy email links */}
@@ -413,20 +402,6 @@ export default function App() {
               </div>
             </div>
           </div>
-        ) : isStudentUnapproved && activeView !== 'admin' ? (
-          /* ======================================================== */
-          /* PENDING OR REJECTED STUDENT ENROLLMENT SCREEN           */
-          /* ======================================================== */
-          <StudentEnrollmentStatusView
-            currentUser={currentUser}
-            onRefreshProfile={async () => {
-              const updated = await fetchUserProfile(currentUser.id);
-              if (updated) {
-                setCurrentUser(updated);
-              }
-            }}
-            onLogout={handleLogout}
-          />
         ) : (
           <>
             {/* VIEW 1: DASHBOARD (Class List) */}
@@ -479,7 +454,7 @@ export default function App() {
                   onBackToDashboard={() => navigateToView('dashboard')}
                   pendingRequestsCount={pendingRequestsCount}
                   onRefreshPendingCount={fetchPendingRequestsCount}
-                  pendingStudentsCount={pendingStudentsCount}
+                  pendingStudentsCount={0}
                   onRefreshPendingStudentsCount={fetchPendingStudentsCount}
                 />
               ) : (

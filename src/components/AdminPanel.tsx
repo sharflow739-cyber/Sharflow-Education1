@@ -65,6 +65,8 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
     description: '',
     video_url: '',
     is_published: true,
+    is_free: false,
+    thumbnail_url: '',
   });
 
   const handleOpenAddClass = () => {
@@ -75,13 +77,39 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
       description: '',
       video_url: '',
       is_published: true,
+      is_free: false,
+      thumbnail_url: '',
     });
     setIsClassModalOpen(true);
   };
 
-  const handleOpenEditClass = (cls: ClassItem) => {
-    setEditingClass({ ...cls });
+  const handleOpenEditClass = async (cls: ClassItem) => {
+    setEditingClass({
+      ...cls,
+      video_url: '',
+      is_free: cls.is_free ?? false,
+      thumbnail_url: cls.thumbnail_url || '',
+    });
     setIsClassModalOpen(true);
+
+    if (isSupabaseConfigured && supabase) {
+      try {
+        const { data, error } = await supabase
+          .from('class_videos')
+          .select('video_url')
+          .eq('class_id', cls.id)
+          .maybeSingle();
+
+        if (!error && data?.video_url) {
+          setEditingClass((prev) => ({
+            ...prev,
+            video_url: data.video_url,
+          }));
+        }
+      } catch (err) {
+        console.error('Error fetching class video for edit:', err);
+      }
+    }
   };
 
   const handleSaveClassSubmit = async (e: React.FormEvent) => {
@@ -94,17 +122,29 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
 
     try {
       setSavingClass(true);
+      const enteredVideoUrl = editingClass.video_url?.trim() || '';
+
       const record: ClassItem = {
         id: editingClass.id,
         class_number: Number(editingClass.class_number) || classes.length + 1,
         title: editingClass.title.trim(),
         description: editingClass.description?.trim() || '',
-        video_url: editingClass.video_url?.trim() || '',
+        video_url: '',
         is_published: editingClass.is_published ?? true,
+        is_free: editingClass.is_free ?? false,
+        thumbnail_url: editingClass.thumbnail_url?.trim() || '',
       };
 
       const { error } = await supabase.from('classes').upsert(record);
       if (error) throw error;
+
+      // Upsert into class_videos table
+      const { error: videoError } = await supabase.from('class_videos').upsert({
+        class_id: editingClass.id,
+        video_url: enteredVideoUrl,
+        updated_at: new Date().toISOString(),
+      });
+      if (videoError) throw videoError;
 
       showToast('success', 'ক্লাস সফলভাবে সংরক্ষণ করা হয়েছে');
       setIsClassModalOpen(false);
@@ -603,10 +643,18 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
         >
           <GraduationCap size={15} />
           <span>শিক্ষার্থী ভর্তি</span>
-          {localPendingStudentsCount > 0 && (
-            <span className="px-1.5 py-0.2 bg-rose-500 text-white rounded-full text-[10px] font-black">
-              {localPendingStudentsCount}
-            </span>
+          {initialPendingStudentsCount !== undefined ? (
+            initialPendingStudentsCount > 0 && (
+              <span className="px-1.5 py-0.2 bg-rose-500 text-white rounded-full text-[10px] font-black">
+                {initialPendingStudentsCount}
+              </span>
+            )
+          ) : (
+            localPendingStudentsCount > 0 && (
+              <span className="px-1.5 py-0.2 bg-rose-500 text-white rounded-full text-[10px] font-black">
+                {localPendingStudentsCount}
+              </span>
+            )
           )}
         </button>
 
@@ -2077,6 +2125,17 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
               </div>
 
               <div>
+                <label className="block text-xs font-bold text-slate-700 mb-1">থাম্বনেইল লিংক (ঐচ্ছিক)</label>
+                <input
+                  type="text"
+                  value={editingClass.thumbnail_url || ''}
+                  onChange={(e) => setEditingClass({ ...editingClass, thumbnail_url: e.target.value })}
+                  placeholder="https://example.com/thumbnail.jpg"
+                  className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium"
+                />
+              </div>
+
+              <div>
                 <label className="block text-xs font-bold text-slate-700 mb-1">ভিডিও লিংক (Google Drive / YouTube / MP4)</label>
                 <input
                   type="text"
@@ -2115,6 +2174,19 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
               </div>
 
               <div className="flex items-center gap-2 pt-2">
+                <input
+                  type="checkbox"
+                  id="free_check"
+                  checked={editingClass.is_free ?? false}
+                  onChange={(e) => setEditingClass({ ...editingClass, is_free: e.target.checked })}
+                  className="w-4 h-4 text-orange-600 rounded cursor-pointer"
+                />
+                <label htmlFor="free_check" className="text-xs font-bold text-slate-700 cursor-pointer">
+                  ফ্রি ক্লাস (সবাই দেখতে পারবে)
+                </label>
+              </div>
+
+              <div className="flex items-center gap-2 pt-1">
                 <input
                   type="checkbox"
                   id="pub_check"

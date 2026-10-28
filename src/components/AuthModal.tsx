@@ -163,7 +163,11 @@ export const AuthModal: React.FC<AuthModalProps> = ({
       setError('পাসওয়ার্ড কমপক্ষে ৮ অক্ষরের হতে হবে।');
       return;
     }
-    if (phone.trim() && !isValidBdPhone(phone)) {
+    if (!phone.trim()) {
+      setError('মোবাইল নম্বর আবশ্যক।');
+      return;
+    }
+    if (!isValidBdPhone(phone)) {
       setError('সঠিক বাংলাদেশী মোবাইল নম্বর দিন (যেমন: 01712345678)।');
       return;
     }
@@ -181,6 +185,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
     setLoading(true);
 
     try {
+      const normalizedPhone = phone.replace(/\D/g, '');
       // NOTE: We deliberately do NOT send 'role' in client metadata!
       // Server-side SQL trigger assigns role ('admin' only for owner email, else 'parent').
       const { data, error: authErr } = await supabase.auth.signUp({
@@ -189,7 +194,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
         options: {
           data: {
             full_name: fullName.trim(),
-            phone: phone.trim(),
+            phone: normalizedPhone,
             child_name: childName.trim(),
             child_age: childAge ? Number(childAge) : null,
           },
@@ -619,12 +624,13 @@ export const AuthModal: React.FC<AuthModalProps> = ({
               <div className="grid grid-cols-2 gap-2">
                 <div>
                   <label className="block text-xs font-bold text-slate-700 mb-1">
-                    মোবাইল নম্বর
+                    মোবাইল নম্বর *
                   </label>
                   <div className="relative">
                     <Phone className="absolute left-3 top-2.5 text-slate-400" size={15} />
                     <input
                       type="text"
+                      required
                       value={phone}
                       onChange={(e) => setPhone(e.target.value)}
                       placeholder="017XXXXXXXX"

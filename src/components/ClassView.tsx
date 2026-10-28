@@ -1,7 +1,8 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { ClassItem, UserProfile } from '../types';
+import { supabase } from '../lib/supabase';
 import { VideoPlayer } from './VideoPlayer';
-import { ArrowLeft } from 'lucide-react';
+import { ArrowLeft, Loader2, Lock } from 'lucide-react';
 
 interface ClassViewProps {
   currentClass: ClassItem;
@@ -15,6 +16,49 @@ export const ClassView: React.FC<ClassViewProps> = ({
   currentUser,
   onBackToDashboard,
 }) => {
+  const [videoUrl, setVideoUrl] = useState<string | null>(null);
+  const [loadingVideo, setLoadingVideo] = useState(true);
+
+  useEffect(() => {
+    let isCancelled = false;
+    async function fetchVideo() {
+      if (!supabase) {
+        setLoadingVideo(false);
+        return;
+      }
+      setLoadingVideo(true);
+      setVideoUrl(null);
+      try {
+        const { data, error } = await supabase
+          .from('class_videos')
+          .select('video_url')
+          .eq('class_id', currentClass.id)
+          .maybeSingle();
+
+        if (isCancelled) return;
+        if (!error && data?.video_url && data.video_url.trim()) {
+          setVideoUrl(data.video_url.trim());
+        } else {
+          setVideoUrl(null);
+        }
+      } catch (err) {
+        if (!isCancelled) {
+          console.error('Error fetching class video:', err);
+          setVideoUrl(null);
+        }
+      } finally {
+        if (!isCancelled) {
+          setLoadingVideo(false);
+        }
+      }
+    }
+
+    fetchVideo();
+    return () => {
+      isCancelled = true;
+    };
+  }, [currentClass.id]);
+
   const classNumDisplay = currentClass.class_number < 10 
     ? `০${currentClass.class_number}` 
     : `${currentClass.class_number}`;
@@ -39,19 +83,40 @@ export const ClassView: React.FC<ClassViewProps> = ({
           <span className="px-2.5 py-0.5 bg-orange-100 text-orange-800 rounded-md font-extrabold text-xs inline-block">
             ক্লাস {classNumDisplay}
           </span>
+          {currentClass.is_free && (
+            <span className="px-2.5 py-0.5 bg-blue-100 text-blue-800 rounded-md font-extrabold text-xs inline-block">
+              ফ্রি ক্লাস
+            </span>
+          )}
         </div>
         <h1 className="text-xl sm:text-2xl md:text-3xl font-extrabold text-slate-900 tracking-tight">
           {currentClass.title}
         </h1>
       </div>
 
-      {/* Embedded 16:9 Responsive Video Player with viewer watermark info */}
-      <VideoPlayer
-        videoUrl={currentClass.video_url || currentClass.youtube_video_id}
-        title={currentClass.title}
-        viewerEmail={currentUser?.email}
-        viewerPhone={currentUser?.phone}
-      />
+      {/* Embedded 16:9 Responsive Video Player or Loading / Locked Box */}
+      {loadingVideo ? (
+        <div className="w-full aspect-video rounded-2xl bg-slate-900 border border-slate-800 flex flex-col items-center justify-center text-white/70 gap-2">
+          <Loader2 size={24} className="animate-spin text-orange-500" />
+          <span className="text-xs font-medium">লোড হচ্ছে...</span>
+        </div>
+      ) : videoUrl ? (
+        <VideoPlayer
+          videoUrl={videoUrl}
+          title={currentClass.title}
+          viewerEmail={currentUser?.email}
+          viewerPhone={currentUser?.phone}
+        />
+      ) : (
+        <div className="w-full aspect-video rounded-2xl bg-slate-900 border border-slate-800 flex flex-col items-center justify-center text-center p-6 space-y-3 shadow-lg">
+          <div className="w-12 h-12 rounded-xl bg-orange-500/10 text-orange-400 flex items-center justify-center">
+            <Lock size={24} />
+          </div>
+          <p className="text-sm sm:text-base font-bold text-slate-100 max-w-md">
+            🔒 এই ক্লাসটি পেইড মেম্বারদের জন্য। অ্যাক্সেস পেতে আমাদের সাথে যোগাযোগ করুন।
+          </p>
+        </div>
+      )}
 
       {/* Short Class Description */}
       {(currentClass.description || currentClass.short_intro) && (

@@ -23,6 +23,8 @@ export interface ClassItem {
   video_url: string;
   is_published: boolean;
   created_at?: string;
+  is_free?: boolean;
+  thumbnail_url?: string;
   // Optional backward compatibility fields
   youtube_video_id?: string;
   short_intro?: string;
