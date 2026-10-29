@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { ClassItem, UserProfile, AdminRequest, SiteSettings } from '../types';
+import { ClassItem, UserProfile, AdminRequest, SiteSettings, ClassResource } from '../types';
 import { supabase, isSupabaseConfigured, OWNER_EMAIL } from '../lib/supabase';
 import { useSettings } from '../contexts/SettingsContext';
 import { VideoPlayer } from './VideoPlayer';
@@ -10,14 +10,8 @@ import {
   CheckCircle2, XCircle, ArrowLeft, Save, Video, Eye, EyeOff,
   Users, ShieldAlert, Settings, BookOpen, Search, AlertCircle,
   RotateCcw, Sparkles, Check, X, ShieldX, Info,
-  GraduationCap, Mail, RefreshCw, Clock, Send
+  GraduationCap, Mail, RefreshCw, Clock, Send, Download, FileText
 } from 'lucide-react';
-
-const QUICK_REJECT_REASONS = [
-  'পেমেন্ট পাওয়া যায়নি',
-  'তথ্য অসম্পূর্ণ বা ভুল',
-  'ইমেইল বা মোবাইল নম্বর ঠিক নয়',
-] as const;
 
 interface AdminPanelProps {
   currentUser: UserProfile;
@@ -65,21 +59,45 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
     description: '',
     video_url: '',
     is_published: true,
-    is_free: false,
-    thumbnail_url: '',
+    is_free: true,
   });
 
+  // Resources state for class edit modal
+  const [editingResources, setEditingResources] = useState<ClassResource[]>([]);
+  const [newResourceTitle, setNewResourceTitle] = useState('');
+  const [newResourceUrl, setNewResourceUrl] = useState('');
+  const [addingResource, setAddingResource] = useState(false);
+
+  const fetchClassResources = async (classId: string) => {
+    if (!isSupabaseConfigured || !supabase || !classId) return;
+    try {
+      const { data, error } = await supabase
+        .from('class_resources')
+        .select('*')
+        .eq('class_id', classId)
+        .order('sort_order', { ascending: true });
+      if (!error && data) {
+        setEditingResources(data);
+      }
+    } catch (err) {
+      console.error('Error fetching class resources:', err);
+    }
+  };
+
   const handleOpenAddClass = () => {
+    const newId = `class-${Date.now()}`;
     setEditingClass({
-      id: `class-${Date.now()}`,
+      id: newId,
       class_number: classes.length + 1,
       title: '',
       description: '',
       video_url: '',
       is_published: true,
-      is_free: false,
-      thumbnail_url: '',
+      is_free: true,
     });
+    setEditingResources([]);
+    setNewResourceTitle('');
+    setNewResourceUrl('');
     setIsClassModalOpen(true);
   };
 
@@ -87,10 +105,16 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
     setEditingClass({
       ...cls,
       video_url: '',
-      is_free: cls.is_free ?? false,
-      thumbnail_url: cls.thumbnail_url || '',
+      is_free: cls.is_free !== false,
     });
+    setEditingResources([]);
+    setNewResourceTitle('');
+    setNewResourceUrl('');
     setIsClassModalOpen(true);
+
+    if (cls.id) {
+      fetchClassResources(cls.id);
+    }
 
     if (isSupabaseConfigured && supabase) {
       try {
@@ -112,6 +136,50 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
     }
   };
 
+  const handleAddResource = async () => {
+    if (!editingClass.id || !newResourceTitle.trim() || !newResourceUrl.trim()) return;
+    if (!isSupabaseConfigured || !supabase) return;
+    try {
+      setAddingResource(true);
+      const newRes = {
+        class_id: editingClass.id,
+        title: newResourceTitle.trim(),
+        file_url: newResourceUrl.trim(),
+        sort_order: editingResources.length + 1,
+      };
+      const { data, error } = await supabase
+        .from('class_resources')
+        .insert(newRes)
+        .select()
+        .single();
+      if (error) throw error;
+      if (data) {
+        setEditingResources((prev) => [...prev, data]);
+      }
+      setNewResourceTitle('');
+      setNewResourceUrl('');
+      showToast('success', 'রিসোর্স যোগ করা হয়েছে');
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'রিসোর্স যোগ করতে ব্যর্থ';
+      showToast('error', msg);
+    } finally {
+      setAddingResource(false);
+    }
+  };
+
+  const handleDeleteResource = async (resId: string) => {
+    if (!isSupabaseConfigured || !supabase) return;
+    try {
+      const { error } = await supabase.from('class_resources').delete().eq('id', resId);
+      if (error) throw error;
+      setEditingResources((prev) => prev.filter((r) => r.id !== resId));
+      showToast('success', 'রিসোর্স মুছে ফেলা হয়েছে');
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'মুছতে ব্যর্থ হয়েছে';
+      showToast('error', msg);
+    }
+  };
+
   const handleSaveClassSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!editingClass.title || !editingClass.id) return;
@@ -124,6 +192,12 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
       setSavingClass(true);
       const enteredVideoUrl = editingClass.video_url?.trim() || '';
 
+      // Compute thumbnail_url from Bunny CDN host if matched
+      const bunnyRegex = /mediadelivery\.net\/(?:embed|play)\/(\d+)\/([0-9a-fA-F-]{36})/;
+      const match = enteredVideoUrl.match(bunnyRegex);
+      const cleanHost = (settings.bunny_cdn_host || '').trim().replace(/^https?:\/\//i, '').replace(/\/+$/, '');
+      const computedThumbnailUrl = (match && cleanHost) ? `https://${cleanHost}/${match[2]}/thumbnail.jpg` : null;
+
       const record: ClassItem = {
         id: editingClass.id,
         class_number: Number(editingClass.class_number) || classes.length + 1,
@@ -131,8 +205,8 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
         description: editingClass.description?.trim() || '',
         video_url: '',
         is_published: editingClass.is_published ?? true,
-        is_free: editingClass.is_free ?? false,
-        thumbnail_url: editingClass.thumbnail_url?.trim() || '',
+        is_free: editingClass.is_free !== false,
+        thumbnail_url: computedThumbnailUrl ?? null,
       };
 
       const { error } = await supabase.from('classes').upsert(record);
@@ -154,6 +228,23 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
       showToast('error', msg);
     } finally {
       setSavingClass(false);
+    }
+  };
+
+  const handleToggleClassFree = async (cls: ClassItem, newIsFree: boolean) => {
+    if (cls.is_free === newIsFree) return;
+    if (!isSupabaseConfigured || !supabase) return;
+    try {
+      const { error } = await supabase
+        .from('classes')
+        .update({ is_free: newIsFree })
+        .eq('id', cls.id);
+      if (error) throw error;
+      showToast('success', newIsFree ? 'ক্লাসটিকে ফ্রি করা হয়েছে' : 'ক্লাসটিকে প্রিমিয়াম করা হয়েছে');
+      await onReloadClasses();
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'স্ট্যাটাস আপডেট ব্যর্থ হয়েছে';
+      showToast('error', msg);
     }
   };
 
@@ -235,14 +326,11 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
   };
 
   // ==========================================
-  // TAB 2: STUDENT ENROLLMENT STATE & ACTIONS
+  // TAB 2: MEMBERS (STUDENTS) STATE & ACTIONS
   // ==========================================
   const [students, setStudents] = useState<UserProfile[]>([]);
   const [loadingStudents, setLoadingStudents] = useState(false);
-  const [studentSubTab, setStudentSubTab] = useState<'pending' | 'approved' | 'rejected'>('pending');
   const [studentSearch, setStudentSearch] = useState('');
-  const [rejectModalStudent, setRejectModalStudent] = useState<UserProfile | null>(null);
-  const [rejectReason, setRejectReason] = useState('');
   const [actionLoadingId, setActionLoadingId] = useState<string | null>(null);
 
   const fetchStudents = async () => {
@@ -256,7 +344,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
         .order('created_at', { ascending: false });
 
       if (error) {
-        showToast('error', `শিক্ষার্থীদের তালিকা লোড করতে ব্যর্থ: ${error.message}`);
+        showToast('error', `সদস্যদের তালিকা লোড করতে ব্যর্থ: ${error.message}`);
         return;
       }
       setStudents(data || []);
@@ -281,8 +369,11 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
     }
   }, [activeTab]);
 
-  const handleApproveStudent = async (student: UserProfile) => {
+  const handleSetMemberPremium = async (student: UserProfile) => {
+    if (student.enrollment_status === 'approved') return;
+    if (!window.confirm(`আপনি কি "${student.full_name}"-কে প্রিমিয়াম এক্সেস দিতে চান?`)) return;
     if (!isSupabaseConfigured || !supabase) return;
+
     try {
       setActionLoadingId(student.id);
       const { error: rpcErr } = await supabase.rpc('set_student_status', {
@@ -292,86 +383,34 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
       });
 
       if (rpcErr) {
-        showToast('error', `ভর্তি অনুমোদন ব্যর্থ হয়েছে: ${rpcErr.message}`);
+        showToast('error', `প্রিমিয়াম এক্সেস আপডেট ব্যর্থ: ${rpcErr.message}`);
         return;
       }
 
-      // Send approval notification email
+      showToast('success', 'প্রিমিয়াম এক্সেস আপডেট সম্পন্ন হয়েছে');
+
+      // Attempt sending email
       const emailRes = await sendStudentStatusEmail(student.id, 'approved');
-      if (emailRes.success) {
-        showToast('success', 'অনুমোদন হয়েছে ও ইমেইল পাঠানো হয়েছে');
+      if (!emailRes.success) {
+        showToast('error', `প্রিমিয়াম এক্সেস কার্যকর হয়েছে কিন্তু ইমেইল পাঠানো যায়নি (${emailRes.error})`);
       } else {
-        showToast('error', `অনুমোদন হয়েছে কিন্তু ইমেইল পাঠানো যায়নি (${emailRes.error})`);
+        showToast('success', 'অনুমোদন ইমেইল সফলভাবে পাঠানো হয়েছে');
       }
 
       await fetchStudents();
     } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : 'অনুমোদন ব্যর্থ হয়েছে';
+      const msg = err instanceof Error ? err.message : 'কার্যক্রম সম্পন্ন করা যায়নি';
       showToast('error', msg);
     } finally {
       setActionLoadingId(null);
     }
   };
 
-  const handleOpenRejectModal = (student: UserProfile) => {
-    setRejectModalStudent(student);
-    setRejectReason('');
-  };
-
-  const handleConfirmReject = async () => {
-    if (!rejectModalStudent || !isSupabaseConfigured || !supabase) return;
-    try {
-      setActionLoadingId(rejectModalStudent.id);
-      const reasonVal = rejectReason.trim() || null;
-      const { error: rpcErr } = await supabase.rpc('set_student_status', {
-        target: rejectModalStudent.id,
-        new_status: 'rejected',
-        reason: reasonVal,
-      });
-
-      if (rpcErr) {
-        // Fallback to direct update on profiles
-        const { error: updateErr } = await supabase
-          .from('profiles')
-          .update({
-            enrollment_status: 'rejected',
-            reject_reason: reasonVal,
-            reviewed_at: new Date().toISOString(),
-          })
-          .eq('id', rejectModalStudent.id);
-
-        if (updateErr) {
-          showToast('error', `প্রত্যাখ্যান ব্যর্থ হয়েছে: ${rpcErr.message}`);
-          return;
-        }
-      }
-
-      // Send rejection notification email
-      const emailRes = await sendStudentStatusEmail(
-        rejectModalStudent.id,
-        'rejected',
-        reasonVal || undefined
-      );
-
-      if (emailRes.success) {
-        showToast('success', 'প্রত্যাখ্যান সম্পন্ন হয়েছে ও ইমেইল পাঠানো হয়েছে');
-      } else {
-        showToast('error', `প্রত্যাখ্যান হয়েছে কিন্তু ইমেইল পাঠানো যায়নি (${emailRes.error})`);
-      }
-
-      setRejectModalStudent(null);
-      setRejectReason('');
-      await fetchStudents();
-    } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : 'প্রত্যাখ্যান ব্যর্থ হয়েছে';
-      showToast('error', msg);
-    } finally {
-      setActionLoadingId(null);
-    }
-  };
-
-  const handleRevertToPending = async (student: UserProfile) => {
+  const handleSetMemberFree = async (student: UserProfile) => {
+    if (student.enrollment_status !== 'approved') return;
+    if (!window.confirm(`আপনি কি "${student.full_name}"-কে ফ্রি এক্সেসে ফিরিয়ে নিতে চান?`)) return;
     if (!isSupabaseConfigured || !supabase) return;
+
     try {
       setActionLoadingId(student.id);
       const { error: rpcErr } = await supabase.rpc('set_student_status', {
@@ -381,47 +420,42 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
       });
 
       if (rpcErr) {
-        showToast('error', `Pending-এ ফিরিয়ে নেওয়া ব্যর্থ হয়েছে: ${rpcErr.message}`);
+        showToast('error', `ফ্রি এক্সেস আপডেট ব্যর্থ: ${rpcErr.message}`);
         return;
       }
 
-      showToast('success', 'শিক্ষার্থীকে পুনরায় Pending তালিকায় রাখা হয়েছে');
+      showToast('success', 'ফ্রি এক্সেসে ফিরিয়ে নেওয়া হয়েছে');
       await fetchStudents();
     } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : 'ব্যর্থ হয়েছে';
+      const msg = err instanceof Error ? err.message : 'কার্যক্রম সম্পন্ন করা যায়নি';
       showToast('error', msg);
     } finally {
       setActionLoadingId(null);
     }
   };
 
-  const handleResendEmail = async (student: UserProfile) => {
-    if (!student.enrollment_status || student.enrollment_status === 'pending') return;
-    try {
-      setActionLoadingId(student.id);
-      const emailRes = await sendStudentStatusEmail(
-        student.id,
-        student.enrollment_status as 'approved' | 'rejected',
-        student.reject_reason || undefined
-      );
-
-      if (emailRes.success) {
-        showToast('success', 'ইমেইল সফলভাবে পুনরায় পাঠানো হয়েছে');
-      } else {
-        showToast('error', `ইমেইল পাঠানো যায়নি: ${emailRes.error}`);
-      }
-    } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : 'ইমেইল পাঠানো ব্যর্থ হয়েছে';
-      showToast('error', msg);
-    } finally {
-      setActionLoadingId(null);
-    }
+  const handleDownloadCsv = () => {
+    const headers = ['নাম', 'ইমেইল', 'মোবাইল নম্বর', 'সন্তানের নাম', 'সন্তানের বয়স', 'নিবন্ধন তারিখ', 'স্ট্যাটাস'];
+    const rows = students.map((s) => [
+      `"${(s.full_name || '').replace(/"/g, '""')}"`,
+      `"${(s.email || '').replace(/"/g, '""')}"`,
+      `"${(s.phone || '').replace(/"/g, '""')}"`,
+      `"${(s.child_name || '').replace(/"/g, '""')}"`,
+      `"${s.child_age ?? ''}"`,
+      `"${s.created_at ? new Date(s.created_at).toLocaleDateString('bn-BD') : ''}"`,
+      `"${s.enrollment_status === 'approved' ? 'প্রিমিয়াম' : 'ফ্রি'}"`,
+    ]);
+    const csvContent = '\uFEFF' + [headers.join(','), ...rows.map((r) => r.join(','))].join('\r\n');
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.setAttribute('download', `abacus_members_${new Date().toISOString().slice(0, 10)}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
   };
-
-  const pendingStudentsList = students.filter(s => !s.enrollment_status || s.enrollment_status === 'pending');
-  const approvedStudentsList = students.filter(s => s.enrollment_status === 'approved');
-  const rejectedStudentsList = students.filter(s => s.enrollment_status === 'rejected');
-  const localPendingStudentsCount = pendingStudentsList.length;
 
   // ==========================================
   // TAB 3: ADMIN REQUESTS STATE & ACTIONS
@@ -643,18 +677,10 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
         >
           <GraduationCap size={15} />
           <span>শিক্ষার্থী ভর্তি</span>
-          {initialPendingStudentsCount !== undefined ? (
-            initialPendingStudentsCount > 0 && (
-              <span className="px-1.5 py-0.2 bg-rose-500 text-white rounded-full text-[10px] font-black">
-                {initialPendingStudentsCount}
-              </span>
-            )
-          ) : (
-            localPendingStudentsCount > 0 && (
-              <span className="px-1.5 py-0.2 bg-rose-500 text-white rounded-full text-[10px] font-black">
-                {localPendingStudentsCount}
-              </span>
-            )
+          {Boolean(initialPendingStudentsCount && initialPendingStudentsCount > 0) && (
+            <span className="px-1.5 py-0.2 bg-rose-500 text-white rounded-full text-[10px] font-black">
+              {initialPendingStudentsCount}
+            </span>
           )}
         </button>
 
@@ -766,7 +792,35 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                   </div>
                 </div>
 
-                <div className="flex items-center gap-1.5 self-end sm:self-center shrink-0">
+                <div className="flex items-center gap-2 self-end sm:self-center shrink-0">
+                  {/* Segmented Control: ফ্রি | প্রিমিয়াম */}
+                  <div className="inline-flex rounded-xl p-0.5 bg-slate-100 border border-slate-200 text-xs font-bold shrink-0">
+                    <button
+                      type="button"
+                      onClick={() => handleToggleClassFree(cls, true)}
+                      className={`px-2.5 py-1 rounded-lg transition-all cursor-pointer ${
+                        cls.is_free !== false
+                          ? 'bg-emerald-600 text-white shadow-2xs font-extrabold'
+                          : 'text-slate-600 hover:text-slate-900'
+                      }`}
+                      title="ফ্রি ক্লাস নির্বাচন করুন"
+                    >
+                      ফ্রি
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleToggleClassFree(cls, false)}
+                      className={`px-2.5 py-1 rounded-lg transition-all cursor-pointer ${
+                        cls.is_free === false
+                          ? 'bg-amber-500 text-slate-950 shadow-2xs font-extrabold'
+                          : 'text-slate-600 hover:text-slate-900'
+                      }`}
+                      title="প্রিমিয়াম ক্লাস নির্বাচন করুন"
+                    >
+                      প্রিমিয়াম
+                    </button>
+                  </div>
+
                   <button
                     onClick={() => handleMoveClass(idx, 'up')}
                     disabled={idx === 0}
@@ -826,99 +880,78 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
       )}
 
       {/* ======================================================== */}
-      {/* TAB 2: STUDENT ENROLLMENT (Pending, Approved, Rejected) */}
+      {/* TAB 2: MEMBERS (STUDENTS) */}
       {/* ======================================================== */}
       {activeTab === 'students' && (
         <div className="space-y-4">
           
-          {/* Header, Search & Sub-tabs */}
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-white p-4 rounded-2xl border border-slate-200 shadow-2xs">
-            <div className="flex items-center gap-1.5 bg-slate-100 p-1 rounded-xl text-xs overflow-x-auto shrink-0">
-              <button
-                onClick={() => setStudentSubTab('pending')}
-                className={`px-3 py-1.5 rounded-lg font-bold flex items-center gap-1.5 transition-all cursor-pointer ${
-                  studentSubTab === 'pending'
-                    ? 'bg-white text-orange-600 shadow-2xs'
-                    : 'text-slate-600 hover:text-slate-900'
-                }`}
-              >
-                <Clock size={13} />
-                <span>Pending (অপেক্ষমাণ)</span>
-                {pendingStudentsList.length > 0 && (
-                  <span className="px-1.5 py-0.2 bg-rose-500 text-white rounded-full text-[10px] font-black">
-                    {pendingStudentsList.length}
+          {/* Header Bar with Counters, CSV Download, and Search */}
+          <div className="bg-white p-4 sm:p-5 rounded-2xl border border-slate-200 shadow-2xs space-y-4">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              {/* Top Counters: মোট / প্রিমিয়াম / ফ্রি */}
+              <div className="flex items-center gap-2 flex-wrap">
+                <div className="px-3 py-1.5 bg-slate-100 rounded-xl text-xs font-bold text-slate-800 flex items-center gap-1.5">
+                  <span className="text-slate-500 font-semibold">মোট:</span>
+                  <span className="font-extrabold">{students.length}</span>
+                </div>
+                <div className="px-3 py-1.5 bg-amber-50 border border-amber-200 rounded-xl text-xs font-bold text-amber-900 flex items-center gap-1.5">
+                  <span className="text-amber-700 font-semibold">প্রিমিয়াম:</span>
+                  <span className="font-extrabold">
+                    {students.filter((s) => s.enrollment_status === 'approved').length}
                   </span>
-                )}
-              </button>
-
-              <button
-                onClick={() => setStudentSubTab('approved')}
-                className={`px-3 py-1.5 rounded-lg font-bold flex items-center gap-1.5 transition-all cursor-pointer ${
-                  studentSubTab === 'approved'
-                    ? 'bg-white text-emerald-600 shadow-2xs'
-                    : 'text-slate-600 hover:text-slate-900'
-                }`}
-              >
-                <CheckCircle2 size={13} />
-                <span>Approved (অনুমোদিত)</span>
-                <span className="px-1.5 py-0.2 bg-slate-200 text-slate-700 rounded-full text-[10px] font-semibold">
-                  {approvedStudentsList.length}
-                </span>
-              </button>
-
-              <button
-                onClick={() => setStudentSubTab('rejected')}
-                className={`px-3 py-1.5 rounded-lg font-bold flex items-center gap-1.5 transition-all cursor-pointer ${
-                  studentSubTab === 'rejected'
-                    ? 'bg-white text-rose-600 shadow-2xs'
-                    : 'text-slate-600 hover:text-slate-900'
-                }`}
-              >
-                <XCircle size={13} />
-                <span>Rejected (প্রত্যাখ্যাত)</span>
-                <span className="px-1.5 py-0.2 bg-slate-200 text-slate-700 rounded-full text-[10px] font-semibold">
-                  {rejectedStudentsList.length}
-                </span>
-              </button>
-            </div>
-
-            {/* Search Box & Refresh */}
-            <div className="flex items-center gap-2 flex-1 sm:max-w-xs">
-              <div className="relative flex-1">
-                <Search size={14} className="absolute left-3 top-2.5 text-slate-400" />
-                <input
-                  type="text"
-                  value={studentSearch}
-                  onChange={(e) => setStudentSearch(e.target.value)}
-                  placeholder="নাম, ইমেইল বা ফোন দিয়ে খুঁজুন..."
-                  className="w-full pl-8 pr-3 py-1.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium focus:bg-white focus:outline-none focus:border-orange-500"
-                />
+                </div>
+                <div className="px-3 py-1.5 bg-emerald-50 border border-emerald-200 rounded-xl text-xs font-bold text-emerald-900 flex items-center gap-1.5">
+                  <span className="text-emerald-700 font-semibold">ফ্রি:</span>
+                  <span className="font-extrabold">
+                    {students.filter((s) => s.enrollment_status !== 'approved').length}
+                  </span>
+                </div>
               </div>
 
-              <button
-                onClick={fetchStudents}
-                disabled={loadingStudents}
-                className="p-2 text-slate-600 hover:text-orange-600 hover:bg-orange-50 rounded-xl border border-slate-200 transition-colors cursor-pointer"
-                title="তালিকা রিফ্রেশ করুন"
-              >
-                <RefreshCw size={14} className={loadingStudents ? 'animate-spin' : ''} />
-              </button>
+              {/* CSV Download & Refresh */}
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={handleDownloadCsv}
+                  disabled={students.length === 0}
+                  className="px-3.5 py-2 bg-slate-900 hover:bg-slate-800 text-white rounded-xl text-xs font-bold shadow-xs transition-all flex items-center gap-1.5 cursor-pointer disabled:opacity-40"
+                  title="লিড ডাটা এক্সেল/CSV আকারে ডাউনলোড করুন"
+                >
+                  <Download size={14} className="text-amber-400" />
+                  <span>লিড CSV ডাউনলোড</span>
+                </button>
+
+                <button
+                  onClick={fetchStudents}
+                  disabled={loadingStudents}
+                  className="p-2 text-slate-600 hover:text-orange-600 hover:bg-orange-50 rounded-xl border border-slate-200 transition-colors cursor-pointer"
+                  title="তালিকা রিফ্রেশ করুন"
+                >
+                  <RefreshCw size={14} className={loadingStudents ? 'animate-spin' : ''} />
+                </button>
+              </div>
+            </div>
+
+            {/* Search Box */}
+            <div className="relative w-full">
+              <Search size={14} className="absolute left-3 top-2.5 text-slate-400" />
+              <input
+                type="text"
+                value={studentSearch}
+                onChange={(e) => setStudentSearch(e.target.value)}
+                placeholder="নাম, ইমেইল বা ফোন দিয়ে খুঁজুন..."
+                className="w-full pl-8 pr-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium focus:bg-white focus:outline-none focus:border-orange-500"
+              />
             </div>
           </div>
 
-          {/* Student Rows */}
+          {/* Members List */}
           {loadingStudents ? (
             <div className="bg-white p-12 text-center text-xs text-slate-400 rounded-2xl border border-slate-200">
-              শিক্ষার্থীদের তথ্য লোড হচ্ছে...
+              সদস্যদের তথ্য লোড হচ্ছে...
             </div>
           ) : (
             <div className="space-y-3">
-              {(studentSubTab === 'pending'
-                ? pendingStudentsList
-                : studentSubTab === 'approved'
-                ? approvedStudentsList
-                : rejectedStudentsList
-              )
+              {students
                 .filter((s) => {
                   const q = studentSearch.toLowerCase().trim();
                   if (!q) return true;
@@ -931,40 +964,62 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                 })
                 .map((student) => {
                   const isProcessing = actionLoadingId === student.id;
+                  const isPremium = student.enrollment_status === 'approved';
+
                   return (
                     <div
                       key={student.id}
                       className="bg-white p-4 sm:p-5 rounded-2xl border border-slate-200 shadow-2xs flex flex-col sm:flex-row sm:items-center justify-between gap-4 transition-all hover:border-orange-200"
                     >
                       <div className="space-y-1.5 flex-1">
-                        <div className="flex items-center gap-2 flex-wrap">
-                          <span className="font-extrabold text-slate-900 text-sm">
+                        {/* Name and Segmented Control next to name */}
+                        <div className="flex items-center gap-3 flex-wrap">
+                          <span className="font-extrabold text-slate-900 text-sm sm:text-base">
                             {student.full_name}
                           </span>
-                          <span className="text-xs font-mono text-slate-500">
-                            ({student.email})
-                          </span>
-                          <span
-                            className={`px-2 py-0.5 rounded text-[10px] font-bold ${
-                              !student.enrollment_status || student.enrollment_status === 'pending'
-                                ? 'bg-amber-100 text-amber-800'
-                                : student.enrollment_status === 'approved'
-                                ? 'bg-emerald-100 text-emerald-800'
-                                : 'bg-rose-100 text-rose-800'
-                            }`}
-                          >
-                            {!student.enrollment_status || student.enrollment_status === 'pending'
-                              ? 'Pending'
-                              : student.enrollment_status === 'approved'
-                              ? 'Approved'
-                              : 'Rejected'}
-                          </span>
+
+                          {/* Segmented Control "ফ্রি" | "প্রিমিয়াম" */}
+                          <div className="inline-flex rounded-xl p-0.5 bg-slate-100 border border-slate-200 text-xs font-bold shrink-0">
+                            <button
+                              type="button"
+                              disabled={isProcessing}
+                              onClick={() => handleSetMemberFree(student)}
+                              className={`px-3 py-1 rounded-lg transition-all cursor-pointer ${
+                                !isPremium
+                                  ? 'bg-emerald-600 text-white shadow-2xs font-extrabold'
+                                  : 'text-slate-600 hover:text-slate-900'
+                              }`}
+                            >
+                              ফ্রি
+                            </button>
+                            <button
+                              type="button"
+                              disabled={isProcessing}
+                              onClick={() => handleSetMemberPremium(student)}
+                              className={`px-3 py-1 rounded-lg transition-all cursor-pointer ${
+                                isPremium
+                                  ? 'bg-amber-500 text-slate-950 shadow-2xs font-extrabold'
+                                  : 'text-slate-600 hover:text-slate-900'
+                              }`}
+                            >
+                              প্রিমিয়াম
+                            </button>
+                          </div>
+
+                          {isProcessing && (
+                            <RefreshCw size={13} className="animate-spin text-orange-500" />
+                          )}
                         </div>
 
-                        <div className="flex items-center gap-4 text-xs text-slate-600 flex-wrap">
+                        {/* Details: email, phone, child name/age, joined date */}
+                        <div className="flex items-center gap-4 text-xs text-slate-600 flex-wrap pt-0.5">
+                          <span>
+                            <strong className="text-slate-400 font-semibold">ইমেইল: </strong>
+                            <span className="font-mono text-slate-700">{student.email}</span>
+                          </span>
                           <span>
                             <strong className="text-slate-400 font-semibold">মোবাইল: </strong>
-                            {student.phone || 'দেওয়া হয়নি'}
+                            <span className="font-mono text-slate-700">{student.phone || 'দেওয়া হয়নি'}</span>
                           </span>
                           <span>
                             <strong className="text-slate-400 font-semibold">সন্তান: </strong>
@@ -977,203 +1032,18 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                             </span>
                           )}
                         </div>
-
-                        {student.enrollment_status === 'rejected' && student.reject_reason && (
-                          <div className="p-2 bg-rose-50 border border-rose-100 rounded-xl text-xs text-rose-800 max-w-xl">
-                            <strong className="font-bold">প্রত্যাখ্যানের কারণ: </strong>
-                            <span>{student.reject_reason}</span>
-                          </div>
-                        )}
-                      </div>
-
-                      {/* Action Buttons */}
-                      <div className="flex items-center gap-2 self-end sm:self-center shrink-0">
-                        {(!student.enrollment_status || student.enrollment_status === 'pending') && (
-                          <>
-                            <button
-                              onClick={() => handleApproveStudent(student)}
-                              disabled={isProcessing}
-                              className="px-3.5 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-xl shadow-2xs flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
-                            >
-                              {isProcessing ? (
-                                <RefreshCw size={13} className="animate-spin" />
-                              ) : (
-                                <Check size={13} />
-                              )}
-                              <span>Approve</span>
-                            </button>
-
-                            <button
-                              onClick={() => handleOpenRejectModal(student)}
-                              disabled={isProcessing}
-                              className="px-3.5 py-1.5 bg-rose-50 hover:bg-rose-100 text-rose-700 font-bold text-xs rounded-xl border border-rose-200 flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
-                            >
-                              <X size={13} />
-                              <span>Reject</span>
-                            </button>
-                          </>
-                        )}
-
-                        {student.enrollment_status === 'approved' && (
-                          <>
-                            <button
-                              onClick={() => handleRevertToPending(student)}
-                              disabled={isProcessing}
-                              className="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs rounded-xl transition-all flex items-center gap-1 cursor-pointer disabled:opacity-50"
-                            >
-                              <Clock size={12} />
-                              <span>Pending-এ ফিরিয়ে নিন</span>
-                            </button>
-
-                            <button
-                              onClick={() => handleResendEmail(student)}
-                              disabled={isProcessing}
-                              className="px-3 py-1.5 bg-orange-50 hover:bg-orange-100 text-orange-700 font-bold text-xs rounded-xl border border-orange-200 transition-all flex items-center gap-1 cursor-pointer disabled:opacity-50"
-                              title="অনুমোদন ইমেইল পুনরায় পাঠান"
-                            >
-                              <Send size={12} />
-                              <span>ইমেইল আবার পাঠান</span>
-                            </button>
-                          </>
-                        )}
-
-                        {student.enrollment_status === 'rejected' && (
-                          <>
-                            <button
-                              onClick={() => handleRevertToPending(student)}
-                              disabled={isProcessing}
-                              className="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs rounded-xl transition-all flex items-center gap-1 cursor-pointer disabled:opacity-50"
-                            >
-                              <Clock size={12} />
-                              <span>Pending-এ ফিরিয়ে নিন</span>
-                            </button>
-
-                            <button
-                              onClick={() => handleResendEmail(student)}
-                              disabled={isProcessing}
-                              className="px-3 py-1.5 bg-rose-50 hover:bg-rose-100 text-rose-700 font-bold text-xs rounded-xl border border-rose-200 transition-all flex items-center gap-1 cursor-pointer disabled:opacity-50"
-                              title="প্রত্যাখ্যানের ইমেইল পুনরায় পাঠান"
-                            >
-                              <Send size={12} />
-                              <span>ইমেইল আবার পাঠান</span>
-                            </button>
-                          </>
-                        )}
                       </div>
                     </div>
                   );
                 })}
 
-              {(studentSubTab === 'pending'
-                ? pendingStudentsList
-                : studentSubTab === 'approved'
-                ? approvedStudentsList
-                : rejectedStudentsList
-              ).length === 0 && (
+              {students.length === 0 && (
                 <div className="bg-white p-12 text-center text-xs text-slate-400 rounded-2xl border border-slate-200">
-                  {studentSubTab === 'pending'
-                    ? 'কোনো অপেক্ষমাণ (Pending) শিক্ষার্থী নেই।'
-                    : studentSubTab === 'approved'
-                    ? 'কোনো অনুমোদিত শিক্ষার্থী নেই।'
-                    : 'কোনো প্রত্যাখ্যাত শিক্ষার্থী নেই।'}
+                  এখনো কোনো অভিভাবক নিবন্ধন করেননি।
                 </div>
               )}
             </div>
           )}
-
-          {/* Rejection Reason Modal */}
-          {rejectModalStudent && (
-            <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs">
-              <div className="bg-white rounded-2xl max-w-md w-full shadow-2xl border border-rose-100 p-6 space-y-4 relative">
-                <div className="flex items-center justify-between border-b border-slate-100 pb-3">
-                  <h3 className="font-extrabold text-slate-900 text-sm flex items-center gap-2">
-                    <AlertCircle size={16} className="text-rose-600" />
-                    ভর্তি আবেদন প্রত্যাখ্যান
-                  </h3>
-                  <button
-                    onClick={() => { setRejectModalStudent(null); setRejectReason(''); }}
-                    className="text-slate-400 hover:text-slate-600 p-1 cursor-pointer"
-                  >
-                    <X size={16} />
-                  </button>
-                </div>
-
-                <div className="space-y-1 text-xs">
-                  <p className="font-bold text-slate-800">
-                    অভিভাবক: {rejectModalStudent.full_name}
-                  </p>
-                  <p className="text-slate-500 font-mono">
-                    {rejectModalStudent.email}
-                  </p>
-                </div>
-
-                <div className="space-y-2">
-                  <label className="block text-xs font-bold text-slate-700">
-                    প্রত্যাখ্যানের কারণ (ঐচ্ছিক - শিক্ষার্থীকে ইমেইলে পাঠানো হবে):
-                  </label>
-
-                  {/* Quick Reason Buttons */}
-                  <div className="space-y-1.5">
-                    <span className="text-[11px] font-semibold text-slate-500">
-                      দ্রুত কারণ নির্বাচন করুন:
-                    </span>
-                    <div className="flex flex-wrap gap-1.5">
-                      {QUICK_REJECT_REASONS.map((reason) => {
-                        const isSelected = rejectReason === reason;
-                        return (
-                          <button
-                            key={reason}
-                            type="button"
-                            onClick={() => setRejectReason(reason)}
-                            className={`px-2.5 py-1 rounded-lg text-xs font-medium border transition-all cursor-pointer text-left ${
-                              isSelected
-                                ? 'bg-rose-50 border-rose-300 text-rose-700 font-bold shadow-2xs'
-                                : 'bg-slate-50 hover:bg-slate-100 border-slate-200 text-slate-700'
-                            }`}
-                          >
-                            {isSelected ? '✓ ' : '+ '}{reason}
-                          </button>
-                        );
-                      })}
-                    </div>
-                  </div>
-
-                  <textarea
-                    rows={3}
-                    value={rejectReason}
-                    onChange={(e) => setRejectReason(e.target.value)}
-                    placeholder="যেমন: তথ্য অসম্পূর্ণ, অথবা অন্য কোনো কারণ..."
-                    className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium focus:bg-white focus:outline-none focus:border-rose-500"
-                  />
-                  <p className="text-[11px] text-slate-400">
-                    * বাটন ক্লিক করে কারণ বসাতে পারেন অথবা বক্সটিতে নিজের মতো লিখে সম্পাদনা করতে পারেন।
-                  </p>
-                </div>
-
-                <div className="flex items-center justify-end gap-2 pt-2">
-                  <button
-                    onClick={() => { setRejectModalStudent(null); setRejectReason(''); }}
-                    className="px-3.5 py-2 text-xs font-bold text-slate-600 hover:text-slate-800 rounded-xl cursor-pointer"
-                  >
-                    বাতিল
-                  </button>
-                  <button
-                    onClick={handleConfirmReject}
-                    disabled={actionLoadingId === rejectModalStudent.id}
-                    className="px-4 py-2 bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold rounded-xl shadow-xs flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
-                  >
-                    {actionLoadingId === rejectModalStudent.id ? (
-                      <RefreshCw size={13} className="animate-spin" />
-                    ) : (
-                      <X size={13} />
-                    )}
-                    <span>প্রত্যাখ্যান নিশ্চিত করুন</span>
-                  </button>
-                </div>
-              </div>
-            </div>
-          )}
-
         </div>
       )}
 
@@ -1867,7 +1737,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
               <div className="flex items-center gap-2">
                 <button
                   onClick={() => handleResetGroup('ভিডিও সেটিংস', [
-                    'drive_hide_header', 'drive_header_offset', 'block_popout_overlay',
+                    'bunny_cdn_host', 'drive_hide_header', 'drive_header_offset', 'block_popout_overlay',
                     'watermark_enabled', 'watermark_mode', 'watermark_opacity', 'watermark_interval_seconds'
                   ])}
                   className="px-2.5 py-1 text-slate-500 hover:text-slate-800 text-xs font-semibold flex items-center gap-1 cursor-pointer"
@@ -1876,7 +1746,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                 </button>
                 <button
                   onClick={() => handleSaveGroup('ভিডিও সেটিংস', [
-                    'drive_hide_header', 'drive_header_offset', 'block_popout_overlay',
+                    'bunny_cdn_host', 'drive_hide_header', 'drive_header_offset', 'block_popout_overlay',
                     'watermark_enabled', 'watermark_mode', 'watermark_opacity', 'watermark_interval_seconds'
                   ])}
                   disabled={savingSettingsGroup === 'ভিডিও সেটিংস'}
@@ -1888,6 +1758,22 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
             </div>
 
             <div className="space-y-4 text-xs">
+              <div className="p-3.5 bg-slate-50 rounded-xl border border-slate-200 space-y-1.5">
+                <label className="block font-bold text-slate-700">
+                  Bunny CDN হোস্ট (থাম্বনেইলের জন্য, যেমন vz-xxxx.b-cdn.net)
+                </label>
+                <input
+                  type="text"
+                  value={formSettings.bunny_cdn_host || ''}
+                  onChange={(e) => setFormSettings({ ...formSettings, bunny_cdn_host: e.target.value })}
+                  placeholder="vz-xxxx.b-cdn.net"
+                  className="w-full px-3 py-2 bg-white border border-slate-200 rounded-xl focus:bg-white focus:outline-none focus:border-orange-500 font-medium text-xs"
+                />
+                <p className="text-[11px] text-slate-400">
+                  Bunny Stream ভিডিও লিংক যুক্ত করলে স্বয়ংক্রিয়ভাবে এই হোস্ট ব্যবহার করে থাম্বনেইল প্রস্তুত হবে।
+                </p>
+              </div>
+
               <div className="flex items-center justify-between p-3.5 bg-slate-50 rounded-xl border border-slate-200">
                 <div>
                   <div className="font-bold text-slate-900">Google Drive উপরের ফাঁকা হেডার লুকান (Hide Drive Header)</div>
@@ -2125,23 +2011,12 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
               </div>
 
               <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1">থাম্বনেইল লিংক (ঐচ্ছিক)</label>
-                <input
-                  type="text"
-                  value={editingClass.thumbnail_url || ''}
-                  onChange={(e) => setEditingClass({ ...editingClass, thumbnail_url: e.target.value })}
-                  placeholder="https://example.com/thumbnail.jpg"
-                  className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium"
-                />
-              </div>
-
-              <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1">ভিডিও লিংক (Google Drive / YouTube / MP4)</label>
+                <label className="block text-xs font-bold text-slate-700 mb-1">ভিডিও লিংক (Google Drive / YouTube / MP4 / Bunny)</label>
                 <input
                   type="text"
                   value={editingClass.video_url || ''}
                   onChange={(e) => setEditingClass({ ...editingClass, video_url: e.target.value })}
-                  placeholder="https://drive.google.com/file/d/.../view অথবা YouTube লিংক"
+                  placeholder="https://drive.google.com/file/d/.../view অথবা YouTube / Bunny লিংক"
                   className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium"
                 />
               </div>
@@ -2171,6 +2046,89 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                   placeholder="এই ক্লাসে কি কি শেখানো হয়েছে সংক্ষেপে লিখুন..."
                   className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium"
                 />
+              </div>
+
+              {/* RESOURCES / WORKSHEETS */}
+              <div className="pt-2 border-t border-slate-100">
+                <label className="block text-xs font-bold text-slate-700 mb-2">
+                  রিসোর্স / ওয়ার্কশিট
+                </label>
+
+                {editingClass.id ? (
+                  <div className="space-y-3">
+                    {editingResources.length > 0 ? (
+                      <div className="space-y-2">
+                        {editingResources.map((res) => (
+                          <div
+                            key={res.id}
+                            className="flex items-center justify-between gap-2 p-2 bg-slate-50 border border-slate-200 rounded-xl text-xs"
+                          >
+                            <div className="flex items-center gap-2 min-w-0">
+                              <FileText className="w-4 h-4 text-orange-500 shrink-0" />
+                              <div className="truncate">
+                                <p className="font-bold text-slate-800 truncate">{res.title}</p>
+                                <a
+                                  href={res.file_url}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="text-[10px] text-blue-600 hover:underline truncate block"
+                                >
+                                  {res.file_url}
+                                </a>
+                              </div>
+                            </div>
+                            <button
+                              type="button"
+                              onClick={() => handleDeleteResource(res.id)}
+                              className="text-red-500 hover:text-red-700 p-1.5 rounded-md hover:bg-red-50 shrink-0 cursor-pointer"
+                              title="মুছে ফেলুন"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <p className="text-xs text-slate-400 italic">কোনো রিসোর্স বা ওয়ার্কশিট যোগ করা হয়নি।</p>
+                    )}
+
+                    {/* Add row */}
+                    <div className="p-3 bg-slate-50 rounded-xl border border-slate-200 space-y-2">
+                      <p className="text-xs font-bold text-slate-700">নতুন রিসোর্স যোগ করুন:</p>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                        <input
+                          type="text"
+                          value={newResourceTitle}
+                          onChange={(e) => setNewResourceTitle(e.target.value)}
+                          placeholder="শিরোনাম (যেমন: ওয়ার্কশিট ০১)"
+                          className="px-3 py-1.5 bg-white border border-slate-200 rounded-lg text-xs"
+                        />
+                        <input
+                          type="url"
+                          value={newResourceUrl}
+                          onChange={(e) => setNewResourceUrl(e.target.value)}
+                          placeholder="ফাইলের URL (Google Drive / ডাউনলোড লিংক)"
+                          className="px-3 py-1.5 bg-white border border-slate-200 rounded-lg text-xs"
+                        />
+                      </div>
+                      <div className="flex justify-end">
+                        <button
+                          type="button"
+                          onClick={handleAddResource}
+                          disabled={addingResource || !newResourceTitle.trim() || !newResourceUrl.trim()}
+                          className="px-3 py-1.5 bg-orange-500 hover:bg-orange-600 text-white font-bold text-xs rounded-lg cursor-pointer disabled:opacity-50 inline-flex items-center gap-1.5"
+                        >
+                          <Plus className="w-3.5 h-3.5" />
+                          {addingResource ? 'যোগ হচ্ছে...' : 'যোগ করুন'}
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                ) : (
+                  <p className="text-xs text-slate-500 bg-slate-50 p-2.5 rounded-xl border border-dashed border-slate-200">
+                    রিসোর্স / ওয়ার্কশিট যোগ করার জন্য প্রথমে ক্লাসটি সংরক্ষণ (Save) করুন। এরপর এডিট করে যুক্ত করুন।
+                  </p>
+                )}
               </div>
 
               <div className="flex items-center gap-2 pt-2">

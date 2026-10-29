@@ -422,6 +422,7 @@ export default function App() {
                 {!classesLoading && !classesError && (
                   <Dashboard
                     classes={classes}
+                    currentUser={currentUser}
                     onSelectClass={(cls) => {
                       setCurrentClass(cls);
                       navigateToView('class');

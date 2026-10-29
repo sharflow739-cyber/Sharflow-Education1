@@ -24,10 +24,19 @@ export interface ClassItem {
   is_published: boolean;
   created_at?: string;
   is_free?: boolean;
-  thumbnail_url?: string;
+  thumbnail_url?: string | null;
   // Optional backward compatibility fields
   youtube_video_id?: string;
   short_intro?: string;
+}
+
+export interface ClassResource {
+  id: string;
+  class_id: string;
+  title: string;
+  file_url: string;
+  sort_order?: number;
+  created_at?: string;
 }
 
 export interface AdminRequest {
@@ -86,6 +95,7 @@ export interface SiteSettings {
   welcome_popup_text: string;
 
   // Video
+  bunny_cdn_host: string;
   drive_hide_header: boolean;
   drive_header_offset: number; // 0-80 px
   block_popout_overlay: boolean;
@@ -139,6 +149,7 @@ export const DEFAULT_SITE_SETTINGS: SiteSettings = {
   certified_badge_label: 'সার্টিফাইড কোর্স',
 
   // Video
+  bunny_cdn_host: '',
   drive_hide_header: true,
   drive_header_offset: 52,
   block_popout_overlay: true,
