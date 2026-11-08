@@ -67,6 +67,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
   const [newResourceTitle, setNewResourceTitle] = useState('');
   const [newResourceUrl, setNewResourceUrl] = useState('');
   const [addingResource, setAddingResource] = useState(false);
+  const [customThumbnailFileName, setCustomThumbnailFileName] = useState('');
 
   const fetchClassResources = async (classId: string) => {
     if (!isSupabaseConfigured || !supabase || !classId) return;
@@ -95,6 +96,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
       is_published: true,
       is_free: true,
     });
+    setCustomThumbnailFileName('');
     setEditingResources([]);
     setNewResourceTitle('');
     setNewResourceUrl('');
@@ -107,6 +109,16 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
       video_url: '',
       is_free: cls.is_free !== false,
     });
+    // Prefill with last path segment of thumbnail_url if not "thumbnail.jpg", otherwise empty
+    let initialFileName = '';
+    if (cls.thumbnail_url) {
+      const segments = cls.thumbnail_url.split('/');
+      const lastSegment = segments[segments.length - 1];
+      if (lastSegment && lastSegment !== 'thumbnail.jpg') {
+        initialFileName = lastSegment;
+      }
+    }
+    setCustomThumbnailFileName(initialFileName);
     setEditingResources([]);
     setNewResourceTitle('');
     setNewResourceUrl('');
@@ -195,8 +207,34 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
       // Compute thumbnail_url from Bunny CDN host if matched
       const bunnyRegex = /mediadelivery\.net\/(?:embed|play)\/(\d+)\/([0-9a-fA-F-]{36})/;
       const match = enteredVideoUrl.match(bunnyRegex);
-      const cleanHost = (settings.bunny_cdn_host || '').trim().replace(/^https?:\/\//i, '').replace(/\/+$/, '');
-      const computedThumbnailUrl = (match && cleanHost) ? `https://${cleanHost}/${match[2]}/thumbnail.jpg` : null;
+
+      // Robustly sanitize cleanHost:
+      // trim; remove a leading word "host" (case-insensitive) and all whitespace;
+      // remove http:// or https://; cut everything from the first "/" onward;
+      // validate against /^[a-z0-9-]+(\.[a-z0-9-]+)*\.b-cdn\.net$/i, else treat as empty.
+      let rawHost = (settings.bunny_cdn_host || '').trim();
+      rawHost = rawHost.replace(/^host\b/i, '');
+      rawHost = rawHost.replace(/\s+/g, '');
+      rawHost = rawHost.replace(/^https?:\/\//i, '');
+      const firstSlashIdx = rawHost.indexOf('/');
+      if (firstSlashIdx !== -1) {
+        rawHost = rawHost.substring(0, firstSlashIdx);
+      }
+      const bCdnRegex = /^[a-z0-9-]+(\.[a-z0-9-]+)*\.b-cdn\.net$/i;
+      const cleanHost = bCdnRegex.test(rawHost) ? rawHost : '';
+
+      let computedThumbnailUrl: string | null = null;
+      if (match && cleanHost) {
+        const rawFileNameInput = customThumbnailFileName.trim();
+        const fileName = rawFileNameInput || 'thumbnail.jpg';
+        const fileNameRegex = /^[A-Za-z0-9._-]+\.(jpg|jpeg|png|webp)$/i;
+        if (!fileNameRegex.test(fileName)) {
+          showToast('error', 'থাম্বনেইল ফাইলের নাম ঠিক নয়।');
+          setSavingClass(false);
+          return;
+        }
+        computedThumbnailUrl = `https://${cleanHost}/${match[2]}/${fileName}`;
+      }
 
       const record: ClassItem = {
         id: editingClass.id,
@@ -2019,6 +2057,20 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                   placeholder="https://drive.google.com/file/d/.../view অথবা YouTube / Bunny লিংক"
                   className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium"
                 />
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-slate-700 mb-1">থাম্বনেইল ফাইলের নাম (ঐচ্ছিক)</label>
+                <input
+                  type="text"
+                  value={customThumbnailFileName}
+                  onChange={(e) => setCustomThumbnailFileName(e.target.value)}
+                  placeholder="thumbnail_a880cb3b.jpg"
+                  className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium"
+                />
+                <p className="text-[11px] text-slate-500 mt-1">
+                  Bunny এ কাস্টম থাম্বনেইল দিলে ফাইলের নাম এখানে দিন। ফাঁকা রাখলে thumbnail.jpg ধরা হবে।
+                </p>
               </div>
 
               {/* LIVE VIDEO PREVIEW */}
