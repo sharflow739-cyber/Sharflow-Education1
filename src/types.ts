@@ -100,6 +100,7 @@ export interface SiteSettings {
   privacy_policy_text: string;
   enable_direct_payment: boolean;
   payment_instructions: string;
+  lemonsqueezy_checkout_url: string;
 
   // Student Registration & Approval texts
   welcome_popup_title: string;
@@ -169,6 +170,7 @@ export const DEFAULT_SITE_SETTINGS: SiteSettings = {
   privacy_policy_text: '',
   enable_direct_payment: false,
   payment_instructions: '',
+  lemonsqueezy_checkout_url: '',
 
   // Video
   bunny_cdn_host: '',

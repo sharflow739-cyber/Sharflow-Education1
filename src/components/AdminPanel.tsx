@@ -2004,7 +2004,8 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                   onClick={() => handleResetGroup('লঞ্চ ও ভর্তি সেটিংস', [
                     'public_demo_video_url', 'course_fee_bdt', 'course_duration_access',
                     'course_includes_text', 'refund_policy_text', 'terms_policy_text',
-                    'privacy_policy_text', 'enable_direct_payment', 'payment_instructions'
+                    'privacy_policy_text', 'enable_direct_payment', 'payment_instructions',
+                    'lemonsqueezy_checkout_url'
                   ])}
                   className="px-2.5 py-1 text-slate-500 hover:text-slate-800 text-xs font-semibold flex items-center gap-1 cursor-pointer"
                 >
@@ -2014,7 +2015,8 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                   onClick={() => handleSaveGroup('লঞ্চ ও ভর্তি সেটিংস', [
                     'public_demo_video_url', 'course_fee_bdt', 'course_duration_access',
                     'course_includes_text', 'refund_policy_text', 'terms_policy_text',
-                    'privacy_policy_text', 'enable_direct_payment', 'payment_instructions'
+                    'privacy_policy_text', 'enable_direct_payment', 'payment_instructions',
+                    'lemonsqueezy_checkout_url'
                   ])}
                   disabled={savingSettingsGroup === 'লঞ্চ ও ভর্তি সেটিংস'}
                   className="px-4 py-1.5 bg-orange-500 hover:bg-orange-600 text-white rounded-xl text-xs font-bold shadow-xs flex items-center gap-1 cursor-pointer disabled:opacity-50"
@@ -2101,15 +2103,33 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                 </div>
 
                 {formSettings.enable_direct_payment && (
-                  <div>
-                    <label className="block font-bold text-slate-700 mb-1">পেমেন্ট নির্দেশিকা (বিকাশ/নগদ/ব্যাংক)</label>
-                    <textarea
-                      rows={3}
-                      value={formSettings.payment_instructions || ''}
-                      onChange={(e) => setFormSettings({ ...formSettings, payment_instructions: e.target.value })}
-                      placeholder="বিকাশ/নগদ মার্চেন্ট নম্বর এবং ট্রানজ্যাকশন আইডি পাঠানোর নিয়মাবলী লিখুন..."
-                      className="w-full px-3 py-2 bg-white border border-slate-200 rounded-xl focus:outline-none focus:border-orange-500 font-medium text-xs"
-                    />
+                  <div className="space-y-3">
+                    <div>
+                      <label className="block font-bold text-slate-700 mb-1">
+                        লাইভ Lemon Squeezy চেকআউট লিংক (ঐচ্ছিক)
+                      </label>
+                      <input
+                        type="url"
+                        value={formSettings.lemonsqueezy_checkout_url || ''}
+                        onChange={(e) => setFormSettings({ ...formSettings, lemonsqueezy_checkout_url: e.target.value })}
+                        placeholder="https://sharflow.lemonsqueezy.com/checkout/buy/..."
+                        className="w-full px-3 py-2 bg-white border border-slate-200 rounded-xl focus:outline-none focus:border-orange-500 font-medium text-xs"
+                      />
+                      <p className="text-[11px] text-slate-400 mt-1">
+                        লাইভ চেকআউট লিংক দিলে শিক্ষার্থী সরাসরি Lemon Squeezy-তে গিয়ে পেমেন্ট করতে পারবেন।
+                      </p>
+                    </div>
+
+                    <div>
+                      <label className="block font-bold text-slate-700 mb-1">পেমেন্ট নির্দেশিকা (বিকাশ/নগদ/ব্যাংক/অন্যান্য)</label>
+                      <textarea
+                        rows={3}
+                        value={formSettings.payment_instructions || ''}
+                        onChange={(e) => setFormSettings({ ...formSettings, payment_instructions: e.target.value })}
+                        placeholder="বিকাশ/নগদ মার্চেন্ট নম্বর এবং ট্রানজ্যাকশন আইডি পাঠানোর নিয়মাবলী লিখুন..."
+                        className="w-full px-3 py-2 bg-white border border-slate-200 rounded-xl focus:outline-none focus:border-orange-500 font-medium text-xs"
+                      />
+                    </div>
                   </div>
                 )}
               </div>
