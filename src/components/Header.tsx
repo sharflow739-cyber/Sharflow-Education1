@@ -1,7 +1,7 @@
 import React from 'react';
 import { UserProfile } from '../types';
 import { useSettings } from '../contexts/SettingsContext';
-import { LogOut, User, BookOpen, ShieldAlert, Calculator, Sparkles, UserPlus } from 'lucide-react';
+import { LogOut, User, BookOpen, ShieldAlert, Calculator, Sparkles, UserPlus, ShoppingCart } from 'lucide-react';
 
 interface HeaderProps {
   currentUser: UserProfile | null;
@@ -24,6 +24,7 @@ export const Header: React.FC<HeaderProps> = ({
 }) => {
   const { settings } = useSettings();
   const isAdmin = currentUser?.role === 'admin';
+  const isPremium = isAdmin || currentUser?.enrollment_status === 'approved';
 
   const handleNavClick = (e: React.MouseEvent, path: string) => {
     e.preventDefault();
@@ -96,6 +97,23 @@ export const Header: React.FC<HeaderProps> = ({
                 >
                   ক্লাসসমূহ
                 </a>
+
+                {/* 'কোর্স কিনুন' link for logged-in free users lacking premium access */}
+                {!isPremium && (
+                  <a
+                    href="/enroll"
+                    onClick={(e) => handleNavClick(e, '/enroll')}
+                    className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 ${
+                      activePath === '/enroll'
+                        ? 'bg-gradient-to-r from-orange-500 to-amber-500 text-white shadow-xs'
+                        : 'bg-orange-50 text-orange-700 hover:bg-orange-100 border border-orange-200'
+                    }`}
+                  >
+                    <ShoppingCart size={13} className={activePath === '/enroll' ? 'text-white' : 'text-orange-600'} />
+                    <span>কোর্স কিনুন</span>
+                  </a>
+                )}
+
                 <a
                   href="/abacus"
                   className="px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 text-slate-600 hover:text-slate-900 hover:bg-slate-50"

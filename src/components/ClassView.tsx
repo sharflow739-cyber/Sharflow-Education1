@@ -3,19 +3,21 @@ import { ClassItem, UserProfile, ClassResource } from '../types';
 import { supabase } from '../lib/supabase';
 import { useSettings } from '../contexts/SettingsContext';
 import { VideoPlayer } from './VideoPlayer';
-import { ArrowLeft, Loader2, Lock, Download, FileText, Phone, Mail } from 'lucide-react';
+import { ArrowLeft, Loader2, Lock, Download, FileText, Phone, Mail, ShoppingCart } from 'lucide-react';
 
 interface ClassViewProps {
   currentClass: ClassItem;
   allClasses: ClassItem[];
   currentUser?: UserProfile | null;
   onBackToDashboard: () => void;
+  onNavigate?: (path: string) => void;
 }
 
 export const ClassView: React.FC<ClassViewProps> = ({
   currentClass,
   currentUser,
   onBackToDashboard,
+  onNavigate,
 }) => {
   const { settings } = useSettings();
   const isPremium = currentUser?.role === 'admin' || currentUser?.enrollment_status === 'approved';
@@ -166,27 +168,47 @@ export const ClassView: React.FC<ClassViewProps> = ({
                 🔒 এই ক্লাসটি প্রিমিয়াম মেম্বারদের জন্য।
               </h2>
               <p className="text-xs sm:text-sm text-slate-300">
-                প্রিমিয়াম অ্যাক্সেস পেতে যোগাযোগ করুন:
+                সম্পূর্ণ কোর্সের ভিডিও লেসন ও রিসোর্স আনলক করতে কোর্সটিতে ভর্তি হন:
               </p>
             </div>
 
+            {/* Direct Purchase / Enroll CTA */}
+            <div className="pt-2">
+              <button
+                type="button"
+                onClick={() => {
+                  if (onNavigate) {
+                    onNavigate('/enroll');
+                  } else {
+                    window.history.pushState({}, '', '/enroll');
+                    window.dispatchEvent(new PopStateEvent('popstate'));
+                  }
+                }}
+                className="px-6 py-3 bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white font-extrabold text-xs sm:text-sm rounded-xl shadow-lg shadow-orange-500/25 transition-all inline-flex items-center gap-2 cursor-pointer active:scale-98"
+              >
+                <ShoppingCart size={16} />
+                <span>কোর্স কিনুন / ভর্তির তথ্য দেখুন</span>
+              </button>
+            </div>
+
             {/* Contact Details */}
-            <div className="flex flex-wrap items-center justify-center gap-3 pt-1">
+            <div className="flex flex-wrap items-center justify-center gap-3 pt-2 text-[11px] text-slate-300">
+              <span className="w-full text-slate-400">অথবা সরাসরি যোগাযোগ করুন:</span>
               {settings.contact_phone && (
                 <a
                   href={`tel:${settings.contact_phone}`}
-                  className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-white/10 hover:bg-white/20 border border-white/20 text-xs font-bold text-white transition-colors"
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white/10 hover:bg-white/20 border border-white/20 text-xs font-bold text-white transition-colors"
                 >
-                  <Phone size={14} className="text-amber-400" />
+                  <Phone size={13} className="text-amber-400" />
                   <span>{settings.contact_phone}</span>
                 </a>
               )}
               {settings.contact_email && (
                 <a
                   href={`mailto:${settings.contact_email}`}
-                  className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-white/10 hover:bg-white/20 border border-white/20 text-xs font-bold text-white transition-colors"
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white/10 hover:bg-white/20 border border-white/20 text-xs font-bold text-white transition-colors"
                 >
-                  <Mail size={14} className="text-amber-400" />
+                  <Mail size={13} className="text-amber-400" />
                   <span>{settings.contact_email}</span>
                 </a>
               )}
@@ -211,8 +233,25 @@ export const ClassView: React.FC<ClassViewProps> = ({
             <Lock size={24} />
           </div>
           <p className="text-sm sm:text-base font-bold text-slate-100 max-w-md">
-            🔒 এই ক্লাসটি পেইড মেম্বারদের জন্য। অ্যাক্সেস পেতে আমাদের সাথে যোগাযোগ করুন।
+            🔒 এই ক্লাসটি পেইড মেম্বারদের জন্য।
           </p>
+          {!isPremium && (
+            <button
+              type="button"
+              onClick={() => {
+                if (onNavigate) {
+                  onNavigate('/enroll');
+                } else {
+                  window.history.pushState({}, '', '/enroll');
+                  window.dispatchEvent(new PopStateEvent('popstate'));
+                }
+              }}
+              className="mt-1 px-5 py-2.5 bg-orange-500 hover:bg-orange-600 text-white font-bold text-xs rounded-xl shadow-xs transition-all inline-flex items-center gap-1.5 cursor-pointer"
+            >
+              <ShoppingCart size={14} />
+              <span>ভর্তির তথ্য ও কোর্স ফি দেখুন</span>
+            </button>
+          )}
         </div>
       )}
 

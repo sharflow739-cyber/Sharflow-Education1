@@ -173,7 +173,7 @@ export const EnrollPage: React.FC<EnrollPageProps> = ({ onNavigate, onOpenAuth }
           /* Payment is actively enabled in settings */
           <div className="space-y-5">
             
-            {/* If Lemon Squeezy checkout URL is available (live setting, or dev test url) */}
+            {/* If Lemon Squeezy checkout URL is available (configurable setting or live fallback) */}
             {activeCheckoutUrl ? (
               <div className="space-y-4">
                 

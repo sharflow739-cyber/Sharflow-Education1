@@ -66,16 +66,23 @@ export default function App() {
     }
   }, []);
 
-  // Sync URL Path with browser back/forward buttons
   useEffect(() => {
     const handleLocationChange = () => {
       const path = window.location.pathname || '/';
       setCurrentPath(path);
+      // Support class deep links (e.g. /class/class-01 or /class-01)
+      if (path.startsWith('/class/')) {
+        const classId = path.replace('/class/', '').trim();
+        const found = classes.find((c) => c.id === classId);
+        if (found) setCurrentClass(found);
+      } else if (path === '/' || path === '/dashboard') {
+        setCurrentClass(null);
+      }
     };
 
     window.addEventListener('popstate', handleLocationChange);
     return () => window.removeEventListener('popstate', handleLocationChange);
-  }, []);
+  }, [classes]);
 
   // Safe SPA navigation
   const navigateTo = useCallback((path: string) => {
@@ -497,6 +504,7 @@ export default function App() {
                   setCurrentClass(null);
                   navigateTo('/');
                 }}
+                onNavigate={navigateTo}
               />
             ) : (
               /* Member Dashboard for Logged-In User */
@@ -520,6 +528,7 @@ export default function App() {
                     onSelectClass={(cls) => {
                       setCurrentClass(cls);
                     }}
+                    onNavigate={navigateTo}
                   />
                 )}
               </>

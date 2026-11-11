@@ -7,18 +7,33 @@ interface DashboardProps {
   classes: ClassItem[];
   currentUser?: UserProfile | null;
   onSelectClass: (classItem: ClassItem) => void;
+  onNavigate?: (path: string) => void;
 }
 
 export const Dashboard: React.FC<DashboardProps> = ({
   classes,
   currentUser,
   onSelectClass,
+  onNavigate,
 }) => {
   const { settings } = useSettings();
   const isPremium = currentUser?.role === 'admin' || currentUser?.enrollment_status === 'approved';
 
   // Only show published classes to parents
   const displayClasses = classes.filter((c) => c.is_published !== false);
+
+  const handleCardAction = (cls: ClassItem, isLocked: boolean) => {
+    if (isLocked) {
+      if (onNavigate) {
+        onNavigate('/enroll');
+      } else {
+        window.history.pushState({}, '', '/enroll');
+        window.dispatchEvent(new PopStateEvent('popstate'));
+      }
+    } else {
+      onSelectClass(cls);
+    }
+  };
 
   return (
     <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
@@ -46,8 +61,17 @@ export const Dashboard: React.FC<DashboardProps> = ({
           return (
             <div
               key={cls.id}
-              onClick={() => onSelectClass(cls)}
-              className="group bg-white rounded-2xl border border-slate-200 hover:border-orange-300 shadow-2xs hover:shadow-md transition-all cursor-pointer overflow-hidden flex flex-col"
+              role="button"
+              tabIndex={0}
+              aria-label={isLocked ? `${cls.title} (লক করা প্রিমিয়াম ক্লাস - ভর্তির তথ্য দেখুন)` : cls.title}
+              onClick={() => handleCardAction(cls, isLocked)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' || e.key === ' ') {
+                  e.preventDefault();
+                  handleCardAction(cls, isLocked);
+                }
+              }}
+              className="group bg-white rounded-2xl border border-slate-200 hover:border-orange-300 shadow-2xs hover:shadow-md transition-all cursor-pointer overflow-hidden flex flex-col focus:outline-none focus:ring-2 focus:ring-orange-500"
             >
               {/* 16:9 Thumbnail Area */}
               <div className="relative aspect-video w-full overflow-hidden bg-slate-100">
@@ -74,10 +98,13 @@ export const Dashboard: React.FC<DashboardProps> = ({
 
                 {/* Centered Lock Overlay if premium and viewer not premium */}
                 {isLocked && (
-                  <div className="absolute inset-0 bg-slate-950/40 backdrop-blur-[1px] flex flex-col items-center justify-center text-white gap-1 z-10">
-                    <div className="w-11 h-11 rounded-full bg-slate-900/80 border border-white/20 flex items-center justify-center shadow-lg">
+                  <div className="absolute inset-0 bg-slate-950/40 backdrop-blur-[1px] flex flex-col items-center justify-center text-white gap-1.5 z-10 p-2 text-center">
+                    <div className="w-11 h-11 rounded-full bg-slate-900/80 border border-white/20 flex items-center justify-center shadow-lg group-hover:scale-110 transition-transform">
                       <Lock size={20} className="text-amber-300" />
                     </div>
+                    <span className="text-[11px] font-bold text-amber-200 bg-black/60 px-2.5 py-0.5 rounded-full backdrop-blur-xs">
+                      কোর্স কিনুন
+                    </span>
                   </div>
                 )}
               </div>
