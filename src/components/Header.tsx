@@ -1,14 +1,14 @@
 import React from 'react';
 import { UserProfile } from '../types';
 import { useSettings } from '../contexts/SettingsContext';
-import { LogOut, User, BookOpen, ShieldAlert, Calculator } from 'lucide-react';
+import { LogOut, User, BookOpen, ShieldAlert, Calculator, Sparkles, UserPlus } from 'lucide-react';
 
 interface HeaderProps {
   currentUser: UserProfile | null;
   onLogout: () => void;
   onOpenAuth: () => void;
-  activeView: 'dashboard' | 'class' | 'admin';
-  setActiveView: (view: 'dashboard' | 'class' | 'admin') => void;
+  activePath: string;
+  onNavigate: (path: string) => void;
   pendingRequestsCount?: number;
   pendingStudentsCount?: number;
 }
@@ -17,54 +17,88 @@ export const Header: React.FC<HeaderProps> = ({
   currentUser,
   onLogout,
   onOpenAuth,
-  activeView,
-  setActiveView,
+  activePath,
+  onNavigate,
   pendingRequestsCount = 0,
   pendingStudentsCount = 0,
 }) => {
   const { settings } = useSettings();
   const isAdmin = currentUser?.role === 'admin';
 
+  const handleNavClick = (e: React.MouseEvent, path: string) => {
+    e.preventDefault();
+    onNavigate(path);
+  };
+
   return (
     <header className="sticky top-0 z-40 bg-white/95 backdrop-blur-md border-b border-orange-100 shadow-xs">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex items-center justify-between h-16 gap-4">
+        <div className="flex items-center justify-between h-16 gap-3">
           
           {/* Logo & Platform Name */}
-          <div 
-            onClick={() => setActiveView('dashboard')}
-            className="flex items-center gap-3 cursor-pointer group"
+          <a
+            href="/"
+            onClick={(e) => handleNavClick(e, '/')}
+            className="flex items-center gap-2.5 cursor-pointer group shrink-0"
           >
             <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-orange-600 to-amber-500 text-white flex items-center justify-center font-black text-xl shadow-md shadow-orange-500/20 group-hover:scale-105 transition-transform">
               {settings.logo_emoji || '🧮'}
             </div>
             <div>
-              <span className="font-extrabold text-slate-900 text-lg sm:text-xl tracking-tight leading-none block">
+              <span className="font-extrabold text-slate-900 text-base sm:text-lg tracking-tight leading-none block">
                 {settings.site_name || 'অ্যাবাকাস Parent Training'}
               </span>
-              <span className="text-[11px] text-slate-500 font-medium hidden sm:inline-block">
+              <span className="text-[10px] sm:text-[11px] text-slate-500 font-medium hidden xs:inline-block">
                 {settings.site_subtitle || 'অনলাইন অভিভাবক ট্রেনিং প্ল্যাটফর্ম'}
               </span>
             </div>
-          </div>
+          </a>
 
           {/* Navigation Links */}
-          <div className="flex items-center gap-2">
-            {currentUser && (
+          <nav className="flex items-center gap-1.5 sm:gap-2">
+            {!currentUser ? (
               <>
-                <button
-                  onClick={() => setActiveView('dashboard')}
-                  className={`px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all ${
-                    activeView === 'dashboard' || activeView === 'class'
+                <a
+                  href="/demo"
+                  onClick={(e) => handleNavClick(e, '/demo')}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 ${
+                    activePath === '/demo'
                       ? 'bg-orange-50 text-orange-600 border border-orange-200'
-                      : 'text-slate-600 hover:text-slate-900'
+                      : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50'
+                  }`}
+                >
+                  <Sparkles size={14} className="text-orange-500" />
+                  <span>ফ্রি ডেমো</span>
+                </a>
+                <a
+                  href="/enroll"
+                  onClick={(e) => handleNavClick(e, '/enroll')}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 ${
+                    activePath === '/enroll'
+                      ? 'bg-orange-50 text-orange-600 border border-orange-200'
+                      : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50'
+                  }`}
+                >
+                  <UserPlus size={14} className="text-orange-500" />
+                  <span>ভর্তির তথ্য</span>
+                </a>
+              </>
+            ) : (
+              <>
+                <a
+                  href="/"
+                  onClick={(e) => handleNavClick(e, '/')}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
+                    activePath === '/' || activePath === '/dashboard' || activePath.startsWith('/class')
+                      ? 'bg-orange-50 text-orange-600 border border-orange-200'
+                      : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50'
                   }`}
                 >
                   ক্লাসসমূহ
-                </button>
+                </a>
                 <a
                   href="/abacus"
-                  className="px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 text-slate-600 hover:text-slate-900 hover:bg-slate-50"
+                  className="px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 text-slate-600 hover:text-slate-900 hover:bg-slate-50"
                 >
                   <Calculator size={14} className="text-slate-500" />
                   <span>ভার্চুয়াল অ্যাবাকাস</span>
@@ -74,15 +108,16 @@ export const Header: React.FC<HeaderProps> = ({
 
             {/* Admin Button - ONLY visible to admins */}
             {isAdmin && (
-              <button
-                onClick={() => setActiveView('admin')}
-                className={`relative px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer ${
-                  activeView === 'admin'
+              <a
+                href="/admin"
+                onClick={(e) => handleNavClick(e, '/admin')}
+                className={`relative px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer ${
+                  activePath === '/admin'
                     ? 'bg-slate-900 text-white shadow-xs'
                     : 'bg-slate-100 hover:bg-slate-200 text-slate-800'
                 }`}
               >
-                <ShieldAlert size={14} className={activeView === 'admin' ? 'text-amber-400' : 'text-slate-600'} />
+                <ShieldAlert size={14} className={activePath === '/admin' ? 'text-amber-400' : 'text-slate-600'} />
                 <span>এডমিন</span>
                 {pendingStudentsCount > 0 && (
                   <span 
@@ -100,9 +135,9 @@ export const Header: React.FC<HeaderProps> = ({
                     {pendingRequestsCount}
                   </span>
                 )}
-              </button>
+              </a>
             )}
-          </div>
+          </nav>
 
           {/* Right Action Menu */}
           <div className="flex items-center gap-2">
@@ -118,11 +153,9 @@ export const Header: React.FC<HeaderProps> = ({
                     </span>
                   )}
                 </div>
-
                 <div className="w-8 h-8 rounded-full bg-orange-100 border border-orange-300 text-orange-700 flex items-center justify-center font-bold text-xs">
                   {currentUser.full_name.charAt(0) || <User size={14} />}
                 </div>
-
                 <button
                   onClick={onLogout}
                   className="p-2 text-slate-500 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors flex items-center gap-1 text-xs font-semibold cursor-pointer"
@@ -135,10 +168,10 @@ export const Header: React.FC<HeaderProps> = ({
             ) : (
               <button
                 onClick={onOpenAuth}
-                className="px-4 py-2 bg-orange-500 hover:bg-orange-600 text-white rounded-xl text-xs font-bold shadow-md shadow-orange-500/20 transition-all active:scale-95 flex items-center gap-1.5 cursor-pointer"
+                className="px-3.5 sm:px-4 py-2 bg-orange-500 hover:bg-orange-600 text-white rounded-xl text-xs font-bold shadow-md shadow-orange-500/20 transition-all active:scale-95 flex items-center gap-1.5 cursor-pointer"
               >
                 <BookOpen size={15} />
-                {settings.login_button_label || 'লগইন'}
+                <span>{settings.login_button_label || 'লগইন করুন'}</span>
               </button>
             )}
           </div>

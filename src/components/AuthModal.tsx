@@ -31,8 +31,6 @@ export const AuthModal: React.FC<AuthModalProps> = ({
   const [password, setPassword] = useState('');
   const [fullName, setFullName] = useState('');
   const [phone, setPhone] = useState('');
-  const [childName, setChildName] = useState('');
-  const [childAge, setChildAge] = useState<number | ''>(7);
 
   // OTP Verification states
   const [otpEmail, setOtpEmail] = useState('');
@@ -195,8 +193,6 @@ export const AuthModal: React.FC<AuthModalProps> = ({
           data: {
             full_name: fullName.trim(),
             phone: normalizedPhone,
-            child_name: childName.trim(),
-            child_age: childAge ? Number(childAge) : null,
           },
           emailRedirectTo: window.location.origin,
         },
@@ -654,33 +650,6 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                       className="w-full pl-8 pr-2 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium focus:bg-white focus:border-orange-500 focus:outline-none"
                     />
                   </div>
-                </div>
-              </div>
-
-              <div className="grid grid-cols-3 gap-2 bg-orange-50/60 p-2.5 rounded-xl border border-orange-100">
-                <div className="col-span-2">
-                  <label className="block text-[11px] font-bold text-slate-700 mb-1">
-                    সন্তানের নাম
-                  </label>
-                  <input
-                    type="text"
-                    value={childName}
-                    onChange={(e) => setChildName(e.target.value)}
-                    placeholder="সন্তানের নাম"
-                    className="w-full px-2.5 py-1.5 bg-white border border-slate-200 rounded-lg text-xs font-medium"
-                  />
-                </div>
-                <div>
-                  <label className="block text-[11px] font-bold text-slate-700 mb-1">
-                    বয়স
-                  </label>
-                  <input
-                    type="number"
-                    value={childAge}
-                    onChange={(e) => setChildAge(e.target.value === '' ? '' : Number(e.target.value))}
-                    placeholder="7"
-                    className="w-full px-2 py-1.5 bg-white border border-slate-200 rounded-lg text-xs font-medium"
-                  />
                 </div>
               </div>
 

@@ -5,6 +5,10 @@ import { useSettings } from './contexts/SettingsContext';
 
 import { Header } from './components/Header';
 import { Footer } from './components/Footer';
+import { HomePage } from './components/HomePage';
+import { DemoPage } from './components/DemoPage';
+import { EnrollPage } from './components/EnrollPage';
+import { PolicyPages } from './components/PolicyPages';
 import { Dashboard } from './components/Dashboard';
 import { ClassView } from './components/ClassView';
 import { AdminPanel } from './components/AdminPanel';
@@ -12,9 +16,8 @@ import { AuthModal } from './components/AuthModal';
 import { AccessDeniedView } from './components/AccessDeniedView';
 import { ResetPasswordModal } from './components/ResetPasswordModal';
 import { SetupRequiredView } from './components/SetupRequiredView';
-import { StudentEnrollmentStatusView } from './components/StudentEnrollmentStatusView';
 
-import { BookOpen, AlertOctagon, LogOut, AlertCircle, X } from 'lucide-react';
+import { AlertOctagon, LogOut, AlertCircle, X } from 'lucide-react';
 
 export default function App() {
   const { settings } = useSettings();
@@ -23,11 +26,17 @@ export default function App() {
   const [currentUser, setCurrentUser] = useState<UserProfile | null>(null);
   const [authLoading, setAuthLoading] = useState(true);
 
-  // Navigation
-  const [activeView, setActiveView] = useState<'dashboard' | 'class' | 'admin'>('dashboard');
+  // Routing State
+  const [currentPath, setCurrentPath] = useState<string>(() => {
+    if (typeof window !== 'undefined') {
+      return window.location.pathname || '/';
+    }
+    return '/';
+  });
+
   const [currentClass, setCurrentClass] = useState<ClassItem | null>(null);
 
-  // App Data (Loaded ONLY from Supabase)
+  // App Data (Loaded from Supabase)
   const [classes, setClasses] = useState<ClassItem[]>([]);
   const [classesLoading, setClassesLoading] = useState(false);
   const [classesError, setClassesError] = useState<string | null>(null);
@@ -57,32 +66,25 @@ export default function App() {
     }
   }, []);
 
-  // Sync /admin URL Route
+  // Sync URL Path with browser back/forward buttons
   useEffect(() => {
-    const handleLocation = () => {
-      const path = window.location.pathname;
-      if (path === '/admin') {
-        setActiveView('admin');
-      } else {
-        if (activeView === 'admin') {
-          setActiveView('dashboard');
-        }
-      }
+    const handleLocationChange = () => {
+      const path = window.location.pathname || '/';
+      setCurrentPath(path);
     };
 
-    handleLocation();
-    window.addEventListener('popstate', handleLocation);
-    return () => window.removeEventListener('popstate', handleLocation);
+    window.addEventListener('popstate', handleLocationChange);
+    return () => window.removeEventListener('popstate', handleLocationChange);
   }, []);
 
-  const navigateToView = (view: 'dashboard' | 'class' | 'admin') => {
-    setActiveView(view);
-    if (view === 'admin') {
-      window.history.pushState({}, '', '/admin');
-    } else {
-      window.history.pushState({}, '', '/');
+  // Safe SPA navigation
+  const navigateTo = useCallback((path: string) => {
+    if (window.location.pathname !== path) {
+      window.history.pushState({}, '', path);
     }
-  };
+    setCurrentPath(path);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }, []);
 
   // Fetch User Profile by Auth ID
   const fetchUserProfile = useCallback(async (userId: string): Promise<UserProfile | null> => {
@@ -146,7 +148,7 @@ export default function App() {
     }
   }, [currentUser]);
 
-  // Fetch Classes from Supabase ONLY (RLS enforces student must be approved)
+  // Fetch Classes from Supabase
   const fetchClasses = useCallback(async () => {
     if (!isSupabaseConfigured || !supabase) return;
     try {
@@ -196,7 +198,6 @@ export default function App() {
       if (event === 'PASSWORD_RECOVERY') {
         setIsResetPasswordModalOpen(true);
       }
-
       if (session?.user) {
         const profile = await fetchUserProfile(session.user.id);
         setCurrentUser(profile);
@@ -206,9 +207,7 @@ export default function App() {
         }
       } else {
         setCurrentUser(null);
-        if (activeView === 'class') {
-          setCurrentClass(null);
-        }
+        setCurrentClass(null);
       }
       setAuthLoading(false);
     });
@@ -216,7 +215,7 @@ export default function App() {
     return () => {
       subscription.unsubscribe();
     };
-  }, [fetchUserProfile, activeView]);
+  }, [fetchUserProfile]);
 
   // Re-read profile and queues on window focus
   useEffect(() => {
@@ -263,7 +262,7 @@ export default function App() {
     }
     setCurrentUser(null);
     setCurrentClass(null);
-    navigateToView('dashboard');
+    navigateTo('/');
   };
 
   // If Supabase credentials are not configured, display clear setup screen
@@ -291,8 +290,8 @@ export default function App() {
           currentUser={currentUser}
           onLogout={handleLogout}
           onOpenAuth={() => setIsAuthModalOpen(true)}
-          activeView={activeView}
-          setActiveView={navigateToView}
+          activePath={currentPath}
+          onNavigate={navigateTo}
           pendingRequestsCount={pendingRequestsCount}
           pendingStudentsCount={0}
         />
@@ -318,24 +317,24 @@ export default function App() {
             </div>
           </div>
         </main>
-        <Footer />
+        <Footer onNavigate={navigateTo} />
       </div>
     );
   }
 
+  // Calculate published classes count for homepage trust indicator
+  const publishedClassesCount = classes.filter((c) => c.is_published).length;
+
   return (
     <div className="min-h-screen flex flex-col bg-slate-50 text-slate-900 selection:bg-orange-500 selection:text-white">
       
-      {/* Clean Header */}
+      {/* Header */}
       <Header
         currentUser={currentUser}
         onLogout={handleLogout}
         onOpenAuth={() => setIsAuthModalOpen(true)}
-        activeView={activeView}
-        setActiveView={(v) => {
-          navigateToView(v);
-          if (v !== 'class') setCurrentClass(null);
-        }}
+        activePath={currentPath}
+        onNavigate={navigateTo}
         pendingRequestsCount={pendingRequestsCount}
         pendingStudentsCount={0}
       />
@@ -374,38 +373,133 @@ export default function App() {
       <main className="flex-1">
         
         {/* ======================================================== */}
-        {/* LOGIN GUARD: Unauthenticated visitors see ONLY login screen */}
+        {/* ROUTE 1: PUBLIC DEMO (/demo) */}
         {/* ======================================================== */}
-        {!currentUser ? (
-          <div className="max-w-4xl mx-auto px-4 py-16 text-center space-y-8">
-            <div className="bg-gradient-to-r from-orange-500 to-amber-500 rounded-3xl p-8 sm:p-12 text-white shadow-xl space-y-4">
-              <span className="px-3.5 py-1 bg-white/20 text-white rounded-full font-bold text-xs inline-block">
-                {settings.login_badge || 'অ্যাবাকাস Parent Training'}
-              </span>
+        {currentPath === '/demo' && (
+          <DemoPage
+            onNavigate={navigateTo}
+            onOpenAuth={() => setIsAuthModalOpen(true)}
+          />
+        )}
 
-              <h1 className="text-3xl sm:text-4xl font-extrabold tracking-tight">
-                {settings.login_headline || 'আপনার সন্তানকে ঘরে বসেই প্রফেশনাল উপায়ে অ্যাবাকাস শেখান'}
-              </h1>
+        {/* ======================================================== */}
+        {/* ROUTE 2: PUBLIC ENROLL (/enroll) */}
+        {/* ======================================================== */}
+        {currentPath === '/enroll' && (
+          <EnrollPage
+            onNavigate={navigateTo}
+            onOpenAuth={() => setIsAuthModalOpen(true)}
+          />
+        )}
 
-              <p className="text-sm text-orange-100 max-w-xl mx-auto leading-relaxed">
-                {settings.login_subtext || 'কোর্স কন্টেন্ট ও ভিডিও লেসন দেখতে আপনার নিবন্ধিত অ্যাকাউন্ট দিয়ে লগইন করুন।'}
-              </p>
+        {/* ======================================================== */}
+        {/* ROUTE 3: POLICY & CONTACT PAGES (/contact, /terms, /privacy, /refund) */}
+        {/* ======================================================== */}
+        {currentPath === '/contact' && (
+          <PolicyPages
+            type="contact"
+            onNavigate={navigateTo}
+            onOpenAuth={() => setIsAuthModalOpen(true)}
+          />
+        )}
+        {currentPath === '/terms' && (
+          <PolicyPages
+            type="terms"
+            onNavigate={navigateTo}
+            onOpenAuth={() => setIsAuthModalOpen(true)}
+          />
+        )}
+        {currentPath === '/privacy' && (
+          <PolicyPages
+            type="privacy"
+            onNavigate={navigateTo}
+            onOpenAuth={() => setIsAuthModalOpen(true)}
+          />
+        )}
+        {currentPath === '/refund' && (
+          <PolicyPages
+            type="refund"
+            onNavigate={navigateTo}
+            onOpenAuth={() => setIsAuthModalOpen(true)}
+          />
+        )}
 
-              <div className="pt-4 flex items-center justify-center">
+        {/* ======================================================== */}
+        {/* ROUTE 4: /admin ROUTE (Protected) */}
+        {/* ======================================================== */}
+        {currentPath === '/admin' && (
+          !currentUser ? (
+            /* Admin path requires login */
+            <div className="max-w-md mx-auto px-4 py-16 text-center space-y-4">
+              <div className="p-8 bg-white rounded-3xl border border-slate-200 shadow-sm space-y-4">
+                <div className="w-12 h-12 rounded-2xl bg-orange-100 text-orange-600 mx-auto flex items-center justify-center font-bold">
+                  <AlertOctagon size={24} />
+                </div>
+                <h2 className="text-lg font-black text-slate-900">এডমিন প্যানেলে লগইন প্রয়োজন</h2>
+                <p className="text-xs text-slate-600 leading-relaxed">
+                  এডমিন প্যানেল এক্সেস করতে অনুগ্রহ করে আপনার এডমিন ক্রেডেনশিয়াল দিয়ে লগইন করুন।
+                </p>
                 <button
                   onClick={() => setIsAuthModalOpen(true)}
-                  className="px-6 py-3 bg-white text-orange-600 hover:bg-orange-50 font-extrabold text-sm rounded-xl shadow-md transition-all flex items-center gap-2 cursor-pointer"
+                  className="px-5 py-2.5 bg-orange-500 hover:bg-orange-600 text-white font-bold text-xs rounded-xl shadow-xs transition-all cursor-pointer"
                 >
-                  <BookOpen size={18} />
-                  {settings.login_button_label || 'লগইন করুন'}
+                  লগইন করুন
                 </button>
               </div>
             </div>
-          </div>
-        ) : (
-          <>
-            {/* VIEW 1: DASHBOARD (Class List) */}
-            {activeView === 'dashboard' && (
+          ) : currentUser.role === 'admin' ? (
+            <AdminPanel
+              currentUser={currentUser}
+              classes={classes}
+              onReloadClasses={fetchClasses}
+              onBackToDashboard={() => navigateTo('/')}
+              pendingRequestsCount={pendingRequestsCount}
+              onRefreshPendingCount={fetchPendingRequestsCount}
+              pendingStudentsCount={0}
+              onRefreshPendingStudentsCount={fetchPendingStudentsCount}
+            />
+          ) : (
+            <AccessDeniedView
+              currentUser={currentUser}
+              onGoHome={() => navigateTo('/')}
+              onRefreshProfile={async () => {
+                const updated = await fetchUserProfile(currentUser.id);
+                if (updated) setCurrentUser(updated);
+              }}
+            />
+          )
+        )}
+
+        {/* ======================================================== */}
+        {/* ROUTE 5: ROOT (/) or /dashboard */}
+        {/* ======================================================== */}
+        {currentPath !== '/demo' &&
+          currentPath !== '/enroll' &&
+          currentPath !== '/contact' &&
+          currentPath !== '/terms' &&
+          currentPath !== '/privacy' &&
+          currentPath !== '/refund' &&
+          currentPath !== '/admin' && (
+            !currentUser ? (
+              /* Public Mobile-First Homepage */
+              <HomePage
+                onNavigate={navigateTo}
+                onOpenAuth={() => setIsAuthModalOpen(true)}
+                publishedClassesCount={publishedClassesCount}
+              />
+            ) : currentClass ? (
+              /* Single Class View for Logged-In User */
+              <ClassView
+                currentClass={currentClass}
+                allClasses={classes}
+                currentUser={currentUser}
+                onBackToDashboard={() => {
+                  setCurrentClass(null);
+                  navigateTo('/');
+                }}
+              />
+            ) : (
+              /* Member Dashboard for Logged-In User */
               <>
                 {classesLoading && (
                   <div className="py-16 text-center text-xs text-slate-400">
@@ -425,58 +519,16 @@ export default function App() {
                     currentUser={currentUser}
                     onSelectClass={(cls) => {
                       setCurrentClass(cls);
-                      navigateToView('class');
                     }}
                   />
                 )}
               </>
-            )}
-
-            {/* VIEW 2: CLASS PAGE (Title, Description, Video Player) */}
-            {activeView === 'class' && currentClass && (
-              <ClassView
-                currentClass={currentClass}
-                allClasses={classes}
-                currentUser={currentUser}
-                onBackToDashboard={() => {
-                  navigateToView('dashboard');
-                  setCurrentClass(null);
-                }}
-              />
-            )}
-
-            {/* VIEW 3: /admin ROUTE HANDLING */}
-            {activeView === 'admin' && (
-              currentUser.role === 'admin' ? (
-                <AdminPanel
-                  currentUser={currentUser}
-                  classes={classes}
-                  onReloadClasses={fetchClasses}
-                  onBackToDashboard={() => navigateToView('dashboard')}
-                  pendingRequestsCount={pendingRequestsCount}
-                  onRefreshPendingCount={fetchPendingRequestsCount}
-                  pendingStudentsCount={0}
-                  onRefreshPendingStudentsCount={fetchPendingStudentsCount}
-                />
-              ) : (
-                /* ACCESS DENIED FOR NON-ADMIN PARENTS - REQUEST ACCESS WORKFLOW */
-                <AccessDeniedView
-                  currentUser={currentUser}
-                  onGoHome={() => navigateToView('dashboard')}
-                  onRefreshProfile={async () => {
-                    const updated = await fetchUserProfile(currentUser.id);
-                    if (updated) setCurrentUser(updated);
-                  }}
-                />
-              )
-            )}
-          </>
-        )}
-
+            )
+          )}
       </main>
 
-      {/* Clean Footer with Site Settings */}
-      <Footer />
+      {/* Clean Footer with Site Settings and Policy links */}
+      <Footer onNavigate={navigateTo} />
 
       {/* Auth Modal */}
       <AuthModal
@@ -484,7 +536,7 @@ export default function App() {
         onClose={() => setIsAuthModalOpen(false)}
         onLoginSuccess={(user) => {
           setCurrentUser(user);
-          navigateToView('dashboard');
+          navigateTo('/');
         }}
       />
 
@@ -494,10 +546,9 @@ export default function App() {
         onClose={() => setIsResetPasswordModalOpen(false)}
         onSuccess={() => {
           setIsResetPasswordModalOpen(false);
-          navigateToView('dashboard');
+          navigateTo('/');
         }}
       />
-
     </div>
   );
 }

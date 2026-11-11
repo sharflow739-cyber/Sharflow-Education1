@@ -1987,6 +1987,169 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
               </div>
             </div>
           </div>
+
+          {/* GROUP 6: PUBLIC LAUNCH, DEMO & ENROLLMENT (November 12 Launch) */}
+          <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-2xs space-y-4">
+            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+              <div>
+                <h3 className="font-extrabold text-slate-900 text-sm">
+                  ৬. পাবলিক হোমপেজ, ডেমো ও ভর্তি সেটিংস (Launch & Enrollment)
+                </h3>
+                <p className="text-[11px] text-slate-500">
+                  ১২ নভেম্বরের পাবলিক লঞ্চের জন্য ফ্রি ডেমো লিংক, কোর্স ফি ও ভর্তির নীতিমালা কনফিগার করুন।
+                </p>
+              </div>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => handleResetGroup('লঞ্চ ও ভর্তি সেটিংস', [
+                    'public_demo_video_url', 'course_fee_bdt', 'course_duration_access',
+                    'course_includes_text', 'refund_policy_text', 'terms_policy_text',
+                    'privacy_policy_text', 'enable_direct_payment', 'payment_instructions'
+                  ])}
+                  className="px-2.5 py-1 text-slate-500 hover:text-slate-800 text-xs font-semibold flex items-center gap-1 cursor-pointer"
+                >
+                  <RotateCcw size={12} /> ডিফল্টে ফিরুন
+                </button>
+                <button
+                  onClick={() => handleSaveGroup('লঞ্চ ও ভর্তি সেটিংস', [
+                    'public_demo_video_url', 'course_fee_bdt', 'course_duration_access',
+                    'course_includes_text', 'refund_policy_text', 'terms_policy_text',
+                    'privacy_policy_text', 'enable_direct_payment', 'payment_instructions'
+                  ])}
+                  disabled={savingSettingsGroup === 'লঞ্চ ও ভর্তি সেটিংস'}
+                  className="px-4 py-1.5 bg-orange-500 hover:bg-orange-600 text-white rounded-xl text-xs font-bold shadow-xs flex items-center gap-1 cursor-pointer disabled:opacity-50"
+                >
+                  <Save size={13} /> {savingSettingsGroup === 'লঞ্চ ও ভর্তি সেটিংস' ? 'সংরক্ষণ হচ্ছে...' : 'সংরক্ষণ করুন'}
+                </button>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
+              
+              <div className="sm:col-span-2">
+                <label className="block font-bold text-slate-700 mb-1">
+                  পাবলিক ফ্রি ডেমো ভিডিও লিংক (/demo)
+                </label>
+                <input
+                  type="text"
+                  value={formSettings.public_demo_video_url || ''}
+                  onChange={(e) => setFormSettings({ ...formSettings, public_demo_video_url: e.target.value })}
+                  placeholder="যেমন: Google Drive / YouTube / Bunny ভিডিও লিংক"
+                  className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:outline-none focus:border-orange-500 font-medium"
+                />
+                <p className="text-[11px] text-slate-400 mt-1">
+                  এখানে দেওয়া ভিডিওটি লগইন ছাড়াই যেকোনো ভিজিটর /demo পেজে ফুলস্ক্রিন দেখতে পাবেন। ফাঁকা রাখলে স্পষ্ট প্রস্তুতিমূলক বার্তা দেখাবে।
+                </p>
+              </div>
+
+              <div>
+                <label className="block font-bold text-slate-700 mb-1">
+                  কোর্স ফি (টাকায়)
+                </label>
+                <input
+                  type="text"
+                  value={formSettings.course_fee_bdt || ''}
+                  onChange={(e) => setFormSettings({ ...formSettings, course_fee_bdt: e.target.value })}
+                  placeholder="যেমন: ১,৫০০ বা 1500"
+                  className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:outline-none focus:border-orange-500 font-medium"
+                />
+                <p className="text-[11px] text-slate-400 mt-1">ফাঁকা রাখলে "শীঘ্রই নির্ধারণ করা হচ্ছে" দেখাবে।</p>
+              </div>
+
+              <div>
+                <label className="block font-bold text-slate-700 mb-1">
+                  কোর্স অ্যাক্সেসের সময়সীমা
+                </label>
+                <input
+                  type="text"
+                  value={formSettings.course_duration_access || ''}
+                  onChange={(e) => setFormSettings({ ...formSettings, course_duration_access: e.target.value })}
+                  placeholder="যেমন: ৬ মাস / ১ বছর / আজীবন"
+                  className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:outline-none focus:border-orange-500 font-medium"
+                />
+              </div>
+
+              <div className="sm:col-span-2">
+                <label className="block font-bold text-slate-700 mb-1">
+                  কোর্সে কী অন্তর্ভুক্ত (Custom Includes)
+                </label>
+                <textarea
+                  rows={3}
+                  value={formSettings.course_includes_text || ''}
+                  onChange={(e) => setFormSettings({ ...formSettings, course_includes_text: e.target.value })}
+                  placeholder="প্রতি লাইনে একটি করে সুযোগ-সুবিধা লিখতে পারেন..."
+                  className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:outline-none focus:border-orange-500 font-medium"
+                />
+                <p className="text-[11px] text-slate-400 mt-1">ফাঁকা রাখলে সিস্টেমের ডিফল্ট তালিকা প্রদর্শিত হবে।</p>
+              </div>
+
+              {/* Direct Payment Toggle (Default OFF) */}
+              <div className="sm:col-span-2 p-4 bg-slate-50 rounded-2xl border border-slate-200 space-y-3">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <div className="font-bold text-slate-900">সরাসরি অনলাইন পেমেন্ট সক্রিয়করণ</div>
+                    <div className="text-[11px] text-slate-500">
+                      ডিফল্টে বন্ধ থাকে। বন্ধ থাকলে ভিজিটরকে যাচাইকৃত হটলাইন/ইমেইল দিয়ে "ভর্তির আগ্রহ জানান" প্রদর্শন করা হয়।
+                    </div>
+                  </div>
+                  <input
+                    type="checkbox"
+                    checked={Boolean(formSettings.enable_direct_payment)}
+                    onChange={(e) => setFormSettings({ ...formSettings, enable_direct_payment: e.target.checked })}
+                    className="w-4 h-4 text-orange-600 rounded cursor-pointer"
+                  />
+                </div>
+
+                {formSettings.enable_direct_payment && (
+                  <div>
+                    <label className="block font-bold text-slate-700 mb-1">পেমেন্ট নির্দেশিকা (বিকাশ/নগদ/ব্যাংক)</label>
+                    <textarea
+                      rows={3}
+                      value={formSettings.payment_instructions || ''}
+                      onChange={(e) => setFormSettings({ ...formSettings, payment_instructions: e.target.value })}
+                      placeholder="বিকাশ/নগদ মার্চেন্ট নম্বর এবং ট্রানজ্যাকশন আইডি পাঠানোর নিয়মাবলী লিখুন..."
+                      className="w-full px-3 py-2 bg-white border border-slate-200 rounded-xl focus:outline-none focus:border-orange-500 font-medium text-xs"
+                    />
+                  </div>
+                )}
+              </div>
+
+              {/* Custom Policy Texts */}
+              <div className="sm:col-span-2">
+                <label className="block font-bold text-slate-700 mb-1">কাস্টম রিফান্ড নীতিমালা (/refund)</label>
+                <textarea
+                  rows={2}
+                  value={formSettings.refund_policy_text || ''}
+                  onChange={(e) => setFormSettings({ ...formSettings, refund_policy_text: e.target.value })}
+                  placeholder="আপনার অনুমোদিত রিফান্ড নীতিমালা এখানে পেস্ট করতে পারেন (ফাঁকা রাখলে স্ট্যান্ডার্ড নীতিমালা দেখাবে)..."
+                  className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:outline-none font-medium"
+                />
+              </div>
+
+              <div className="sm:col-span-2">
+                <label className="block font-bold text-slate-700 mb-1">কাস্টম ব্যবহারের শর্তাবলি (/terms)</label>
+                <textarea
+                  rows={2}
+                  value={formSettings.terms_policy_text || ''}
+                  onChange={(e) => setFormSettings({ ...formSettings, terms_policy_text: e.target.value })}
+                  placeholder="আপনার নিজস্ব শর্তাবলি এখানে পেস্ট করতে পারেন..."
+                  className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:outline-none font-medium"
+                />
+              </div>
+
+              <div className="sm:col-span-2">
+                <label className="block font-bold text-slate-700 mb-1">কাস্টম গোপনীয়তা নীতি (/privacy)</label>
+                <textarea
+                  rows={2}
+                  value={formSettings.privacy_policy_text || ''}
+                  onChange={(e) => setFormSettings({ ...formSettings, privacy_policy_text: e.target.value })}
+                  placeholder="আপনার নিজস্ব গোপনীয়তা নীতি এখানে পেস্ট করতে পারেন..."
+                  className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:outline-none font-medium"
+                />
+              </div>
+
+            </div>
+          </div>
         </div>
       )}
 

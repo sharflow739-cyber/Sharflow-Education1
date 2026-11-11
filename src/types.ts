@@ -90,6 +90,17 @@ export interface SiteSettings {
   show_certified_badge: boolean;
   certified_badge_label: string;
 
+  // Public Launch & Enrollment Settings
+  public_demo_video_url: string;
+  course_fee_bdt: string;
+  course_duration_access: string;
+  course_includes_text: string;
+  refund_policy_text: string;
+  terms_policy_text: string;
+  privacy_policy_text: string;
+  enable_direct_payment: boolean;
+  payment_instructions: string;
+
   // Student Registration & Approval texts
   welcome_popup_title: string;
   welcome_popup_text: string;
@@ -134,19 +145,30 @@ export const DEFAULT_SITE_SETTINGS: SiteSettings = {
   dashboard_subtitle: 'ক্লাস নির্বাচন করে ট্রেনিং ভিডিও শুরু করুন।',
   empty_classes_text: 'এখনও কোনো প্রকাশকৃত ক্লাস নেই।',
 
-  // Footer / contact
-  footer_description: 'অভিভাবকদের জন্য তৈরি একটি স্ট্রাকচার্ড অনলাইন ট্রেনিং প্ল্যাটফর্ম। বিজ্ঞানসম্মত অ্যাবাকাস পদ্ধতির মাধ্যমে আপনার সন্তানকে মানসিকভাবে দ্রুত ও নির্ভুল গণিতে পারদর্শী করে তুলুন।',
-  contact_phone: '+880 1712-345678',
-  contact_email: 'support@abacus.bd',
-  contact_hours: 'সকাল ১০:০০ - রাত ৯:০০ (প্রতিদিন)',
+  // Footer / contact (No unverified fake phone/email or unverified certified course claims)
+  footer_description: 'অভিভাবকদের জন্য তৈরি একটি ধারাবাহিক অনলাইন ট্রেনিং প্ল্যাটফর্ম। সোরোবান অ্যাবাকাস পদ্ধতির মাধ্যমে সন্তানকে ঘরে বসেই গণিতে পারদর্শী করে তুলুন।',
+  contact_phone: '',
+  contact_email: '',
+  contact_hours: '',
   security_notice_title: 'কোর্স সিকিউরিটি তথ্য',
   security_notice_text: 'এই কোর্সের সকল ভিডিও কনটেন্ট নিবন্ধিত অভিভাবকের ব্যক্তিগত শিক্ষার উদ্দেশ্যে তৈরি। ভিডিও ডাউনলোড বা অনুমতি ব্যতীত প্রচার সম্পূর্ণ নিষিদ্ধ।',
   copyright_text: 'Abacus Parent Training Program. সর্বস্বত্ব সংরক্ষিত।',
-  footer_tagline: 'শিক্ষার্থীদের ভবিষ্যতের জন্য তৈরি',
+  footer_tagline: 'অভিভাবক ও শিক্ষার্থীদের জন্য তৈরি',
   show_secure_badge: true,
   secure_badge_label: 'সুরক্ষিত এক্সেস',
-  show_certified_badge: true,
-  certified_badge_label: 'সার্টিফাইড কোর্স',
+  show_certified_badge: false,
+  certified_badge_label: '',
+
+  // Public Launch & Enrollment Settings
+  public_demo_video_url: '',
+  course_fee_bdt: '',
+  course_duration_access: '',
+  course_includes_text: '',
+  refund_policy_text: '',
+  terms_policy_text: '',
+  privacy_policy_text: '',
+  enable_direct_payment: false,
+  payment_instructions: '',
 
   // Video
   bunny_cdn_host: '',
