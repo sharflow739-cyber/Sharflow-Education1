@@ -602,11 +602,63 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
   // TAB 4: SITE SETTINGS FORM GROUPS
   // ==========================================
   const [formSettings, setFormSettings] = useState<SiteSettings>(settings);
+  const [demoVideoUrl, setDemoVideoUrl] = useState('');
   const [savingSettingsGroup, setSavingSettingsGroup] = useState<string | null>(null);
 
   useEffect(() => {
     setFormSettings(settings);
   }, [settings]);
+
+  // Load demo video URL from authenticated-only demo_settings (or migrate legacy value once)
+  useEffect(() => {
+    if (!isSupabaseConfigured || !supabase) return;
+    let cancelled = false;
+
+    async function loadDemoSetting() {
+      if (!supabase) return;
+      try {
+        const { data: demoRow, error: demoErr } = await supabase
+          .from('demo_settings')
+          .select('video_url')
+          .eq('id', 1)
+          .maybeSingle();
+
+        if (!cancelled && !demoErr && demoRow && typeof demoRow.video_url === 'string' && demoRow.video_url.trim()) {
+          setDemoVideoUrl(demoRow.video_url.trim());
+          return;
+        }
+
+        // Check legacy location only inside authenticated AdminPanel
+        const { data: siteRow, error: siteErr } = await supabase
+          .from('site_settings')
+          .select('data')
+          .eq('id', 1)
+          .maybeSingle();
+
+        if (!cancelled && !siteErr && siteRow?.data && typeof siteRow.data === 'object') {
+          const legacyUrl = (siteRow.data as Record<string, unknown>).public_demo_video_url;
+          if (typeof legacyUrl === 'string' && legacyUrl.trim()) {
+            setDemoVideoUrl(legacyUrl.trim());
+            // Auto-migrate into demo_settings if table exists
+            if (!demoErr) {
+              await supabase.from('demo_settings').upsert({
+                id: 1,
+                video_url: legacyUrl.trim(),
+                updated_at: new Date().toISOString(),
+              });
+            }
+          }
+        }
+      } catch (err) {
+        console.error('Error loading demo setting in admin:', err);
+      }
+    }
+
+    loadDemoSetting();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   const handleSaveGroup = async (groupName: string, keys: (keyof SiteSettings)[]) => {
     try {
@@ -617,11 +669,27 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
         patch[k] = formSettings[k];
       }
       const res = await updateSettings(patch);
-      if (res.success) {
-        showToast('success', `${groupName} সফলভাবে সংরক্ষণ করা হয়েছে`);
-      } else {
+      if (!res.success) {
         showToast('error', res.error || 'সংরক্ষণ ব্যর্থ হয়েছে');
+        return;
       }
+
+      if (groupName === 'লঞ্চ ও ভর্তি সেটিংস' && isSupabaseConfigured && supabase) {
+        const { error: demoSaveErr } = await supabase.from('demo_settings').upsert({
+          id: 1,
+          video_url: demoVideoUrl.trim(),
+          updated_at: new Date().toISOString(),
+        });
+        if (demoSaveErr) {
+          showToast(
+            'error',
+            `ডেমো ভিডিও সংরক্ষণ ব্যর্থ (demo_settings টেবিলের জন্য supabase-schema.sql রান করুন): ${demoSaveErr.message}`
+          );
+          return;
+        }
+      }
+
+      showToast('success', `${groupName} সফলভাবে সংরক্ষণ করা হয়েছে`);
     } finally {
       setSavingSettingsGroup(null);
     }
@@ -632,11 +700,23 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
     try {
       setSavingSettingsGroup(groupName);
       const res = await resetSettingsGroup(keys);
-      if (res.success) {
-        showToast('success', `${groupName} ডিফল্টে রিসেট করা হয়েছে`);
-      } else {
+      if (!res.success) {
         showToast('error', res.error || 'রিসেট ব্যর্থ হয়েছে');
+        return;
       }
+
+      if (groupName === 'লঞ্চ ও ভর্তি সেটিংস') {
+        setDemoVideoUrl('');
+        if (isSupabaseConfigured && supabase) {
+          await supabase.from('demo_settings').upsert({
+            id: 1,
+            video_url: '',
+            updated_at: new Date().toISOString(),
+          });
+        }
+      }
+
+      showToast('success', `${groupName} ডিফল্টে রিসেট করা হয়েছে`);
     } finally {
       setSavingSettingsGroup(null);
     }
@@ -2002,7 +2082,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
               <div className="flex items-center gap-2">
                 <button
                   onClick={() => handleResetGroup('লঞ্চ ও ভর্তি সেটিংস', [
-                    'public_demo_video_url', 'course_fee_bdt', 'course_duration_access',
+                    'course_fee_bdt', 'course_duration_access',
                     'course_includes_text', 'refund_policy_text', 'terms_policy_text',
                     'privacy_policy_text', 'enable_direct_payment', 'payment_instructions',
                     'lemonsqueezy_checkout_url'
@@ -2013,7 +2093,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                 </button>
                 <button
                   onClick={() => handleSaveGroup('লঞ্চ ও ভর্তি সেটিংস', [
-                    'public_demo_video_url', 'course_fee_bdt', 'course_duration_access',
+                    'course_fee_bdt', 'course_duration_access',
                     'course_includes_text', 'refund_policy_text', 'terms_policy_text',
                     'privacy_policy_text', 'enable_direct_payment', 'payment_instructions',
                     'lemonsqueezy_checkout_url'
@@ -2030,17 +2110,17 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
               
               <div className="sm:col-span-2">
                 <label className="block font-bold text-slate-700 mb-1">
-                  পাবলিক ফ্রি ডেমো ভিডিও লিংক (/demo)
+                  নিবন্ধিত সদস্যদের ফ্রি ডেমো ভিডিও লিংক (/demo)
                 </label>
                 <input
                   type="text"
-                  value={formSettings.public_demo_video_url || ''}
-                  onChange={(e) => setFormSettings({ ...formSettings, public_demo_video_url: e.target.value })}
+                  value={demoVideoUrl}
+                  onChange={(e) => setDemoVideoUrl(e.target.value)}
                   placeholder="যেমন: Google Drive / YouTube / Bunny ভিডিও লিংক"
                   className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:outline-none focus:border-orange-500 font-medium"
                 />
                 <p className="text-[11px] text-slate-400 mt-1">
-                  এখানে দেওয়া ভিডিওটি লগইন ছাড়াই যেকোনো ভিজিটর /demo পেজে ফুলস্ক্রিন দেখতে পাবেন। ফাঁকা রাখলে স্পষ্ট প্রস্তুতিমূলক বার্তা দেখাবে।
+                  এখানে দেওয়া ভিডিওটি শুধুমাত্র লগইন ও ইমেইল-যাচাই করা সক্রিয় ব্যবহারকারীরাই /demo পেজে দেখতে পাবেন। সাইন-আউট ভিজিটরদের কাছে এই লিংক কখনোই প্রকাশ করা হয় না।
                 </p>
               </div>
 

@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { useSettings } from '../contexts/SettingsContext';
 import { 
   ArrowLeft, CheckCircle2, Phone, Mail, Clock, ShieldCheck, 
@@ -11,8 +11,11 @@ interface EnrollPageProps {
   onOpenAuth: () => void;
 }
 
+const LEMON_JS_URL = 'https://app.lemonsqueezy.com/js/lemon.js';
+
 export const EnrollPage: React.FC<EnrollPageProps> = ({ onNavigate, onOpenAuth }) => {
   const { settings } = useSettings();
+  const [lemonUnavailable, setLemonUnavailable] = useState(false);
 
   // Set the displayed course fee to ৳২,৬৫০ (one-time). If owner sets custom in settings, allow it or default to ২,৬৫০.
   const fee = (settings.course_fee_bdt || '').trim() || '২,৬৫০';
@@ -31,6 +34,75 @@ export const EnrollPage: React.FC<EnrollPageProps> = ({ onNavigate, onOpenAuth }
     (settings.contact_phone && settings.contact_phone.trim()) ||
     (settings.contact_email && settings.contact_email.trim())
   );
+
+  useEffect(() => {
+    if (!paymentEnabled || !activeCheckoutUrl) return;
+
+    let cancelled = false;
+
+    const tryInitLemon = () => {
+      try {
+        window.createLemonSqueezy?.();
+        if (typeof window.LemonSqueezy?.Url?.Open === 'function') {
+          if (!cancelled) setLemonUnavailable(false);
+          return true;
+        }
+      } catch (err) {
+        console.warn('Lemon.js initialization error:', err);
+      }
+      return false;
+    };
+
+    if (tryInitLemon()) return;
+
+    let script = document.querySelector<HTMLScriptElement>(`script[src="${LEMON_JS_URL}"]`);
+    if (!script) {
+      script = document.createElement('script');
+      script.src = LEMON_JS_URL;
+      script.defer = true;
+      document.body.appendChild(script);
+    }
+
+    const handleLoad = () => {
+      if (!tryInitLemon() && !cancelled) {
+        setLemonUnavailable(true);
+      }
+    };
+
+    const handleError = () => {
+      if (!cancelled) {
+        setLemonUnavailable(true);
+      }
+    };
+
+    script.addEventListener('load', handleLoad);
+    script.addEventListener('error', handleError);
+
+    const fallbackTimer = window.setTimeout(() => {
+      if (!tryInitLemon() && !cancelled) {
+        setLemonUnavailable(true);
+      }
+    }, 3500);
+
+    return () => {
+      cancelled = true;
+      script?.removeEventListener('load', handleLoad);
+      script?.removeEventListener('error', handleError);
+      window.clearTimeout(fallbackTimer);
+    };
+  }, [paymentEnabled, activeCheckoutUrl]);
+
+  const handleCheckoutClick = (e: React.MouseEvent<HTMLAnchorElement>) => {
+    try {
+      window.createLemonSqueezy?.();
+      if (typeof window.LemonSqueezy?.Url?.Open === 'function') {
+        e.preventDefault();
+        window.LemonSqueezy.Url.Open(activeCheckoutUrl);
+      }
+    } catch (err) {
+      console.warn('LemonSqueezy.Url.Open unavailable, falling back to hosted link:', err);
+    }
+  };
 
   return (
     <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-12 space-y-8">
@@ -193,12 +265,31 @@ export const EnrollPage: React.FC<EnrollPageProps> = ({ onNavigate, onOpenAuth }
                       href={activeCheckoutUrl}
                       target="_blank"
                       rel="noopener noreferrer"
+                      onClick={handleCheckoutClick}
                       className="px-6 py-3.5 bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white font-extrabold text-sm rounded-xl shadow-md shadow-orange-500/25 transition-all inline-flex items-center justify-center gap-2 active:scale-98 cursor-pointer shrink-0"
                     >
                       <span>কার্ডে $20.33 দিয়ে ভর্তি হন</span>
                       <ExternalLink size={16} />
                     </a>
                   </div>
+
+                  {/* Clearly labeled hosted link fallback when Lemon.js script is unavailable */}
+                  {lemonUnavailable && (
+                    <div className="p-3 bg-white border border-orange-200 rounded-xl text-xs flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                      <span className="text-slate-700 font-medium">
+                        ইন-পেজ চেকআউট ওভারলে লোড না হলে নিচের সরাসরি হোস্টেড চেকআউট লিংক ব্যবহার করুন:
+                      </span>
+                      <a
+                        href={activeCheckoutUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center gap-1.5 font-extrabold text-orange-600 hover:text-orange-700 hover:underline shrink-0"
+                      >
+                        <span>হোস্টেড চেকআউট লিংক (Fallback)</span>
+                        <ExternalLink size={13} />
+                      </a>
+                    </div>
+                  )}
 
                   {/* USD Payment Note */}
                   <div className="p-3 bg-amber-50/80 rounded-xl border border-amber-200/80 text-xs text-amber-900 space-y-1">

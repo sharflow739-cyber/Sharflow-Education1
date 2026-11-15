@@ -47,8 +47,19 @@ export default function App() {
 
   // Modals & Notices
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
+  const [authInitialTab, setAuthInitialTab] = useState<'login' | 'register'>('login');
+  const [postAuthRedirect, setPostAuthRedirect] = useState<string | null>(null);
   const [isResetPasswordModalOpen, setIsResetPasswordModalOpen] = useState(false);
   const [legacyLinkNotice, setLegacyLinkNotice] = useState<string | null>(null);
+
+  const openAuthModal = useCallback(
+    (tab: 'login' | 'register' = 'login', redirectPath: string | null = null) => {
+      setAuthInitialTab(tab);
+      setPostAuthRedirect(redirectPath);
+      setIsAuthModalOpen(true);
+    },
+    []
+  );
 
   // Clean URL Hash after Supabase extracts token, or handle expired old link error
   useEffect(() => {
@@ -296,7 +307,7 @@ export default function App() {
         <Header
           currentUser={currentUser}
           onLogout={handleLogout}
-          onOpenAuth={() => setIsAuthModalOpen(true)}
+          onOpenAuth={() => openAuthModal('login', currentPath === '/demo' ? '/demo' : null)}
           activePath={currentPath}
           onNavigate={navigateTo}
           pendingRequestsCount={pendingRequestsCount}
@@ -339,7 +350,7 @@ export default function App() {
       <Header
         currentUser={currentUser}
         onLogout={handleLogout}
-        onOpenAuth={() => setIsAuthModalOpen(true)}
+        onOpenAuth={() => openAuthModal('login', currentPath === '/demo' ? '/demo' : null)}
         activePath={currentPath}
         onNavigate={navigateTo}
         pendingRequestsCount={pendingRequestsCount}
@@ -357,7 +368,7 @@ export default function App() {
             <div className="flex items-center gap-2">
               <button
                 onClick={() => {
-                  setIsAuthModalOpen(true);
+                  openAuthModal('login');
                   setLegacyLinkNotice(null);
                 }}
                 className="bg-white text-amber-900 px-3 py-1 rounded-lg text-xs font-black hover:bg-amber-50 cursor-pointer shadow-xs"
@@ -380,12 +391,13 @@ export default function App() {
       <main className="flex-1">
         
         {/* ======================================================== */}
-        {/* ROUTE 1: PUBLIC DEMO (/demo) */}
+        {/* ROUTE 1: GATED DEMO (/demo) */}
         {/* ======================================================== */}
         {currentPath === '/demo' && (
           <DemoPage
+            currentUser={currentUser}
             onNavigate={navigateTo}
-            onOpenAuth={() => setIsAuthModalOpen(true)}
+            onOpenAuth={(tab = 'register') => openAuthModal(tab, '/demo')}
           />
         )}
 
@@ -395,7 +407,7 @@ export default function App() {
         {currentPath === '/enroll' && (
           <EnrollPage
             onNavigate={navigateTo}
-            onOpenAuth={() => setIsAuthModalOpen(true)}
+            onOpenAuth={() => openAuthModal('login')}
           />
         )}
 
@@ -406,28 +418,28 @@ export default function App() {
           <PolicyPages
             type="contact"
             onNavigate={navigateTo}
-            onOpenAuth={() => setIsAuthModalOpen(true)}
+            onOpenAuth={() => openAuthModal('login')}
           />
         )}
         {currentPath === '/terms' && (
           <PolicyPages
             type="terms"
             onNavigate={navigateTo}
-            onOpenAuth={() => setIsAuthModalOpen(true)}
+            onOpenAuth={() => openAuthModal('login')}
           />
         )}
         {currentPath === '/privacy' && (
           <PolicyPages
             type="privacy"
             onNavigate={navigateTo}
-            onOpenAuth={() => setIsAuthModalOpen(true)}
+            onOpenAuth={() => openAuthModal('login')}
           />
         )}
         {currentPath === '/refund' && (
           <PolicyPages
             type="refund"
             onNavigate={navigateTo}
-            onOpenAuth={() => setIsAuthModalOpen(true)}
+            onOpenAuth={() => openAuthModal('login')}
           />
         )}
 
@@ -447,7 +459,7 @@ export default function App() {
                   এডমিন প্যানেল এক্সেস করতে অনুগ্রহ করে আপনার এডমিন ক্রেডেনশিয়াল দিয়ে লগইন করুন।
                 </p>
                 <button
-                  onClick={() => setIsAuthModalOpen(true)}
+                  onClick={() => openAuthModal('login', '/admin')}
                   className="px-5 py-2.5 bg-orange-500 hover:bg-orange-600 text-white font-bold text-xs rounded-xl shadow-xs transition-all cursor-pointer"
                 >
                   লগইন করুন
@@ -491,7 +503,8 @@ export default function App() {
               /* Public Mobile-First Homepage */
               <HomePage
                 onNavigate={navigateTo}
-                onOpenAuth={() => setIsAuthModalOpen(true)}
+                onOpenAuth={(tab = 'login') => openAuthModal(tab, '/demo')}
+                onOpenDemoAuth={() => openAuthModal('register', '/demo')}
                 publishedClassesCount={publishedClassesCount}
               />
             ) : currentClass ? (
@@ -542,10 +555,16 @@ export default function App() {
       {/* Auth Modal */}
       <AuthModal
         isOpen={isAuthModalOpen}
-        onClose={() => setIsAuthModalOpen(false)}
+        initialTab={authInitialTab}
+        onClose={() => {
+          setIsAuthModalOpen(false);
+          setPostAuthRedirect(null);
+        }}
         onLoginSuccess={(user) => {
           setCurrentUser(user);
-          navigateTo('/');
+          const targetPath = postAuthRedirect || (currentPath === '/demo' ? '/demo' : '/');
+          setPostAuthRedirect(null);
+          navigateTo(targetPath);
         }}
       />
 

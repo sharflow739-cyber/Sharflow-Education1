@@ -18,6 +18,9 @@ const SettingsContext = createContext<SettingsContextType>({
   reloadSettings: async () => {},
 });
 
+const PUBLIC_SETTING_KEYS = Object.keys(DEFAULT_SITE_SETTINGS) as (keyof SiteSettings)[];
+const PUBLIC_SETTINGS_SELECT = PUBLIC_SETTING_KEYS.map((key) => `${String(key)}:data->${String(key)}`).join(',');
+
 export const SettingsProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [settings, setSettings] = useState<SiteSettings>(DEFAULT_SITE_SETTINGS);
   const [loading, setLoading] = useState(true);
@@ -31,15 +34,20 @@ export const SettingsProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     try {
       const { data, error } = await supabase
         .from('site_settings')
-        .select('data')
+        .select(PUBLIC_SETTINGS_SELECT)
         .eq('id', 1)
         .maybeSingle();
 
-      if (!error && data?.data && typeof data.data === 'object') {
-        const merged: SiteSettings = {
-          ...DEFAULT_SITE_SETTINGS,
-          ...data.data,
-        };
+      if (!error && data && typeof data === 'object') {
+        const merged: SiteSettings = { ...DEFAULT_SITE_SETTINGS };
+        const record = data as unknown as Record<string, unknown>;
+        for (const key of PUBLIC_SETTING_KEYS) {
+          const val = record[key];
+          if (val !== null && val !== undefined) {
+            // @ts-expect-error dynamic assign from projected jsonb keys
+            merged[key] = val;
+          }
+        }
         setSettings(merged);
         if (merged.browser_title) {
           document.title = merged.browser_title;

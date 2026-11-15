@@ -7,13 +7,15 @@ import {
 
 interface HomePageProps {
   onNavigate: (path: string) => void;
-  onOpenAuth: () => void;
+  onOpenAuth: (tab?: 'login' | 'register') => void;
+  onOpenDemoAuth: () => void;
   publishedClassesCount: number;
 }
 
 export const HomePage: React.FC<HomePageProps> = ({
   onNavigate,
   onOpenAuth,
+  onOpenDemoAuth,
   publishedClassesCount,
 }) => {
   const { settings } = useSettings();
@@ -41,13 +43,13 @@ export const HomePage: React.FC<HomePageProps> = ({
           </p>
 
           {/* Primary & Secondary Action Buttons */}
-          <div className="pt-2 flex flex-col sm:flex-row items-center justify-center gap-3 sm:gap-4 max-w-md mx-auto">
+          <div className="pt-2 flex flex-col sm:flex-row items-center justify-center gap-3 sm:gap-4 max-w-xl mx-auto">
             <button
-              onClick={() => onNavigate('/demo')}
+              onClick={onOpenDemoAuth}
               className="w-full sm:w-auto px-6 py-3.5 bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white font-extrabold text-sm rounded-2xl shadow-lg shadow-orange-500/25 transition-all flex items-center justify-center gap-2 active:scale-98 cursor-pointer"
             >
               <PlayCircle size={18} />
-              <span>ফ্রি ডেমো দেখুন</span>
+              <span>ফ্রি ডেমো দেখতে অ্যাকাউন্ট খুলুন</span>
             </button>
 
             <button
@@ -57,6 +59,30 @@ export const HomePage: React.FC<HomePageProps> = ({
               <UserPlus size={18} className="text-orange-500" />
               <span>ভর্তির তথ্য দেখুন</span>
             </button>
+          </div>
+
+          {/* Step-by-step instructions for accessing free demo */}
+          <div className="max-w-lg mx-auto bg-orange-50/90 border border-orange-200/80 rounded-2xl px-4 py-3 text-xs sm:text-sm text-orange-950 font-semibold leading-relaxed shadow-2xs">
+            <p>নতুন অ্যাকাউন্ট নিবন্ধন করুন, ইমেইল যাচাই করুন, তারপর লগইন করে ফ্রি ডেমো দেখুন।</p>
+            <p className="text-[11px] text-orange-800 mt-1 font-medium">
+              ইতিমধ্যে অ্যাকাউন্ট থাকলে{' '}
+              <button
+                type="button"
+                onClick={() => onOpenAuth('login')}
+                className="font-extrabold underline hover:text-orange-600 cursor-pointer"
+              >
+                লগইন করুন
+              </button>
+              {' '}অথবা{' '}
+              <button
+                type="button"
+                onClick={() => onNavigate('/demo')}
+                className="font-extrabold underline hover:text-orange-600 cursor-pointer"
+              >
+                ডেমো পেজে যান
+              </button>
+              ।
+            </p>
           </div>
 
           {/* Quick trust highlights - No fake claims, strictly factual */}
@@ -311,15 +337,15 @@ export const HomePage: React.FC<HomePageProps> = ({
             আজই শুরু করুন আপনার সন্তানের অ্যাবাকাস যাত্রা
           </h3>
           <p className="text-xs sm:text-sm text-slate-300 max-w-lg mx-auto leading-relaxed">
-            বিনামূল্যে ডেমো ক্লাস দেখে কোর্সের মান যাচাই করুন, অথবা ভর্তির বিস্তারিত তথ্য জেনে নিন।
+            নতুন অ্যাকাউন্ট নিবন্ধন করুন, ইমেইল যাচাই করুন, তারপর লগইন করে ফ্রি ডেমো দেখুন।
           </p>
           <div className="flex flex-col sm:flex-row items-center justify-center gap-3 pt-2">
             <button
-              onClick={() => onNavigate('/demo')}
+              onClick={onOpenDemoAuth}
               className="w-full sm:w-auto px-6 py-3 bg-orange-500 hover:bg-orange-600 text-white font-extrabold text-xs rounded-xl shadow-md transition-all flex items-center justify-center gap-2 cursor-pointer"
             >
               <PlayCircle size={16} />
-              <span>ফ্রি ডেমো দেখুন</span>
+              <span>ফ্রি ডেমো দেখতে অ্যাকাউন্ট খুলুন</span>
             </button>
             <button
               onClick={() => onNavigate('/enroll')}

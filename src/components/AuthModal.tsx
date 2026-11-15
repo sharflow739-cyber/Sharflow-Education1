@@ -45,6 +45,19 @@ export const AuthModal: React.FC<AuthModalProps> = ({
   const [showWelcomeModal, setShowWelcomeModal] = useState(false);
   const [verifiedProfile, setVerifiedProfile] = useState<UserProfile | null>(null);
 
+  // Sync activeTab with initialTab whenever modal opens
+  useEffect(() => {
+    if (isOpen) {
+      setActiveTab(initialTab);
+      setError(null);
+      setSuccessMsg(null);
+      setOtpError(null);
+      setOtpNotice(null);
+      setShowWelcomeModal(false);
+      setVerifiedProfile(null);
+    }
+  }, [isOpen, initialTab]);
+
   // 60-second countdown for Resend OTP button
   useEffect(() => {
     if (activeTab !== 'verify-otp') return;
@@ -56,6 +69,14 @@ export const AuthModal: React.FC<AuthModalProps> = ({
   }, [activeTab, otpCountdown]);
 
   if (!isOpen) return null;
+
+  const handleRequestClose = () => {
+    if (showWelcomeModal && verifiedProfile) {
+      setShowWelcomeModal(false);
+      onLoginSuccess(verifiedProfile);
+    }
+    onClose();
+  };
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -451,7 +472,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
         {/* Top Header Banner */}
         <div className="bg-gradient-to-r from-orange-500 to-amber-500 p-6 text-white relative">
           <button
-            onClick={onClose}
+            onClick={handleRequestClose}
             className="absolute top-4 right-4 p-1.5 rounded-full bg-white/20 hover:bg-white/30 text-white transition-colors cursor-pointer"
           >
             <X size={18} />

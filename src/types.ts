@@ -91,7 +91,6 @@ export interface SiteSettings {
   certified_badge_label: string;
 
   // Public Launch & Enrollment Settings
-  public_demo_video_url: string;
   course_fee_bdt: string;
   course_duration_access: string;
   course_includes_text: string;
@@ -161,7 +160,6 @@ export const DEFAULT_SITE_SETTINGS: SiteSettings = {
   certified_badge_label: '',
 
   // Public Launch & Enrollment Settings
-  public_demo_video_url: '',
   course_fee_bdt: '',
   course_duration_access: '',
   course_includes_text: '',
@@ -182,3 +180,14 @@ export const DEFAULT_SITE_SETTINGS: SiteSettings = {
   watermark_opacity: 30,
   watermark_interval_seconds: 15,
 };
+
+declare global {
+  interface Window {
+    createLemonSqueezy?: () => void;
+    LemonSqueezy?: {
+      Url?: {
+        Open?: (url: string) => void;
+      };
+    };
+  }
+}

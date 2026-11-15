@@ -155,6 +155,40 @@ create table if not exists public.site_settings (
 insert into public.site_settings (id) values (1) on conflict do nothing;
 
 -- ---------------------------------------------------------------------
+-- 5b. DEMO VIDEO SETTINGS (authenticated active users only; never anon)
+-- ---------------------------------------------------------------------
+create table if not exists public.demo_settings (
+  id int primary key default 1 check (id = 1),
+  video_url text not null default '',
+  updated_at timestamptz not null default now()
+);
+insert into public.demo_settings (id) values (1) on conflict do nothing;
+
+-- One-time migration: move any legacy public_demo_video_url out of public site_settings
+do $$
+declare legacy_url text;
+begin
+  select nullif(trim(data ->> 'public_demo_video_url'), '')
+    into legacy_url
+    from public.site_settings
+   where id = 1;
+
+  if legacy_url is not null then
+    update public.demo_settings
+       set video_url = legacy_url,
+           updated_at = now()
+     where id = 1
+       and coalesce(trim(video_url), '') = '';
+  end if;
+
+  update public.site_settings
+     set data = data - 'public_demo_video_url',
+         updated_at = now()
+   where id = 1
+     and data ? 'public_demo_video_url';
+end $$;
+
+-- ---------------------------------------------------------------------
 -- 6. CLASSES: migrate to the columns the app really uses
 -- ---------------------------------------------------------------------
 create table if not exists public.classes (
@@ -186,6 +220,7 @@ end $$;
 alter table public.profiles enable row level security;
 alter table public.admin_requests enable row level security;
 alter table public.site_settings enable row level security;
+alter table public.demo_settings enable row level security;
 alter table public.classes enable row level security;
 
 -- drop every old policy (names from the previous schema + new names)
@@ -195,7 +230,7 @@ begin
   for pol in
     select schemaname, tablename, policyname from pg_policies
     where schemaname = 'public'
-      and tablename in ('profiles','admin_requests','site_settings','classes',
+      and tablename in ('profiles','admin_requests','site_settings','demo_settings','classes',
                         'courses','progress','homework_submissions','announcements')
   loop
     execute format('drop policy if exists %I on %I.%I', pol.policyname, pol.schemaname, pol.tablename);
@@ -214,12 +249,18 @@ create policy profiles_update_admin on public.profiles for update to authenticat
 create policy admin_requests_select on public.admin_requests for select to authenticated
   using (user_id = auth.uid() or public.is_owner());
 
--- site_settings: public read (login page + footer need it), admin write
+-- site_settings: public read (login page + footer need it; no demo URLs stored here), admin write
 create policy site_settings_read on public.site_settings for select to anon, authenticated
   using (true);
 create policy site_settings_insert on public.site_settings for insert to authenticated
   with check (public.is_admin());
 create policy site_settings_update on public.site_settings for update to authenticated
+  using (public.is_admin()) with check (public.is_admin());
+
+-- demo_settings: strictly authenticated active users only; never readable by anon
+create policy demo_settings_read on public.demo_settings for select to authenticated
+  using (public.is_active_user());
+create policy demo_settings_admin_write on public.demo_settings for all to authenticated
   using (public.is_admin()) with check (public.is_admin());
 
 -- classes: only active signed-in users see PUBLISHED classes; admins see/manage all
