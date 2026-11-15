@@ -9,7 +9,7 @@
     "preview": "vite preview",
     "clean": "rm -rf dist server.js",
     "lint": "tsc --noEmit",
-    "test": "tsx --test src/lib/__tests__/demoSignupPixel.test.ts"
+    "test": "tsx --test src/lib/__tests__/demoSignupPixel.test.ts src/lib/__tests__/ebooks.test.ts"
   },
   "dependencies": {
     "@google/genai": "^2.4.0",
@@ -22,6 +22,7 @@
     "lucide-react": "^0.546.0",
     "motion": "^12.23.24",
     "nodemailer": "^10.2.1",
+    "pdfjs-dist": "^6.5.438",
     "react": "^19.0.1",
     "react-dom": "^19.0.1"
   },

@@ -49,6 +49,30 @@ export interface AdminRequest {
   decided_at?: string;
 }
 
+export interface EbookItem {
+  id: string;
+  title: string;
+  description: string;
+  pdf_storage_path: string;
+  cover_storage_path?: string | null;
+  file_size_bytes?: number | null;
+  is_published: boolean;
+  sort_order: number;
+  created_by?: string | null;
+  created_at?: string;
+  updated_at?: string;
+}
+
+export interface EbookReadingProgress {
+  id?: string;
+  user_id: string;
+  ebook_id: string;
+  last_page: number;
+  total_pages?: number | null;
+  bookmarks: number[];
+  updated_at?: string;
+}
+
 export interface SiteSettings {
   // Branding
   site_name: string;
@@ -100,6 +124,7 @@ export interface SiteSettings {
   enable_direct_payment: boolean;
   payment_instructions: string;
   lemonsqueezy_checkout_url: string;
+  public_welcome_video_url: string;
 
   // Student Registration & Approval texts
   welcome_popup_title: string;
@@ -169,6 +194,7 @@ export const DEFAULT_SITE_SETTINGS: SiteSettings = {
   enable_direct_payment: false,
   payment_instructions: '',
   lemonsqueezy_checkout_url: '',
+  public_welcome_video_url: '',
 
   // Video
   bunny_cdn_host: '',

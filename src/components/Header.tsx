@@ -89,7 +89,7 @@ export const Header: React.FC<HeaderProps> = ({
                 <a
                   href="/"
                   onClick={(e) => handleNavClick(e, '/')}
-                  className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
+                  className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all whitespace-nowrap shrink-0 ${
                     activePath === '/' || activePath === '/dashboard' || activePath.startsWith('/class')
                       ? 'bg-orange-50 text-orange-600 border border-orange-200'
                       : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50'
@@ -98,25 +98,38 @@ export const Header: React.FC<HeaderProps> = ({
                   ক্লাসসমূহ
                 </a>
 
+                <a
+                  href="/ebooks"
+                  onClick={(e) => handleNavClick(e, '/ebooks')}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 whitespace-nowrap shrink-0 ${
+                    activePath === '/ebooks'
+                      ? 'bg-orange-50 text-orange-600 border border-orange-200'
+                      : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50'
+                  }`}
+                >
+                  <BookOpen size={14} className={activePath === '/ebooks' ? 'text-orange-600' : 'text-slate-500'} />
+                  <span>ই-বুক</span>
+                </a>
+
                 {/* 'কোর্স কিনুন' link for logged-in free users lacking premium access */}
                 {!isPremium && (
                   <a
                     href="/enroll"
                     onClick={(e) => handleNavClick(e, '/enroll')}
-                    className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 ${
+                    className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 whitespace-nowrap shrink-0 ${
                       activePath === '/enroll'
-                        ? 'bg-gradient-to-r from-orange-500 to-amber-500 text-white shadow-xs'
-                        : 'bg-orange-50 text-orange-700 hover:bg-orange-100 border border-orange-200'
+                        ? 'bg-emerald-600 text-white shadow-xs'
+                        : 'bg-emerald-50 text-emerald-700 hover:bg-emerald-100 border border-emerald-200'
                     }`}
                   >
-                    <ShoppingCart size={13} className={activePath === '/enroll' ? 'text-white' : 'text-orange-600'} />
+                    <ShoppingCart size={13} className={activePath === '/enroll' ? 'text-white' : 'text-emerald-600'} />
                     <span>কোর্স কিনুন</span>
                   </a>
                 )}
 
                 <a
                   href="/abacus"
-                  className="px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 text-slate-600 hover:text-slate-900 hover:bg-slate-50"
+                  className="px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 text-slate-600 hover:text-slate-900 hover:bg-slate-50 whitespace-nowrap shrink-0"
                 >
                   <Calculator size={14} className="text-slate-500" />
                   <span>ভার্চুয়াল অ্যাবাকাস</span>

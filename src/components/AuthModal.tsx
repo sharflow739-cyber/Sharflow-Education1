@@ -503,27 +503,33 @@ export const AuthModal: React.FC<AuthModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs">
-      <div className="bg-white rounded-2xl max-w-md w-full shadow-2xl border border-orange-100 overflow-hidden relative">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-slate-900/65 backdrop-blur-xs overflow-y-auto">
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="auth-modal-title"
+        className="bg-white rounded-2xl max-w-md w-full max-h-[92dvh] overflow-y-auto shadow-2xl border border-slate-200 relative my-auto"
+      >
         
         {/* Welcome Success Popup Modal (Triggered on OTP verification success) */}
         {showWelcomeModal && (
           <div className="absolute inset-0 z-50 bg-white p-6 sm:p-8 flex flex-col items-center justify-center text-center">
-            <div className="w-16 h-16 rounded-2xl bg-emerald-100 text-emerald-600 flex items-center justify-center font-bold mb-4 shadow-sm">
-              <CheckCircle2 size={38} className="text-emerald-500" />
+            <div className="w-16 h-16 rounded-2xl bg-emerald-100 text-emerald-700 flex items-center justify-center font-bold mb-4 shadow-sm">
+              <CheckCircle2 size={38} className="text-emerald-700" />
             </div>
 
-            <h3 className="text-xl font-extrabold text-slate-900 mb-3">
+            <h3 className="text-xl font-extrabold text-slate-900 mb-3 leading-snug">
               {settings.welcome_popup_title || 'স্বাগতম! 🎉'}
             </h3>
 
-            <div className="p-4 bg-emerald-50/60 border border-emerald-100 rounded-2xl mb-6">
-              <p className="text-xs sm:text-sm text-slate-700 leading-relaxed font-medium">
+            <div className="p-4 bg-emerald-50 border border-emerald-200 rounded-2xl mb-6">
+              <p className="text-sm text-slate-800 leading-relaxed font-medium">
                 {settings.welcome_popup_text || 'আপনার ইমেইল যাচাই হয়েছে এবং আবেদন গ্রহণ করা হয়েছে। আমরা তথ্য যাচাই করে ২৪ ঘণ্টার মধ্যে ইমেইলে জানাব।'}
               </p>
             </div>
 
             <button
+              type="button"
               onClick={() => {
                 setShowWelcomeModal(false);
                 if (verifiedProfile) {
@@ -534,131 +540,146 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                   onClose();
                 }
               }}
-              className="w-full py-3 bg-orange-500 hover:bg-orange-600 text-white font-extrabold text-xs sm:text-sm rounded-xl shadow-md shadow-orange-500/20 transition-all cursor-pointer"
+              className="w-full min-h-[48px] px-5 py-3 bg-emerald-700 hover:bg-emerald-800 text-white font-extrabold text-sm sm:text-base rounded-xl shadow-md shadow-emerald-700/20 transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-800 focus-visible:ring-offset-2"
             >
-              ঠিক আছে (OK)
+              ঠিক আছে
             </button>
           </div>
         )}
 
         {/* Top Header Banner */}
-        <div className="bg-gradient-to-r from-orange-500 to-amber-500 p-6 text-white relative">
+        <div className="bg-slate-900 p-5 sm:p-6 text-white relative">
           <button
+            type="button"
             onClick={handleRequestClose}
-            className="absolute top-4 right-4 p-1.5 rounded-full bg-white/20 hover:bg-white/30 text-white transition-colors cursor-pointer"
+            aria-label="বন্ধ করুন"
+            className="absolute top-3 right-3 min-w-[44px] min-h-[44px] rounded-full bg-white/15 hover:bg-white/25 text-white flex items-center justify-center transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-300 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-900"
           >
-            <X size={18} />
+            <X size={20} />
           </button>
           
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-white/20 text-white flex items-center justify-center font-bold text-xl">
+          <div className="flex items-center gap-3 pr-11">
+            <div className="w-11 h-11 rounded-xl bg-amber-400/20 border border-amber-400/30 text-white flex items-center justify-center font-bold text-xl shrink-0">
               {settings.logo_emoji || '🧮'}
             </div>
             <div>
-              <h3 className="font-extrabold text-xl leading-tight">
+              <h3 id="auth-modal-title" className="font-extrabold text-lg sm:text-xl leading-snug text-white">
                 {settings.site_name || 'অ্যাবাকাস পেরেন্ট পোর্টাল'}
               </h3>
-              <p className="text-xs text-orange-100">
+              <p className="text-xs sm:text-sm text-slate-300 leading-snug mt-0.5">
                 {settings.site_subtitle || 'অভিভাবকদের প্রফেশনাল অনলাইন কোর্স প্ল্যাটফর্ম'}
               </p>
             </div>
           </div>
         </div>
 
-        {/* Tab Selection */}
-        <div className="flex border-b border-slate-100 bg-slate-50">
+        {/* Tab Selection - 48px+ tactile desktop/mobile targets */}
+        <div role="tablist" aria-label="অ্যাকাউন্ট ট্যাব" className="p-2.5 bg-slate-100 border-b border-slate-200 flex items-stretch gap-2">
           <button
+            type="button"
+            role="tab"
+            aria-selected={activeTab === 'login'}
             onClick={() => { clearDemoAttempt(); setActiveTab('login'); setError(null); setSuccessMsg(null); }}
-            className={`flex-1 py-3 text-xs font-bold transition-all border-b-2 cursor-pointer ${
+            className={`flex-1 min-h-[48px] px-3 py-2.5 rounded-xl text-sm sm:text-[15px] font-extrabold leading-snug transition-colors cursor-pointer flex items-center justify-center text-center focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 ${
               activeTab === 'login'
-                ? 'border-orange-500 text-orange-600 bg-white'
-                : 'border-transparent text-slate-500 hover:text-slate-800'
+                ? 'bg-amber-400 text-slate-950 border-2 border-amber-500 shadow-xs focus-visible:ring-slate-900'
+                : 'bg-white text-slate-800 border border-slate-300 hover:bg-amber-50 hover:text-slate-950 focus-visible:ring-slate-900'
             }`}
           >
-            লগইন (Login)
+            লগইন করুন
           </button>
+
           {settings.allow_registration && (
             <button
+              type="button"
+              role="tab"
+              aria-selected={activeTab === 'register'}
               onClick={() => { clearDemoAttempt(); setActiveTab('register'); setError(null); setSuccessMsg(null); }}
-              className={`flex-1 py-3 text-xs font-bold transition-all border-b-2 cursor-pointer ${
+              className={`flex-1 min-h-[48px] px-3 py-2.5 rounded-xl text-sm sm:text-[15px] font-extrabold leading-snug transition-colors cursor-pointer flex items-center justify-center text-center focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 ${
                 activeTab === 'register'
-                  ? 'border-orange-500 text-orange-600 bg-white'
-                  : 'border-transparent text-slate-500 hover:text-slate-800'
+                  ? 'bg-emerald-700 text-white border-2 border-emerald-800 shadow-xs focus-visible:ring-emerald-800'
+                  : 'bg-white text-slate-800 border border-slate-300 hover:bg-emerald-50 hover:text-emerald-950 focus-visible:ring-emerald-800'
               }`}
             >
-              নতুন অ্যাকাউন্ট (Register)
+              নতুন অ্যাকাউন্ট
             </button>
           )}
+
           {activeTab === 'verify-otp' && (
             <button
-              className="flex-1 py-3 text-xs font-bold border-b-2 border-orange-500 text-orange-600 bg-white flex items-center justify-center gap-1.5"
+              type="button"
+              role="tab"
+              aria-selected={true}
+              className="flex-1 min-h-[48px] px-3 py-2.5 rounded-xl text-sm sm:text-[15px] font-extrabold leading-snug bg-slate-900 text-white border-2 border-slate-900 flex items-center justify-center gap-1.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-900 focus-visible:ring-offset-2"
             >
-              <KeyRound size={13} />
-              <span>কোড যাচাই (Verify)</span>
+              <KeyRound size={15} />
+              <span>কোড যাচাই</span>
             </button>
           )}
         </div>
 
         {/* Content Body */}
-        <div className="p-6 space-y-4">
+        <div className="p-5 sm:p-6 space-y-4">
 
           {/* Global Error / Success Banners */}
           {error && activeTab !== 'verify-otp' && (
-            <div className="p-3 bg-rose-50 border border-rose-200 text-rose-800 rounded-xl text-xs font-medium flex items-start gap-2">
-              <AlertCircle size={16} className="text-rose-500 shrink-0 mt-0.5" />
+            <div role="alert" className="p-3.5 bg-rose-50 border border-rose-300 text-rose-900 rounded-xl text-xs sm:text-sm font-semibold leading-relaxed flex items-start gap-2.5">
+              <AlertCircle size={18} className="text-rose-600 shrink-0 mt-0.5" />
               <span>{error}</span>
             </div>
           )}
 
           {successMsg && activeTab !== 'verify-otp' && (
-            <div className="p-3 bg-emerald-50 border border-emerald-200 text-emerald-800 rounded-xl text-xs font-medium flex items-start gap-2">
-              <CheckCircle2 size={16} className="text-emerald-500 shrink-0 mt-0.5" />
+            <div role="status" className="p-3.5 bg-emerald-50 border border-emerald-300 text-emerald-900 rounded-xl text-xs sm:text-sm font-semibold leading-relaxed flex items-start gap-2.5">
+              <CheckCircle2 size={18} className="text-emerald-700 shrink-0 mt-0.5" />
               <span>{successMsg}</span>
             </div>
           )}
 
           {/* TAB 1: LOGIN FORM */}
           {activeTab === 'login' && (
-            <form onSubmit={handleLogin} className="space-y-3.5">
+            <form onSubmit={handleLogin} className="space-y-4">
               <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1">
-                  ইমেইল এড্রেস (Email)
+                <label htmlFor="auth-login-email" className="block text-sm font-bold text-slate-800 mb-1.5 leading-snug">
+                  ইমেইল এড্রেস
                 </label>
                 <div className="relative">
-                  <Mail className="absolute left-3 top-2.5 text-slate-400" size={16} />
+                  <Mail className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-500 pointer-events-none" size={17} />
                   <input
+                    id="auth-login-email"
                     type="email"
                     required
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
                     placeholder="name@example.com"
-                    className="w-full pl-9 pr-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium focus:bg-white focus:border-orange-500 focus:outline-none transition-colors"
+                    className="w-full min-h-[46px] pl-10 pr-3.5 py-2.5 bg-slate-50 border border-slate-300 rounded-xl text-sm font-medium text-slate-900 placeholder:text-slate-400 focus:bg-white focus:border-slate-900 focus:outline-none focus:ring-2 focus:ring-amber-400/50 transition-colors"
                   />
                 </div>
               </div>
 
               <div>
-                <div className="flex items-center justify-between mb-1">
-                  <label className="block text-xs font-bold text-slate-700">
-                    পাসওয়ার্ড (Password)
+                <div className="flex items-center justify-between gap-2 mb-1">
+                  <label htmlFor="auth-login-password" className="block text-sm font-bold text-slate-800 leading-snug">
+                    পাসওয়ার্ড
                   </label>
                   <button
                     type="button"
                     onClick={() => { clearDemoAttempt(); setActiveTab('forgot'); setError(null); setSuccessMsg(null); }}
-                    className="text-[11px] font-semibold text-orange-600 hover:underline cursor-pointer"
+                    className="min-h-[44px] px-2 -my-2 inline-flex items-center text-xs sm:text-sm font-bold text-amber-800 hover:text-amber-950 hover:underline rounded-lg cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-600 focus-visible:ring-offset-1"
                   >
                     পাসওয়ার্ড ভুলে গেছেন?
                   </button>
                 </div>
                 <div className="relative">
-                  <Lock className="absolute left-3 top-2.5 text-slate-400" size={16} />
+                  <Lock className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-500 pointer-events-none" size={17} />
                   <input
+                    id="auth-login-password"
                     type="password"
                     required
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                     placeholder="••••••••"
-                    className="w-full pl-9 pr-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium focus:bg-white focus:border-orange-500 focus:outline-none transition-colors"
+                    className="w-full min-h-[46px] pl-10 pr-3.5 py-2.5 bg-slate-50 border border-slate-300 rounded-xl text-sm font-medium text-slate-900 placeholder:text-slate-400 focus:bg-white focus:border-slate-900 focus:outline-none focus:ring-2 focus:ring-amber-400/50 transition-colors"
                   />
                 </div>
               </div>
@@ -666,7 +687,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
               <button
                 type="submit"
                 disabled={loading}
-                className="w-full py-2.5 bg-orange-500 hover:bg-orange-600 text-white font-bold text-xs rounded-xl shadow-md shadow-orange-500/20 transition-all active:scale-98 disabled:opacity-50 cursor-pointer"
+                className="w-full min-h-[48px] px-5 py-3 bg-amber-400 hover:bg-amber-500 active:bg-amber-500 text-slate-950 border-2 border-amber-500 font-extrabold text-sm sm:text-base rounded-xl shadow-md shadow-amber-500/20 transition-colors disabled:opacity-55 disabled:cursor-not-allowed cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-900 focus-visible:ring-offset-2"
               >
                 {loading ? 'লগইন হচ্ছে...' : (settings.login_button_label || 'লগইন করুন')}
               </button>
@@ -675,72 +696,76 @@ export const AuthModal: React.FC<AuthModalProps> = ({
 
           {/* TAB 2: REGISTER FORM */}
           {activeTab === 'register' && (
-            <form onSubmit={handleRegister} className="space-y-3">
+            <form onSubmit={handleRegister} className="space-y-3.5">
               <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1">
+                <label htmlFor="auth-reg-name" className="block text-sm font-bold text-slate-800 mb-1.5 leading-snug">
                   অভিভাবকের পূর্ণ নাম *
                 </label>
                 <div className="relative">
-                  <User className="absolute left-3 top-2.5 text-slate-400" size={16} />
+                  <User className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-500 pointer-events-none" size={17} />
                   <input
+                    id="auth-reg-name"
                     type="text"
                     required
                     value={fullName}
                     onChange={(e) => setFullName(e.target.value)}
                     placeholder="আপনার নাম"
-                    className="w-full pl-9 pr-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium focus:bg-white focus:border-orange-500 focus:outline-none transition-colors"
+                    className="w-full min-h-[46px] pl-10 pr-3.5 py-2.5 bg-slate-50 border border-slate-300 rounded-xl text-sm font-medium text-slate-900 placeholder:text-slate-400 focus:bg-white focus:border-emerald-700 focus:outline-none focus:ring-2 focus:ring-emerald-600/30 transition-colors"
                   />
                 </div>
               </div>
 
               <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1">
+                <label htmlFor="auth-reg-email" className="block text-sm font-bold text-slate-800 mb-1.5 leading-snug">
                   ইমেইল এড্রেস *
                 </label>
                 <div className="relative">
-                  <Mail className="absolute left-3 top-2.5 text-slate-400" size={16} />
+                  <Mail className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-500 pointer-events-none" size={17} />
                   <input
+                    id="auth-reg-email"
                     type="email"
                     required
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
                     placeholder="name@example.com"
-                    className="w-full pl-9 pr-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium focus:bg-white focus:border-orange-500 focus:outline-none transition-colors"
+                    className="w-full min-h-[46px] pl-10 pr-3.5 py-2.5 bg-slate-50 border border-slate-300 rounded-xl text-sm font-medium text-slate-900 placeholder:text-slate-400 focus:bg-white focus:border-emerald-700 focus:outline-none focus:ring-2 focus:ring-emerald-600/30 transition-colors"
                   />
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-2">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-xs font-bold text-slate-700 mb-1">
+                  <label htmlFor="auth-reg-phone" className="block text-sm font-bold text-slate-800 mb-1.5 leading-snug">
                     মোবাইল নম্বর *
                   </label>
                   <div className="relative">
-                    <Phone className="absolute left-3 top-2.5 text-slate-400" size={15} />
+                    <Phone className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-500 pointer-events-none" size={16} />
                     <input
+                      id="auth-reg-phone"
                       type="text"
                       required
                       value={phone}
                       onChange={(e) => setPhone(e.target.value)}
                       placeholder="017XXXXXXXX"
-                      className="w-full pl-8 pr-2 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium focus:bg-white focus:border-orange-500 focus:outline-none"
+                      className="w-full min-h-[46px] pl-10 pr-3 py-2.5 bg-slate-50 border border-slate-300 rounded-xl text-sm font-medium text-slate-900 placeholder:text-slate-400 focus:bg-white focus:border-emerald-700 focus:outline-none focus:ring-2 focus:ring-emerald-600/30 transition-colors"
                     />
                   </div>
                 </div>
 
                 <div>
-                  <label className="block text-xs font-bold text-slate-700 mb-1">
-                    পাসওয়ার্ড *
+                  <label htmlFor="auth-reg-password" className="block text-sm font-bold text-slate-800 mb-1.5 leading-snug">
+                    পাসওয়ার্ড (কমপক্ষে ৮ অক্ষর) *
                   </label>
                   <div className="relative">
-                    <Lock className="absolute left-3 top-2.5 text-slate-400" size={15} />
+                    <Lock className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-500 pointer-events-none" size={16} />
                     <input
+                      id="auth-reg-password"
                       type="password"
                       required
                       value={password}
                       onChange={(e) => setPassword(e.target.value)}
                       placeholder="••••••••"
-                      className="w-full pl-8 pr-2 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium focus:bg-white focus:border-orange-500 focus:outline-none"
+                      className="w-full min-h-[46px] pl-10 pr-3 py-2.5 bg-slate-50 border border-slate-300 rounded-xl text-sm font-medium text-slate-900 placeholder:text-slate-400 focus:bg-white focus:border-emerald-700 focus:outline-none focus:ring-2 focus:ring-emerald-600/30 transition-colors"
                     />
                   </div>
                 </div>
@@ -749,9 +774,9 @@ export const AuthModal: React.FC<AuthModalProps> = ({
               <button
                 type="submit"
                 disabled={loading}
-                className="w-full py-2.5 bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white font-bold text-xs rounded-xl shadow-md shadow-orange-500/20 transition-all disabled:opacity-50 cursor-pointer"
+                className="w-full min-h-[48px] px-5 py-3 bg-emerald-700 hover:bg-emerald-800 active:bg-emerald-900 text-white border-2 border-emerald-800 font-extrabold text-sm sm:text-base rounded-xl shadow-md shadow-emerald-700/20 transition-colors disabled:opacity-55 disabled:cursor-not-allowed cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-800 focus-visible:ring-offset-2"
               >
-                {loading ? 'নিবন্ধন করা হচ্ছে...' : 'অ্যাকাউন্ট তৈরি করুন (Register)'}
+                {loading ? 'নিবন্ধন করা হচ্ছে...' : 'অ্যাকাউন্ট তৈরি করুন'}
               </button>
             </form>
           )}
@@ -759,34 +784,35 @@ export const AuthModal: React.FC<AuthModalProps> = ({
           {/* TAB 3: VERIFY OTP CODE STEP */}
           {activeTab === 'verify-otp' && (
             <form onSubmit={(e) => { e.preventDefault(); handleVerifyOtp(); }} className="space-y-4">
-              <div className="text-center space-y-1.5">
-                <p className="text-xs text-slate-700 font-medium">
-                  আপনার ইমেইলে একটি ভেরিফিকেশন কোড পাঠানো হয়েছে। কোডটি এখানে বসান।
+              <div className="text-center space-y-2">
+                <p className="text-xs sm:text-sm text-slate-800 font-semibold leading-relaxed">
+                  আপনার ইমেইলে একটি ভেরিফিকেশন কোড পাঠানো হয়েছে। কোডটি নিচে বসান।
                 </p>
-                <div className="inline-block px-3 py-1 bg-orange-50 border border-orange-200 rounded-lg text-xs font-bold text-orange-700 break-all">
+                <div className="inline-block px-3.5 py-1.5 bg-slate-100 border border-slate-300 rounded-lg text-xs sm:text-sm font-bold text-slate-900 break-all">
                   {otpEmail}
                 </div>
               </div>
 
               {otpError && (
-                <div className="p-3 bg-rose-50 border border-rose-200 text-rose-800 rounded-xl text-xs font-medium flex items-start gap-2">
-                  <AlertCircle size={16} className="text-rose-500 shrink-0 mt-0.5" />
+                <div role="alert" className="p-3.5 bg-rose-50 border border-rose-300 text-rose-900 rounded-xl text-xs sm:text-sm font-semibold flex items-start gap-2.5">
+                  <AlertCircle size={18} className="text-rose-600 shrink-0 mt-0.5" />
                   <span>{otpError}</span>
                 </div>
               )}
 
               {otpNotice && (
-                <div className="p-3 bg-emerald-50 border border-emerald-200 text-emerald-800 rounded-xl text-xs font-medium flex items-start gap-2">
-                  <CheckCircle2 size={16} className="text-emerald-500 shrink-0 mt-0.5" />
+                <div role="status" className="p-3.5 bg-emerald-50 border border-emerald-300 text-emerald-900 rounded-xl text-xs sm:text-sm font-semibold flex items-start gap-2.5">
+                  <CheckCircle2 size={18} className="text-emerald-700 shrink-0 mt-0.5" />
                   <span>{otpNotice}</span>
                 </div>
               )}
 
               <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1.5 text-center">
-                  ভেরিফিকেশন কোড (Code)
+                <label htmlFor="auth-otp-code" className="block text-sm font-bold text-slate-800 mb-2 text-center">
+                  ভেরিফিকেশন কোড
                 </label>
                 <input
+                  id="auth-otp-code"
                   type="text"
                   inputMode="numeric"
                   autoComplete="one-time-code"
@@ -796,24 +822,24 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                   onChange={handleCodeChange}
                   onPaste={handleCodePaste}
                   placeholder="123456"
-                  className="w-full px-4 py-3 bg-slate-50 border-2 border-orange-300 rounded-xl text-center text-2xl font-mono font-bold tracking-widest text-slate-900 focus:bg-white focus:border-orange-500 focus:outline-none transition-colors"
+                  className="w-full min-h-[52px] px-4 py-3 bg-slate-50 border-2 border-slate-400 rounded-xl text-center text-2xl font-mono font-bold tracking-widest text-slate-950 focus:bg-white focus:border-emerald-700 focus:outline-none focus:ring-2 focus:ring-emerald-600/30 transition-colors"
                 />
               </div>
 
               <button
                 type="submit"
                 disabled={isVerifying || !otpCode.trim()}
-                className="w-full py-2.5 bg-orange-500 hover:bg-orange-600 text-white font-bold text-xs rounded-xl shadow-md shadow-orange-500/20 transition-all active:scale-98 disabled:opacity-50 cursor-pointer"
+                className="w-full min-h-[48px] px-5 py-3 bg-emerald-700 hover:bg-emerald-800 text-white border-2 border-emerald-800 font-extrabold text-sm sm:text-base rounded-xl shadow-md shadow-emerald-700/20 transition-colors disabled:opacity-55 disabled:cursor-not-allowed cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-800 focus-visible:ring-offset-2"
               >
-                {isVerifying ? 'যাচাই করা হচ্ছে...' : 'যাচাই করুন'}
+                {isVerifying ? 'যাচাই করা হচ্ছে...' : 'কোড যাচাই করুন'}
               </button>
 
-              <div className="pt-2 flex flex-col items-center gap-2 text-xs">
+              <div className="pt-1 flex flex-col items-center gap-1.5 text-xs sm:text-sm">
                 <button
                   type="button"
                   onClick={handleResendOtp}
                   disabled={otpCountdown > 0 || isResending}
-                  className="font-bold text-orange-600 hover:text-orange-700 disabled:text-slate-400 cursor-pointer disabled:cursor-not-allowed"
+                  className="min-h-[44px] px-3 inline-flex items-center font-bold text-amber-800 hover:text-amber-950 disabled:text-slate-400 rounded-lg cursor-pointer disabled:cursor-not-allowed focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-600"
                 >
                   {isResending
                     ? 'কোড পাঠানো হচ্ছে...'
@@ -830,9 +856,9 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                     setOtpError(null);
                     setOtpNotice(null);
                   }}
-                  className="text-[11px] text-slate-500 hover:text-slate-800 hover:underline cursor-pointer"
+                  className="min-h-[44px] px-3 inline-flex items-center text-xs sm:text-sm font-semibold text-slate-600 hover:text-slate-900 hover:underline rounded-lg cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-700"
                 >
-                  ভুল ইমেইল? আবার রেজিস্টার করুন
+                  ভুল ইমেইল? আবার নিবন্ধন করুন
                 </button>
               </div>
             </form>
@@ -840,39 +866,40 @@ export const AuthModal: React.FC<AuthModalProps> = ({
 
           {/* TAB 4: FORGOT PASSWORD */}
           {activeTab === 'forgot' && (
-            <form onSubmit={handleForgotPassword} className="space-y-3">
-              <p className="text-xs text-slate-600 leading-relaxed">
+            <form onSubmit={handleForgotPassword} className="space-y-4">
+              <p className="text-xs sm:text-sm text-slate-700 leading-relaxed font-medium">
                 আপনার নিবন্ধিত ইমেইল এড্রেস লিখুন। আমরা একটি পাসওয়ার্ড রিসেট লিংক পাঠাব।
               </p>
               <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1">
+                <label htmlFor="auth-forgot-email" className="block text-sm font-bold text-slate-800 mb-1.5">
                   ইমেইল এড্রেস
                 </label>
                 <div className="relative">
-                  <Mail className="absolute left-3 top-2.5 text-slate-400" size={16} />
+                  <Mail className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-500 pointer-events-none" size={17} />
                   <input
+                    id="auth-forgot-email"
                     type="email"
                     required
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
                     placeholder="name@example.com"
-                    className="w-full pl-9 pr-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium focus:bg-white focus:border-orange-500 focus:outline-none"
+                    className="w-full min-h-[46px] pl-10 pr-3.5 py-2.5 bg-slate-50 border border-slate-300 rounded-xl text-sm font-medium text-slate-900 placeholder:text-slate-400 focus:bg-white focus:border-slate-900 focus:outline-none focus:ring-2 focus:ring-amber-400/50"
                   />
                 </div>
               </div>
 
-              <div className="flex gap-2">
+              <div className="flex flex-col sm:flex-row gap-2.5">
                 <button
                   type="button"
                   onClick={() => { clearDemoAttempt(); setActiveTab('login'); setError(null); setSuccessMsg(null); }}
-                  className="flex-1 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs rounded-xl cursor-pointer"
+                  className="flex-1 min-h-[46px] px-4 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-900 border border-slate-300 font-bold text-sm rounded-xl cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-800 focus-visible:ring-offset-2"
                 >
                   ফিরে যান
                 </button>
                 <button
                   type="submit"
                   disabled={loading}
-                  className="flex-1 py-2 bg-orange-500 hover:bg-orange-600 text-white font-bold text-xs rounded-xl shadow-xs cursor-pointer disabled:opacity-50"
+                  className="flex-1 min-h-[46px] px-4 py-2.5 bg-amber-400 hover:bg-amber-500 text-slate-950 border-2 border-amber-500 font-extrabold text-sm rounded-xl shadow-xs cursor-pointer disabled:opacity-55 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-900 focus-visible:ring-offset-2"
                 >
                   {loading ? 'পাঠানো হচ্ছে...' : 'লিংক পাঠান'}
                 </button>

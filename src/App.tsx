@@ -10,6 +10,7 @@ import { Header } from './components/Header';
 import { Footer } from './components/Footer';
 import { HomePage } from './components/HomePage';
 import { DemoPage } from './components/DemoPage';
+import { EbookLibrary } from './components/EbookLibrary';
 import { EnrollPage } from './components/EnrollPage';
 import { PolicyPages } from './components/PolicyPages';
 import { Dashboard } from './components/Dashboard';
@@ -450,6 +451,17 @@ export default function App() {
         )}
 
         {/* ======================================================== */}
+        {/* ROUTE 1B: AUTHENTICATED E-BOOK LIBRARY (/ebooks) */}
+        {/* ======================================================== */}
+        {currentPath === '/ebooks' && (
+          <EbookLibrary
+            currentUser={currentUser}
+            onNavigate={navigateTo}
+            onOpenAuth={(tab = 'login') => openAuthModal(tab, '/ebooks', 'other')}
+          />
+        )}
+
+        {/* ======================================================== */}
         {/* ROUTE 2: PUBLIC ENROLL (/enroll) */}
         {/* ======================================================== */}
         {currentPath === '/enroll' && (
@@ -541,6 +553,7 @@ export default function App() {
         {/* ROUTE 5: ROOT (/) or /dashboard */}
         {/* ======================================================== */}
         {currentPath !== '/demo' &&
+          currentPath !== '/ebooks' &&
           currentPath !== '/enroll' &&
           currentPath !== '/contact' &&
           currentPath !== '/terms' &&
@@ -553,6 +566,9 @@ export default function App() {
                 onNavigate={navigateTo}
                 onOpenAuth={(tab = 'login') => openAuthModal(tab, '/demo', 'demo')}
                 onOpenDemoAuth={() => openAuthModal('register', '/demo', 'demo')}
+                onOpenFreeResourcesAuth={(redirectPath = '/', tab = 'register') =>
+                  openAuthModal(tab, redirectPath, 'other')
+                }
                 publishedClassesCount={publishedClassesCount}
               />
             ) : currentClass ? (

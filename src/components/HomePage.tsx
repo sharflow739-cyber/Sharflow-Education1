@@ -1,14 +1,16 @@
 import React from 'react';
 import { useSettings } from '../contexts/SettingsContext';
+import { PublicWelcomeVideo } from './PublicWelcomeVideo';
 import { 
-  PlayCircle, UserPlus, CheckCircle2, ChevronRight, HelpCircle, 
-  Smartphone, BookOpen, Clock, HeartHandshake, ShieldCheck
+  PlayCircle, UserPlus, CheckCircle2, HelpCircle, 
+  Smartphone, BookOpen, Clock, FileText, Calculator, Video
 } from 'lucide-react';
 
 interface HomePageProps {
   onNavigate: (path: string) => void;
   onOpenAuth: (tab?: 'login' | 'register') => void;
   onOpenDemoAuth: () => void;
+  onOpenFreeResourcesAuth: (redirectPath?: string, tab?: 'login' | 'register') => void;
   publishedClassesCount: number;
 }
 
@@ -16,9 +18,12 @@ export const HomePage: React.FC<HomePageProps> = ({
   onNavigate,
   onOpenAuth,
   onOpenDemoAuth,
+  onOpenFreeResourcesAuth,
   publishedClassesCount,
 }) => {
   const { settings } = useSettings();
+  const resolvedWelcomeVideoUrl =
+    (settings.public_welcome_video_url || '').trim() || '/sharflow-welcome-signup.mp4';
 
   return (
     <div className="space-y-16 pb-12">
@@ -101,6 +106,90 @@ export const HomePage: React.FC<HomePageProps> = ({
                 {publishedClassesCount}টি ধারাবাহিক ক্লাস
               </span>
             )}
+          </div>
+
+          {/* Public Welcome Video Slot - defaults to /sharflow-welcome-signup.mp4 unless overridden; hides gracefully when missing */}
+          <PublicWelcomeVideo src={resolvedWelcomeVideoUrl} />
+        </div>
+      </section>
+
+      {/* Free Resources CTA Section: Multiple Free Classes, E-books, Worksheets & Virtual Abacus */}
+      <section className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 space-y-6">
+        <div className="bg-white rounded-3xl border border-orange-200/80 shadow-xs p-6 sm:p-8 space-y-6">
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-slate-100 pb-5">
+            <div className="space-y-1">
+              <h2 className="text-xl sm:text-2xl font-black text-slate-900">
+                ফ্রি অ্যাকাউন্টে পাচ্ছেন ফ্রি শেখার রিসোর্সসমূহ
+              </h2>
+              <p className="text-xs sm:text-sm text-slate-600">
+                বিনামূল্যে নিবন্ধন করে একাধিক ফ্রি ক্লাস, ই-বুক লাইব্রেরি, প্র্যাকটিস ওয়ার্কশিট এবং ভার্চুয়াল অ্যাবাকাস ব্যবহার করুন।
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={() => onOpenFreeResourcesAuth('/', 'register')}
+              className="px-5 py-3 bg-slate-900 hover:bg-slate-800 text-white font-extrabold text-xs rounded-xl shadow-xs transition-colors inline-flex items-center justify-center gap-2 cursor-pointer shrink-0 whitespace-nowrap"
+            >
+              <UserPlus size={15} />
+              <span>ফ্রি রিসোর্স আনলক করুন</span>
+            </button>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            <button
+              type="button"
+              onClick={() => onOpenFreeResourcesAuth('/', 'register')}
+              className="text-left p-4 rounded-2xl bg-orange-50/60 hover:bg-orange-50 border border-orange-100 transition-colors space-y-2 cursor-pointer"
+            >
+              <div className="w-9 h-9 rounded-xl bg-orange-500/15 text-orange-600 flex items-center justify-center">
+                <Video size={18} />
+              </div>
+              <h3 className="font-extrabold text-slate-900 text-sm">একাধিক ফ্রি ক্লাস</h3>
+              <p className="text-xs text-slate-600 leading-relaxed">
+                শুরুর দিকের ফ্রি ভিডিও লেসন দেখে সোরোবানের মূল ভিত্তি সহজেই শিখুন।
+              </p>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => onNavigate('/ebooks')}
+              className="text-left p-4 rounded-2xl bg-amber-50/60 hover:bg-amber-50 border border-amber-100 transition-colors space-y-2 cursor-pointer"
+            >
+              <div className="w-9 h-9 rounded-xl bg-amber-500/15 text-amber-700 flex items-center justify-center">
+                <BookOpen size={18} />
+              </div>
+              <h3 className="font-extrabold text-slate-900 text-sm">ই-বুক লাইব্রেরি</h3>
+              <p className="text-xs text-slate-600 leading-relaxed">
+                অ্যাকাউন্টে লগইন করে বাংলা অ্যাবাকাস ই-বুক ও গাইড সরাসরি সাইটে পড়ুন।
+              </p>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => onOpenFreeResourcesAuth('/', 'register')}
+              className="text-left p-4 rounded-2xl bg-emerald-50/60 hover:bg-emerald-50 border border-emerald-100 transition-colors space-y-2 cursor-pointer"
+            >
+              <div className="w-9 h-9 rounded-xl bg-emerald-500/15 text-emerald-700 flex items-center justify-center">
+                <FileText size={18} />
+              </div>
+              <h3 className="font-extrabold text-slate-900 text-sm">প্র্যাকটিস ওয়ার্কশিট</h3>
+              <p className="text-xs text-slate-600 leading-relaxed">
+                ফ্রি ক্লাসগুলোর সাথে যুক্ত অনুশীলন শিট ও প্র্যাকটিস রিসোর্স ব্যবহার করুন।
+              </p>
+            </button>
+
+            <a
+              href="/abacus"
+              className="text-left p-4 rounded-2xl bg-sky-50/60 hover:bg-sky-50 border border-sky-100 transition-colors space-y-2 block"
+            >
+              <div className="w-9 h-9 rounded-xl bg-sky-500/15 text-sky-700 flex items-center justify-center">
+                <Calculator size={18} />
+              </div>
+              <h3 className="font-extrabold text-slate-900 text-sm">ভার্চুয়াল অ্যাবাকাস</h3>
+              <p className="text-xs text-slate-600 leading-relaxed">
+                অনলাইনে সরাসরি পুঁতি ওঠানামা করে অনুশীলন করার ইন্টারঅ্যাক্টিভ টুল।
+              </p>
+            </a>
           </div>
         </div>
       </section>

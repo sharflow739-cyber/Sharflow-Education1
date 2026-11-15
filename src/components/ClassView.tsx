@@ -78,8 +78,12 @@ export const ClassView: React.FC<ClassViewProps> = ({
     };
   }, [currentClass.id, isLocked]);
 
-  // Fetch Resources (class_resources)
+  // Fetch Resources (class_resources) ONLY if NOT locked
   useEffect(() => {
+    if (isLocked) {
+      setResources([]);
+      return;
+    }
     let isCancelled = false;
     async function fetchResources() {
       if (!supabase) return;
@@ -102,7 +106,7 @@ export const ClassView: React.FC<ClassViewProps> = ({
     return () => {
       isCancelled = true;
     };
-  }, [currentClass.id]);
+  }, [currentClass.id, isLocked]);
 
   const classNumDisplay = currentClass.class_number < 10 
     ? `০${currentClass.class_number}` 
@@ -184,10 +188,10 @@ export const ClassView: React.FC<ClassViewProps> = ({
                     window.dispatchEvent(new PopStateEvent('popstate'));
                   }
                 }}
-                className="px-6 py-3 bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white font-extrabold text-xs sm:text-sm rounded-xl shadow-lg shadow-orange-500/25 transition-all inline-flex items-center gap-2 cursor-pointer active:scale-98"
+                className="px-6 py-3 bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold text-xs sm:text-sm rounded-xl enroll-buy-btn inline-flex items-center gap-2 cursor-pointer"
               >
                 <ShoppingCart size={16} />
-                <span>কোর্স কিনুন / ভর্তির তথ্য দেখুন</span>
+                <span>কিনুন</span>
               </button>
             </div>
 

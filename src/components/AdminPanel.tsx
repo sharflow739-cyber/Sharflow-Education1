@@ -3,6 +3,7 @@ import { ClassItem, UserProfile, AdminRequest, SiteSettings, ClassResource } fro
 import { supabase, isSupabaseConfigured, OWNER_EMAIL } from '../lib/supabase';
 import { useSettings } from '../contexts/SettingsContext';
 import { VideoPlayer } from './VideoPlayer';
+import { AdminEbooksManager } from './AdminEbooksManager';
 import { DEFAULT_CLASSES } from '../data/defaultCourses';
 import { sendStudentStatusEmail } from '../lib/studentEmail';
 import { 
@@ -38,7 +39,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
   const { settings, updateSettings, resetSettingsGroup } = useSettings();
 
   // Active Admin Tab
-  const [activeTab, setActiveTab] = useState<'classes' | 'students' | 'requests' | 'users' | 'settings'>('classes');
+  const [activeTab, setActiveTab] = useState<'classes' | 'ebooks' | 'students' | 'requests' | 'users' | 'settings'>('classes');
 
   // Toasts
   const [toast, setToast] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
@@ -786,6 +787,18 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
         </button>
 
         <button
+          onClick={() => setActiveTab('ebooks')}
+          className={`px-4 py-2.5 text-xs font-bold rounded-t-xl transition-all border-b-2 flex items-center gap-2 cursor-pointer shrink-0 ${
+            activeTab === 'ebooks'
+              ? 'border-orange-500 text-orange-600 bg-white'
+              : 'border-transparent text-slate-500 hover:text-slate-800'
+          }`}
+        >
+          <FileText size={15} />
+          <span>ই-বুক</span>
+        </button>
+
+        <button
           onClick={() => setActiveTab('students')}
           className={`relative px-4 py-2.5 text-xs font-bold rounded-t-xl transition-all border-b-2 flex items-center gap-2 cursor-pointer shrink-0 ${
             activeTab === 'students'
@@ -995,6 +1008,13 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
             )}
           </div>
         </div>
+      )}
+
+      {/* ======================================================== */}
+      {/* TAB 1B: E-BOOKS MANAGEMENT */}
+      {/* ======================================================== */}
+      {activeTab === 'ebooks' && (
+        <AdminEbooksManager currentUser={currentUser} showToast={showToast} />
       )}
 
       {/* ======================================================== */}
@@ -2085,7 +2105,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                     'course_fee_bdt', 'course_duration_access',
                     'course_includes_text', 'refund_policy_text', 'terms_policy_text',
                     'privacy_policy_text', 'enable_direct_payment', 'payment_instructions',
-                    'lemonsqueezy_checkout_url'
+                    'lemonsqueezy_checkout_url', 'public_welcome_video_url'
                   ])}
                   className="px-2.5 py-1 text-slate-500 hover:text-slate-800 text-xs font-semibold flex items-center gap-1 cursor-pointer"
                 >
@@ -2096,7 +2116,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                     'course_fee_bdt', 'course_duration_access',
                     'course_includes_text', 'refund_policy_text', 'terms_policy_text',
                     'privacy_policy_text', 'enable_direct_payment', 'payment_instructions',
-                    'lemonsqueezy_checkout_url'
+                    'lemonsqueezy_checkout_url', 'public_welcome_video_url'
                   ])}
                   disabled={savingSettingsGroup === 'লঞ্চ ও ভর্তি সেটিংস'}
                   className="px-4 py-1.5 bg-orange-500 hover:bg-orange-600 text-white rounded-xl text-xs font-bold shadow-xs flex items-center gap-1 cursor-pointer disabled:opacity-50"
@@ -2121,6 +2141,22 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                 />
                 <p className="text-[11px] text-slate-400 mt-1">
                   এখানে দেওয়া ভিডিওটি শুধুমাত্র লগইন ও ইমেইল-যাচাই করা সক্রিয় ব্যবহারকারীরাই /demo পেজে দেখতে পাবেন। সাইন-আউট ভিজিটরদের কাছে এই লিংক কখনোই প্রকাশ করা হয় না।
+                </p>
+              </div>
+
+              <div className="sm:col-span-2">
+                <label className="block font-bold text-slate-700 mb-1">
+                  পাবলিক হোমপেজ স্বাগতম ভিডিও লিংক (ঐচ্ছিক, MP4/WebM)
+                </label>
+                <input
+                  type="text"
+                  value={formSettings.public_welcome_video_url || ''}
+                  onChange={(e) => setFormSettings({ ...formSettings, public_welcome_video_url: e.target.value })}
+                  placeholder="https://.../welcome.mp4 (ফাঁকা রাখলে ডিফল্ট /sharflow-welcome-signup.mp4 ব্যবহৃত হবে)"
+                  className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:outline-none focus:border-orange-500 font-medium"
+                />
+                <p className="text-[11px] text-slate-400 mt-1">
+                  ফাঁকা রাখলে সাইটের ডিফল্ট /sharflow-welcome-signup.mp4 (ফাইল আপলোড থাকলে) দেখানো হবে। এখানে নতুন URL দিলে সেটি ডিফল্ট ভিডিওটিকে ওভাররাইড করবে; ফাইল না থাকলে কোনো ভাঙা প্লেয়ার দেখাবে না।
                 </p>
               </div>
 

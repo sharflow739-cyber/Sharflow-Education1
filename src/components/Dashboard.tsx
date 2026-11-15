@@ -63,7 +63,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
               key={cls.id}
               role="button"
               tabIndex={0}
-              aria-label={isLocked ? `${cls.title} (লক করা প্রিমিয়াম ক্লাস - ভর্তির তথ্য দেখুন)` : cls.title}
+              aria-label={isLocked ? `${cls.title} (প্রিমিয়াম লক করা - কিনুন)` : cls.title}
               onClick={() => handleCardAction(cls, isLocked)}
               onKeyDown={(e) => {
                 if (e.key === 'Enter' || e.key === ' ') {
@@ -71,58 +71,41 @@ export const Dashboard: React.FC<DashboardProps> = ({
                   handleCardAction(cls, isLocked);
                 }
               }}
-              className="group bg-white rounded-2xl border border-slate-200 hover:border-orange-300 shadow-2xs hover:shadow-md transition-all cursor-pointer overflow-hidden flex flex-col focus:outline-none focus:ring-2 focus:ring-orange-500"
+              className="group bg-white rounded-2xl border border-slate-200 hover:border-orange-300 shadow-2xs hover:shadow-md transition-all cursor-pointer overflow-hidden flex flex-col focus:outline-none focus:ring-2 focus:ring-emerald-500"
             >
-              {/* 16:9 Thumbnail Area */}
+              {/* 16:9 Thumbnail Area - Normal brightness preserved for both free & locked cards */}
               <div className="relative aspect-video w-full overflow-hidden bg-slate-100">
                 {cls.thumbnail_url ? (
                   <img
                     src={cls.thumbnail_url}
                     alt={cls.title}
-                    className={`w-full h-full object-cover group-hover:scale-105 transition-transform duration-300 ${
-                      isLocked ? 'brightness-50' : ''
-                    }`}
+                    className="w-full h-full object-cover group-hover:scale-105 motion-reduce:group-hover:scale-100 transition-transform duration-300 motion-reduce:transition-none"
                   />
                 ) : (
-                  <div
-                    className={`w-full h-full bg-gradient-to-tr from-orange-400 via-amber-300 to-orange-200 flex flex-col items-center justify-center text-slate-800 p-4 select-none group-hover:scale-105 transition-transform duration-300 ${
-                      isLocked ? 'brightness-50' : ''
-                    }`}
-                  >
+                  <div className="w-full h-full bg-gradient-to-tr from-orange-400 via-amber-300 to-orange-200 flex flex-col items-center justify-center text-slate-800 p-4 select-none group-hover:scale-105 motion-reduce:group-hover:scale-100 transition-transform duration-300 motion-reduce:transition-none">
                     <span className="text-4xl drop-shadow-sm mb-1">{settings.logo_emoji || '🧮'}</span>
                     <span className="text-xs font-black tracking-wider uppercase text-orange-950/80 bg-white/40 px-2 py-0.5 rounded-md backdrop-blur-xs">
                       ক্লাস {classNumDisplay}
                     </span>
                   </div>
                 )}
-
-                {/* Centered Lock Overlay if premium and viewer not premium */}
-                {isLocked && (
-                  <div className="absolute inset-0 bg-slate-950/40 backdrop-blur-[1px] flex flex-col items-center justify-center text-white gap-1.5 z-10 p-2 text-center">
-                    <div className="w-11 h-11 rounded-full bg-slate-900/80 border border-white/20 flex items-center justify-center shadow-lg group-hover:scale-110 transition-transform">
-                      <Lock size={20} className="text-amber-300" />
-                    </div>
-                    <span className="text-[11px] font-bold text-amber-200 bg-black/60 px-2.5 py-0.5 rounded-full backdrop-blur-xs">
-                      কোর্স কিনুন
-                    </span>
-                  </div>
-                )}
               </div>
 
               {/* Card Body */}
-              <div className="p-4 space-y-2 flex-1 flex flex-col justify-between">
+              <div className="p-4 space-y-3 flex-1 flex flex-col justify-between">
                 <div className="space-y-1.5">
-                  <div className="flex items-center justify-between gap-2">
-                    <span className="text-xs font-bold text-slate-500">
+                  <div className="flex items-center justify-between gap-2 text-xs">
+                    <span className="font-bold text-slate-500">
                       ক্লাস {classNumDisplay}
                     </span>
                     {isClassFree ? (
-                      <span className="px-2 py-0.5 bg-emerald-50 text-emerald-700 border border-emerald-200 rounded text-[11px] font-bold">
+                      <span className="font-bold text-emerald-700">
                         ফ্রি
                       </span>
                     ) : (
-                      <span className="px-2 py-0.5 bg-amber-50 text-amber-800 border border-amber-300 rounded text-[11px] font-bold">
-                        প্রিমিয়াম
+                      <span className="inline-flex items-center gap-1 font-bold text-amber-800">
+                        {isLocked && <Lock size={12} className="text-amber-700" />}
+                        <span>প্রিমিয়াম</span>
                       </span>
                     )}
                   </div>
@@ -131,6 +114,19 @@ export const Dashboard: React.FC<DashboardProps> = ({
                     {cls.title}
                   </h3>
                 </div>
+
+                {/* Lock status + green 'কিনুন' CTA below for locked premium cards */}
+                {isLocked && (
+                  <div className="pt-2 border-t border-slate-100 flex items-center justify-between gap-2">
+                    <span className="inline-flex items-center gap-1.5 text-xs font-bold text-slate-600">
+                      <Lock size={14} className="text-amber-600 shrink-0" />
+                      <span>লক করা</span>
+                    </span>
+                    <span className="px-3.5 py-1.5 bg-emerald-600 group-hover:bg-emerald-700 text-white text-xs font-extrabold rounded-xl shadow-xs motion-safe:transition-colors whitespace-nowrap">
+                      কিনুন
+                    </span>
+                  </div>
+                )}
               </div>
             </div>
           );

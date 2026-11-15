@@ -250,14 +250,19 @@ export const EnrollPage: React.FC<EnrollPageProps> = ({ onNavigate, onOpenAuth }
               <div className="space-y-4">
                 
                 {/* Lemon Squeezy Main Checkout Button */}
-                <div className="p-5 bg-gradient-to-r from-orange-50 to-amber-50 border border-orange-200 rounded-2xl space-y-4">
-                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                    <div>
+                <div className="p-5 bg-gradient-to-r from-emerald-50/70 via-white to-orange-50/60 border border-emerald-200 rounded-2xl space-y-4">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                    <div className="space-y-1">
                       <h4 className="font-extrabold text-sm text-slate-900">
                         নিরাপদ অনলাইন চেকআউট (Lemon Squeezy)
                       </h4>
-                      <p className="text-xs text-slate-600 mt-0.5">
+                      <p className="text-xs text-slate-600">
                         কার্ড বা আন্তর্জাতিক পেমেন্টের মাধ্যমে সরাসরি ফি পরিশোধ করুন।
+                      </p>
+                      <p className="text-xs font-extrabold text-slate-900 tabular-nums pt-0.5">
+                        মূল্য: <span className="text-emerald-700">$20.33 USD</span>
+                        <span className="text-slate-400 mx-1.5" aria-hidden="true">·</span>
+                        <span className="text-slate-600 font-bold">রেফারেন্স কোর্স ফি ৳ {fee} (এককালীন)</span>
                       </p>
                     </div>
 
@@ -266,9 +271,9 @@ export const EnrollPage: React.FC<EnrollPageProps> = ({ onNavigate, onOpenAuth }
                       target="_blank"
                       rel="noopener noreferrer"
                       onClick={handleCheckoutClick}
-                      className="px-6 py-3.5 bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white font-extrabold text-sm rounded-xl shadow-md shadow-orange-500/25 transition-all inline-flex items-center justify-center gap-2 active:scale-98 cursor-pointer shrink-0"
+                      className="px-7 py-3.5 bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold text-sm rounded-xl enroll-buy-btn inline-flex items-center justify-center gap-2 cursor-pointer shrink-0 whitespace-nowrap"
                     >
-                      <span>কার্ডে $20.33 দিয়ে ভর্তি হন</span>
+                      <span>কিনুন</span>
                       <ExternalLink size={16} />
                     </a>
                   </div>
