@@ -1,8 +1,15 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { UserProfile } from '../types';
 import { supabase, isSupabaseConfigured } from '../lib/supabase';
 import { useSettings } from '../contexts/SettingsContext';
 import { explainAuthError, isValidEmail, isValidBdPhone } from '../lib/authErrors';
+import {
+  SignupOrigin,
+  DemoSignupAttempt,
+  beginDemoSignupAttempt,
+  cancelDemoSignupAttempt,
+  claimAndTrackDemoRegistration,
+} from '../lib/demoSignupPixel';
 import { X, Lock, Mail, User, Phone, CheckCircle2, AlertCircle, KeyRound } from 'lucide-react';
 
 export { explainAuthError };
@@ -12,6 +19,8 @@ interface AuthModalProps {
   onClose: () => void;
   onLoginSuccess: (user: UserProfile) => void;
   initialTab?: 'login' | 'register' | 'forgot' | 'verify-otp';
+  signupOrigin?: SignupOrigin;
+  onBeforeDemoCompleteRegistration?: () => void;
 }
 
 export const AuthModal: React.FC<AuthModalProps> = ({
@@ -19,6 +28,8 @@ export const AuthModal: React.FC<AuthModalProps> = ({
   onClose,
   onLoginSuccess,
   initialTab = 'login',
+  signupOrigin = 'other',
+  onBeforeDemoCompleteRegistration,
 }) => {
   const { settings } = useSettings();
   const [activeTab, setActiveTab] = useState<'login' | 'register' | 'forgot' | 'verify-otp'>(initialTab);
@@ -45,8 +56,21 @@ export const AuthModal: React.FC<AuthModalProps> = ({
   const [showWelcomeModal, setShowWelcomeModal] = useState(false);
   const [verifiedProfile, setVerifiedProfile] = useState<UserProfile | null>(null);
 
-  // Sync activeTab with initialTab whenever modal opens
+  // Explicit in-memory demo signup attempt & OTP submit concurrency lock
+  const demoAttemptRef = useRef<DemoSignupAttempt | null>(null);
+  const verifyingRef = useRef(false);
+
+  const clearDemoAttempt = useCallback(() => {
+    if (demoAttemptRef.current) {
+      cancelDemoSignupAttempt(demoAttemptRef.current.id);
+      demoAttemptRef.current = null;
+    }
+  }, []);
+
+  // Sync activeTab with initialTab whenever modal opens/closes and clear stale attempts
   useEffect(() => {
+    clearDemoAttempt();
+    verifyingRef.current = false;
     if (isOpen) {
       setActiveTab(initialTab);
       setError(null);
@@ -56,7 +80,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
       setShowWelcomeModal(false);
       setVerifiedProfile(null);
     }
-  }, [isOpen, initialTab]);
+  }, [isOpen, initialTab, clearDemoAttempt]);
 
   // 60-second countdown for Resend OTP button
   useEffect(() => {
@@ -71,6 +95,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
   if (!isOpen) return null;
 
   const handleRequestClose = () => {
+    clearDemoAttempt();
     if (showWelcomeModal && verifiedProfile) {
       setShowWelcomeModal(false);
       onLoginSuccess(verifiedProfile);
@@ -80,6 +105,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
+    clearDemoAttempt();
     setError(null);
     setSuccessMsg(null);
 
@@ -166,6 +192,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
 
   const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault();
+    clearDemoAttempt();
     setError(null);
     setSuccessMsg(null);
 
@@ -201,6 +228,8 @@ export const AuthModal: React.FC<AuthModalProps> = ({
       return;
     }
 
+    const attempt = beginDemoSignupAttempt(signupOrigin === 'demo');
+    demoAttemptRef.current = attempt;
     setLoading(true);
 
     try {
@@ -221,8 +250,31 @@ export const AuthModal: React.FC<AuthModalProps> = ({
 
       if (authErr) throw authErr;
 
+      // Supabase returns empty identities array when email confirmation is enabled and email already exists
+      const isObfuscatedExistingUser =
+        Boolean(data.user && Array.isArray(data.user.identities) && data.user.identities.length === 0);
+
+      if (isObfuscatedExistingUser) {
+        clearDemoAttempt();
+      }
+
       if (data.session && data.user) {
         // Direct session created immediately (if confirm email was disabled)
+        if (!isObfuscatedExistingUser) {
+          demoAttemptRef.current = null;
+          claimAndTrackDemoRegistration(
+            attempt?.id,
+            { isNewUser: true },
+            {
+              onBeforeDispatch: () => {
+                if (attempt) {
+                  onBeforeDemoCompleteRegistration?.();
+                }
+              },
+            }
+          );
+        }
+
         const { data: profileData } = await supabase
           .from('profiles')
           .select('*')
@@ -241,7 +293,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
         setVerifiedProfile(profile);
         setShowWelcomeModal(true);
       } else {
-        // Supabase email confirmation is ON (standard path, no session)
+        // Supabase email confirmation is ON (standard path, no session yet -> do NOT fire CompleteRegistration)
         // Switch to code-entry step inside this auth modal
         setOtpEmail(email.trim());
         setActiveTab('verify-otp');
@@ -251,6 +303,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
         setOtpCountdown(60);
       }
     } catch (err: unknown) {
+      clearDemoAttempt();
       setError(explainAuthError(err));
     } finally {
       setLoading(false);
@@ -258,6 +311,8 @@ export const AuthModal: React.FC<AuthModalProps> = ({
   };
 
   const handleVerifyOtp = async (codeToVerify?: string) => {
+    if (verifyingRef.current) return;
+
     const rawCode = (codeToVerify ?? otpCode).trim();
     const token = rawCode.replace(/\D/g, '');
 
@@ -270,6 +325,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
       return;
     }
 
+    verifyingRef.current = true;
     try {
       setIsVerifying(true);
       setOtpError(null);
@@ -284,6 +340,21 @@ export const AuthModal: React.FC<AuthModalProps> = ({
       if (verifyErr) throw verifyErr;
 
       if (data.user) {
+        // Claim and fire CompleteRegistration strictly once on verified new demo-origin signup
+        const attempt = demoAttemptRef.current;
+        demoAttemptRef.current = null;
+        claimAndTrackDemoRegistration(
+          attempt?.id,
+          { isNewUser: true },
+          {
+            onBeforeDispatch: () => {
+              if (attempt) {
+                onBeforeDemoCompleteRegistration?.();
+              }
+            },
+          }
+        );
+
         // Fetch or wait for profile created by trigger
         const { data: profileData } = await supabase
           .from('profiles')
@@ -329,6 +400,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
         setOtpError(`${errorObj?.message || 'যাচাইকরণ ব্যর্থ হয়েছে।'}${displayCode}`);
       }
     } finally {
+      verifyingRef.current = false;
       setIsVerifying(false);
     }
   };
@@ -496,7 +568,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
         {/* Tab Selection */}
         <div className="flex border-b border-slate-100 bg-slate-50">
           <button
-            onClick={() => { setActiveTab('login'); setError(null); setSuccessMsg(null); }}
+            onClick={() => { clearDemoAttempt(); setActiveTab('login'); setError(null); setSuccessMsg(null); }}
             className={`flex-1 py-3 text-xs font-bold transition-all border-b-2 cursor-pointer ${
               activeTab === 'login'
                 ? 'border-orange-500 text-orange-600 bg-white'
@@ -507,7 +579,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
           </button>
           {settings.allow_registration && (
             <button
-              onClick={() => { setActiveTab('register'); setError(null); setSuccessMsg(null); }}
+              onClick={() => { clearDemoAttempt(); setActiveTab('register'); setError(null); setSuccessMsg(null); }}
               className={`flex-1 py-3 text-xs font-bold transition-all border-b-2 cursor-pointer ${
                 activeTab === 'register'
                   ? 'border-orange-500 text-orange-600 bg-white'
@@ -572,7 +644,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                   </label>
                   <button
                     type="button"
-                    onClick={() => { setActiveTab('forgot'); setError(null); setSuccessMsg(null); }}
+                    onClick={() => { clearDemoAttempt(); setActiveTab('forgot'); setError(null); setSuccessMsg(null); }}
                     className="text-[11px] font-semibold text-orange-600 hover:underline cursor-pointer"
                   >
                     পাসওয়ার্ড ভুলে গেছেন?
@@ -753,6 +825,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                 <button
                   type="button"
                   onClick={() => {
+                    clearDemoAttempt();
                     setActiveTab('register');
                     setOtpError(null);
                     setOtpNotice(null);
@@ -791,7 +864,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
               <div className="flex gap-2">
                 <button
                   type="button"
-                  onClick={() => { setActiveTab('login'); setError(null); setSuccessMsg(null); }}
+                  onClick={() => { clearDemoAttempt(); setActiveTab('login'); setError(null); setSuccessMsg(null); }}
                   className="flex-1 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs rounded-xl cursor-pointer"
                 >
                   ফিরে যান

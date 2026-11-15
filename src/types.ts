@@ -189,5 +189,14 @@ declare global {
         Open?: (url: string) => void;
       };
     };
+    fbq?: ((...args: unknown[]) => void) & {
+      callMethod?: (...args: unknown[]) => void;
+      queue?: unknown[];
+      push?: (...args: unknown[]) => void;
+      loaded?: boolean;
+      version?: string;
+      disablePushState?: boolean;
+    };
+    _fbq?: unknown;
   }
 }

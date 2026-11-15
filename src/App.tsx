@@ -1,7 +1,10 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { UserProfile, ClassItem } from './types';
 import { supabase, isSupabaseConfigured, OWNER_EMAIL } from './lib/supabase';
 import { useSettings } from './contexts/SettingsContext';
+import { useConsent } from './contexts/ConsentContext';
+import { trackDemoPageView } from './lib/metaPixel';
+import { SignupOrigin } from './lib/demoSignupPixel';
 
 import { Header } from './components/Header';
 import { Footer } from './components/Footer';
@@ -16,11 +19,13 @@ import { AuthModal } from './components/AuthModal';
 import { AccessDeniedView } from './components/AccessDeniedView';
 import { ResetPasswordModal } from './components/ResetPasswordModal';
 import { SetupRequiredView } from './components/SetupRequiredView';
+import { MarketingConsentBanner } from './components/MarketingConsentBanner';
 
 import { AlertOctagon, LogOut, AlertCircle, X } from 'lucide-react';
 
 export default function App() {
   const { settings } = useSettings();
+  const { marketingConsent } = useConsent();
 
   // Auth & Profile
   const [currentUser, setCurrentUser] = useState<UserProfile | null>(null);
@@ -32,6 +37,13 @@ export default function App() {
       return window.location.pathname || '/';
     }
     return '/';
+  });
+  const prevPathRef = useRef<string>(currentPath);
+  const [demoVisitSeq, setDemoVisitSeq] = useState<number>(() => {
+    if (typeof window !== 'undefined' && window.location.pathname === '/demo') {
+      return 1;
+    }
+    return 0;
   });
 
   const [currentClass, setCurrentClass] = useState<ClassItem | null>(null);
@@ -49,13 +61,19 @@ export default function App() {
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
   const [authInitialTab, setAuthInitialTab] = useState<'login' | 'register'>('login');
   const [postAuthRedirect, setPostAuthRedirect] = useState<string | null>(null);
+  const [authOrigin, setAuthOrigin] = useState<SignupOrigin>('other');
   const [isResetPasswordModalOpen, setIsResetPasswordModalOpen] = useState(false);
   const [legacyLinkNotice, setLegacyLinkNotice] = useState<string | null>(null);
 
   const openAuthModal = useCallback(
-    (tab: 'login' | 'register' = 'login', redirectPath: string | null = null) => {
+    (
+      tab: 'login' | 'register' = 'login',
+      redirectPath: string | null = null,
+      origin: SignupOrigin = 'other'
+    ) => {
       setAuthInitialTab(tab);
       setPostAuthRedirect(redirectPath);
+      setAuthOrigin(origin);
       setIsAuthModalOpen(true);
     },
     []
@@ -80,7 +98,12 @@ export default function App() {
   useEffect(() => {
     const handleLocationChange = () => {
       const path = window.location.pathname || '/';
+      const prevPath = prevPathRef.current;
+      prevPathRef.current = path;
       setCurrentPath(path);
+      if (path === '/demo' && prevPath !== '/demo') {
+        setDemoVisitSeq((seq) => seq + 1);
+      }
       // Support class deep links (e.g. /class/class-01 or /class-01)
       if (path.startsWith('/class/')) {
         const classId = path.replace('/class/', '').trim();
@@ -97,12 +120,25 @@ export default function App() {
 
   // Safe SPA navigation
   const navigateTo = useCallback((path: string) => {
+    const prevPath = prevPathRef.current;
     if (window.location.pathname !== path) {
       window.history.pushState({}, '', path);
     }
+    prevPathRef.current = path;
     setCurrentPath(path);
+    if (path === '/demo' && prevPath !== '/demo') {
+      setDemoVisitSeq((seq) => seq + 1);
+    }
     window.scrollTo({ top: 0, behavior: 'smooth' });
   }, []);
+
+  // Track Meta Pixel PageView strictly on /demo when marketing consent is granted
+  useEffect(() => {
+    if (!isSupabaseConfigured || authLoading) return;
+    if (currentPath !== '/demo' || demoVisitSeq <= 0) return;
+    if (marketingConsent !== 'granted') return;
+    trackDemoPageView(demoVisitSeq);
+  }, [authLoading, currentPath, demoVisitSeq, marketingConsent]);
 
   // Fetch User Profile by Auth ID
   const fetchUserProfile = useCallback(async (userId: string): Promise<UserProfile | null> => {
@@ -307,7 +343,13 @@ export default function App() {
         <Header
           currentUser={currentUser}
           onLogout={handleLogout}
-          onOpenAuth={() => openAuthModal('login', currentPath === '/demo' ? '/demo' : null)}
+          onOpenAuth={() =>
+            openAuthModal(
+              'login',
+              currentPath === '/demo' ? '/demo' : null,
+              currentPath === '/demo' ? 'demo' : 'other'
+            )
+          }
           activePath={currentPath}
           onNavigate={navigateTo}
           pendingRequestsCount={pendingRequestsCount}
@@ -350,7 +392,13 @@ export default function App() {
       <Header
         currentUser={currentUser}
         onLogout={handleLogout}
-        onOpenAuth={() => openAuthModal('login', currentPath === '/demo' ? '/demo' : null)}
+        onOpenAuth={() =>
+          openAuthModal(
+            'login',
+            currentPath === '/demo' ? '/demo' : null,
+            currentPath === '/demo' ? 'demo' : 'other'
+          )
+        }
         activePath={currentPath}
         onNavigate={navigateTo}
         pendingRequestsCount={pendingRequestsCount}
@@ -397,7 +445,7 @@ export default function App() {
           <DemoPage
             currentUser={currentUser}
             onNavigate={navigateTo}
-            onOpenAuth={(tab = 'register') => openAuthModal(tab, '/demo')}
+            onOpenAuth={(tab = 'register') => openAuthModal(tab, '/demo', 'demo')}
           />
         )}
 
@@ -407,7 +455,7 @@ export default function App() {
         {currentPath === '/enroll' && (
           <EnrollPage
             onNavigate={navigateTo}
-            onOpenAuth={() => openAuthModal('login')}
+            onOpenAuth={() => openAuthModal('login', null, 'other')}
           />
         )}
 
@@ -503,8 +551,8 @@ export default function App() {
               /* Public Mobile-First Homepage */
               <HomePage
                 onNavigate={navigateTo}
-                onOpenAuth={(tab = 'login') => openAuthModal(tab, '/demo')}
-                onOpenDemoAuth={() => openAuthModal('register', '/demo')}
+                onOpenAuth={(tab = 'login') => openAuthModal(tab, '/demo', 'demo')}
+                onOpenDemoAuth={() => openAuthModal('register', '/demo', 'demo')}
                 publishedClassesCount={publishedClassesCount}
               />
             ) : currentClass ? (
@@ -552,18 +600,29 @@ export default function App() {
       {/* Clean Footer with Site Settings and Policy links */}
       <Footer onNavigate={navigateTo} />
 
+      {/* Minimal Marketing Consent Opt-In Banner */}
+      <MarketingConsentBanner />
+
       {/* Auth Modal */}
       <AuthModal
         isOpen={isAuthModalOpen}
         initialTab={authInitialTab}
+        signupOrigin={authOrigin}
+        onBeforeDemoCompleteRegistration={() => {
+          if (authOrigin === 'demo') {
+            navigateTo('/demo');
+          }
+        }}
         onClose={() => {
           setIsAuthModalOpen(false);
           setPostAuthRedirect(null);
+          setAuthOrigin('other');
         }}
         onLoginSuccess={(user) => {
           setCurrentUser(user);
           const targetPath = postAuthRedirect || (currentPath === '/demo' ? '/demo' : '/');
           setPostAuthRedirect(null);
+          setAuthOrigin('other');
           navigateTo(targetPath);
         }}
       />

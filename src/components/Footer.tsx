@@ -1,6 +1,7 @@
 import React from 'react';
 import { Phone, Mail, Clock, ShieldCheck, Heart, FileText, Shield, RotateCcw } from 'lucide-react';
 import { useSettings } from '../contexts/SettingsContext';
+import { useConsent } from '../contexts/ConsentContext';
 
 interface FooterProps {
   onNavigate?: (path: string) => void;
@@ -8,6 +9,7 @@ interface FooterProps {
 
 export const Footer: React.FC<FooterProps> = ({ onNavigate }) => {
   const { settings } = useSettings();
+  const { marketingConsent, grantMarketingConsent, withdrawMarketingConsent } = useConsent();
 
   const handleLinkClick = (e: React.MouseEvent, path: string) => {
     e.preventDefault();
@@ -137,10 +139,39 @@ export const Footer: React.FC<FooterProps> = ({ onNavigate }) => {
           </div>
         )}
 
-        {/* Bottom copyright & credit */}
+        {/* Bottom copyright, marketing consent control & credit */}
         <div className="pt-6 border-t border-slate-800 flex flex-col sm:flex-row items-center justify-between gap-3 text-[11px]">
           <p>© {new Date().getFullYear()} {settings.copyright_text}</p>
-          <div className="flex items-center gap-4">
+          <div className="flex flex-wrap items-center justify-center gap-4">
+            <div className="flex items-center gap-2 text-slate-400">
+              <span>
+                মার্কেটিং সম্মতি:{' '}
+                <strong className="text-slate-200">
+                  {marketingConsent === 'granted'
+                    ? 'চালু'
+                    : marketingConsent === 'denied'
+                    ? 'বন্ধ'
+                    : 'অনির্বাচিত'}
+                </strong>
+              </span>
+              {marketingConsent === 'granted' ? (
+                <button
+                  type="button"
+                  onClick={withdrawMarketingConsent}
+                  className="text-orange-400 hover:text-orange-300 underline font-semibold cursor-pointer"
+                >
+                  সম্মতি প্রত্যাহার করুন
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  onClick={grantMarketingConsent}
+                  className="text-emerald-400 hover:text-emerald-300 underline font-semibold cursor-pointer"
+                >
+                  সম্মতি দিন
+                </button>
+              )}
+            </div>
             <p className="flex items-center gap-1 text-slate-500">
               {settings.footer_tagline} <Heart size={12} className="text-rose-500 fill-rose-500" />
             </p>
