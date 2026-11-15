@@ -115,10 +115,10 @@ export const HomePage: React.FC<HomePageProps> = ({
 
       {/* Free Resources CTA Section: Multiple Free Classes, E-books, Worksheets & Virtual Abacus */}
       <section className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 space-y-6">
-        <div className="bg-white rounded-3xl border border-orange-200/80 shadow-xs p-6 sm:p-8 space-y-6">
+        <div className="bg-white rounded-3xl border border-orange-200/80 shadow-xs p-4 sm:p-8 space-y-6">
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-slate-100 pb-5">
             <div className="space-y-1">
-              <h2 className="text-xl sm:text-2xl font-black text-slate-900">
+              <h2 className="text-lg sm:text-2xl font-black text-slate-900">
                 ফ্রি অ্যাকাউন্টে পাচ্ছেন ফ্রি শেখার রিসোর্সসমূহ
               </h2>
               <p className="text-xs sm:text-sm text-slate-600">
@@ -128,9 +128,9 @@ export const HomePage: React.FC<HomePageProps> = ({
             <button
               type="button"
               onClick={() => onOpenFreeResourcesAuth('/', 'register')}
-              className="px-5 py-3 bg-slate-900 hover:bg-slate-800 text-white font-extrabold text-xs rounded-xl shadow-xs transition-colors inline-flex items-center justify-center gap-2 cursor-pointer shrink-0 whitespace-nowrap"
+              className="w-full md:w-auto min-h-[44px] px-5 py-3 bg-slate-900 hover:bg-slate-800 text-white font-extrabold text-xs rounded-xl shadow-xs transition-colors inline-flex items-center justify-center gap-2 cursor-pointer shrink-0"
             >
-              <UserPlus size={15} />
+              <UserPlus size={15} className="shrink-0" />
               <span>ফ্রি রিসোর্স আনলক করুন</span>
             </button>
           </div>

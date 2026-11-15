@@ -12,6 +12,12 @@ function hasPendingAuthHash(hash: string): boolean {
   return Boolean(hash && (hash.includes('access_token') || hash.includes('type=')));
 }
 
+export function isBrowserPrivacyOptOut(): boolean {
+  if (typeof window === 'undefined') return false;
+  const nav = (window as unknown as { navigator?: { globalPrivacyControl?: boolean } }).navigator;
+  return Boolean(nav && nav.globalPrivacyControl === true);
+}
+
 export function getMarketingConsent(): MarketingConsentStatus {
   if (inMemoryConsent !== null) {
     return inMemoryConsent;
@@ -32,8 +38,25 @@ export function getMarketingConsent(): MarketingConsentStatus {
   return 'unset';
 }
 
+/**
+ * Checks whether Meta Pixel tracking is permitted under the site's privacy rules:
+ * - Any saved refusal ('denied') is strictly preserved and NEVER turned into consent.
+ * - Browser Global Privacy Control (GPC) opt-out is respected unless explicitly overridden by user consent.
+ * - Unset visitors permit direct /demo initialization without a floating banner.
+ */
+export function isMarketingTrackingPermitted(): boolean {
+  const status = getMarketingConsent();
+  if (status === 'denied') {
+    return false;
+  }
+  if (status === 'granted') {
+    return true;
+  }
+  return !isBrowserPrivacyOptOut();
+}
+
 export function isMarketingConsentGranted(): boolean {
-  return getMarketingConsent() === 'granted';
+  return isMarketingTrackingPermitted();
 }
 
 export function setMarketingConsent(status: 'granted' | 'denied'): void {
@@ -48,7 +71,12 @@ export function setMarketingConsent(status: 'granted' | 'denied'): void {
 
   if (status === 'denied') {
     revokeMetaConsentIfLoaded();
-  } else if (status === 'granted' && pixelInitialized && typeof window !== 'undefined' && typeof window.fbq === 'function') {
+  } else if (
+    status === 'granted' &&
+    pixelInitialized &&
+    typeof window !== 'undefined' &&
+    typeof window.fbq === 'function'
+  ) {
     window.fbq('consent', 'grant');
   }
 }
@@ -83,7 +111,7 @@ function ensureMetaPixelLoaded(): boolean {
   if (typeof window === 'undefined' || typeof document === 'undefined') {
     return false;
   }
-  if (!isMarketingConsentGranted()) {
+  if (!isMarketingTrackingPermitted()) {
     return false;
   }
 
@@ -135,7 +163,7 @@ function ensureMetaPixelLoaded(): boolean {
 }
 
 export function trackDemoPageView(visitNumber: number): boolean {
-  if (!isMarketingConsentGranted()) return false;
+  if (!isMarketingTrackingPermitted()) return false;
   if (typeof window === 'undefined') return false;
   if (window.location.pathname !== '/demo') return false;
   if (hasPendingAuthHash(window.location.hash)) return false;
@@ -161,7 +189,7 @@ export function trackDemoPageView(visitNumber: number): boolean {
 }
 
 export function trackDemoCompleteRegistration(): boolean {
-  if (!isMarketingConsentGranted()) return false;
+  if (!isMarketingTrackingPermitted()) return false;
   if (typeof window === 'undefined') return false;
   if (hasPendingAuthHash(window.location.hash)) return false;
 

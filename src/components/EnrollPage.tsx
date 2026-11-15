@@ -108,7 +108,7 @@ export const EnrollPage: React.FC<EnrollPageProps> = ({ onNavigate, onOpenAuth }
     <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-12 space-y-8">
       
       {/* Top Navigation */}
-      <div className="flex items-center justify-between gap-3">
+      <div className="flex flex-wrap items-center justify-between gap-2">
         <button
           onClick={() => onNavigate('/')}
           className="inline-flex items-center gap-1.5 text-xs font-bold text-slate-600 hover:text-slate-900 transition-colors cursor-pointer"
@@ -133,7 +133,7 @@ export const EnrollPage: React.FC<EnrollPageProps> = ({ onNavigate, onOpenAuth }
       </div>
 
       {/* Course Fee & Key Details Card */}
-      <div className="bg-white rounded-3xl border border-slate-200 shadow-sm p-6 sm:p-8 space-y-6">
+      <div className="bg-white rounded-3xl border border-slate-200 shadow-sm p-4 sm:p-8 space-y-6">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-100 pb-6">
           <div className="space-y-1">
             <span className="text-xs font-bold text-orange-600 uppercase tracking-wider">
@@ -235,9 +235,9 @@ export const EnrollPage: React.FC<EnrollPageProps> = ({ onNavigate, onOpenAuth }
       </div>
 
       {/* Enrollment Action Section */}
-      <div className="bg-white rounded-3xl border border-slate-200 shadow-sm p-6 sm:p-8 space-y-6">
+      <div className="bg-white rounded-3xl border border-slate-200 shadow-sm p-4 sm:p-8 space-y-6">
         <h3 className="text-lg font-black text-slate-900 flex items-center gap-2">
-          <CreditCard size={20} className="text-orange-500" />
+          <CreditCard size={20} className="text-orange-500 shrink-0" />
           <span>ভর্তি প্রক্রিয়া ও পেমেন্ট</span>
         </h3>
 
@@ -250,18 +250,18 @@ export const EnrollPage: React.FC<EnrollPageProps> = ({ onNavigate, onOpenAuth }
               <div className="space-y-4">
                 
                 {/* Lemon Squeezy Main Checkout Button */}
-                <div className="p-5 bg-gradient-to-r from-emerald-50/70 via-white to-orange-50/60 border border-emerald-200 rounded-2xl space-y-4">
+                <div className="p-4 sm:p-5 bg-gradient-to-r from-emerald-50/70 via-white to-orange-50/60 border border-emerald-200 rounded-2xl space-y-4">
                   <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                    <div className="space-y-1">
+                    <div className="space-y-1 min-w-0">
                       <h4 className="font-extrabold text-sm text-slate-900">
                         নিরাপদ অনলাইন চেকআউট (Lemon Squeezy)
                       </h4>
                       <p className="text-xs text-slate-600">
                         কার্ড বা আন্তর্জাতিক পেমেন্টের মাধ্যমে সরাসরি ফি পরিশোধ করুন।
                       </p>
-                      <p className="text-xs font-extrabold text-slate-900 tabular-nums pt-0.5">
-                        মূল্য: <span className="text-emerald-700">$20.33 USD</span>
-                        <span className="text-slate-400 mx-1.5" aria-hidden="true">·</span>
+                      <p className="text-xs font-extrabold text-slate-900 tabular-nums pt-0.5 flex flex-wrap items-center gap-x-1.5">
+                        <span>মূল্য: <span className="text-emerald-700">$20.33 USD</span></span>
+                        <span className="text-slate-400" aria-hidden="true">·</span>
                         <span className="text-slate-600 font-bold">রেফারেন্স কোর্স ফি ৳ {fee} (এককালীন)</span>
                       </p>
                     </div>
@@ -271,7 +271,7 @@ export const EnrollPage: React.FC<EnrollPageProps> = ({ onNavigate, onOpenAuth }
                       target="_blank"
                       rel="noopener noreferrer"
                       onClick={handleCheckoutClick}
-                      className="px-7 py-3.5 bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold text-sm rounded-xl enroll-buy-btn inline-flex items-center justify-center gap-2 cursor-pointer shrink-0 whitespace-nowrap"
+                      className="w-full sm:w-auto min-h-[48px] px-7 py-3.5 bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold text-sm rounded-xl enroll-buy-btn inline-flex items-center justify-center gap-2 cursor-pointer shrink-0 whitespace-nowrap"
                     >
                       <span>কিনুন</span>
                       <ExternalLink size={16} />

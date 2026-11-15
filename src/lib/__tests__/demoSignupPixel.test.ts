@@ -5,6 +5,7 @@ import {
   MARKETING_CONSENT_STORAGE_KEY,
   getMarketingConsent,
   setMarketingConsent,
+  isMarketingTrackingPermitted,
   ensureSafeCanonicalDemoUrl,
   trackDemoPageView,
   trackDemoCompleteRegistration,
@@ -24,7 +25,12 @@ interface ScriptStub {
   dataset: Record<string, string>;
 }
 
-function setupDomMock(initialPath = '/demo', initialSearch = '', initialHash = '') {
+function setupDomMock(
+  initialPath = '/demo',
+  initialSearch = '',
+  initialHash = '',
+  options: { globalPrivacyControl?: boolean } = {}
+) {
   const storage = new Map<string, string>();
   const appendedScripts: ScriptStub[] = [];
   const replaceStateCalls: Array<{ url: string }> = [];
@@ -46,6 +52,9 @@ function setupDomMock(initialPath = '/demo', initialSearch = '', initialHash = '
       removeItem: (key: string) => {
         storage.delete(key);
       },
+    },
+    navigator: {
+      globalPrivacyControl: options.globalPrivacyControl ?? false,
     },
     location: locationState,
     history: {
@@ -123,43 +132,67 @@ function resetAll() {
   resetDemoSignupTrackerForTests();
 }
 
-test('Consent absent or denied blocks Meta Pixel loading, PageView, and CompleteRegistration', () => {
+test('Unset visitor initializes Meta Pixel directly for /demo without mutating stored consent', () => {
   resetAll();
   const dom = setupDomMock('/demo');
 
   assert.equal(getMarketingConsent(), 'unset');
+  assert.equal(isMarketingTrackingPermitted(), true);
+  assert.equal(trackDemoPageView(1), true);
+  assert.equal(dom.appendedScripts.length, 1);
+  assert.equal(dom.storage.get(MARKETING_CONSENT_STORAGE_KEY), undefined);
+  assert.equal(getMarketingConsent(), 'unset');
+});
+
+test('Saved opt-out (denied) and browser GPC block Meta Pixel and never turn refusal into consent', () => {
+  resetAll();
+  const dom = setupDomMock('/demo');
+
+  // Previously saved opt-out in localStorage
+  dom.storage.set(MARKETING_CONSENT_STORAGE_KEY, 'denied');
+
+  assert.equal(getMarketingConsent(), 'denied');
+  assert.equal(isMarketingTrackingPermitted(), false);
   assert.equal(trackDemoPageView(1), false);
   assert.equal(trackDemoCompleteRegistration(), false);
   assert.equal(dom.appendedScripts.length, 0);
   assert.equal(dom.mockWindow.fbq, undefined);
-
-  setMarketingConsent('denied');
+  // Saved refusal MUST remain 'denied'
   assert.equal(dom.storage.get(MARKETING_CONSENT_STORAGE_KEY), 'denied');
-  assert.equal(trackDemoPageView(2), false);
-  assert.equal(trackDemoCompleteRegistration(), false);
-  assert.equal(dom.appendedScripts.length, 0);
-  assert.equal(dom.mockWindow.fbq, undefined);
+  assert.equal(getMarketingConsent(), 'denied');
+
+  // Browser Global Privacy Control blocks tracking for unset visitors
+  resetAll();
+  const gpcDom = setupDomMock('/demo', '', '', { globalPrivacyControl: true });
+  assert.equal(getMarketingConsent(), 'unset');
+  assert.equal(isMarketingTrackingPermitted(), false);
+  assert.equal(trackDemoPageView(1), false);
+  assert.equal(gpcDom.appendedScripts.length, 0);
 });
 
-test('Withdrawing consent revokes Meta Pixel consent and blocks subsequent dispatches', () => {
+test('Withdrawing consent via footer opt-out revokes Meta Pixel consent and blocks subsequent dispatches', () => {
   resetAll();
   const dom = setupDomMock('/demo');
-  setMarketingConsent('granted');
 
   assert.equal(trackDemoPageView(1), true);
   assert.equal(dom.appendedScripts.length, 1);
 
   setMarketingConsent('denied');
+  assert.equal(dom.storage.get(MARKETING_CONSENT_STORAGE_KEY), 'denied');
   const queue = dom.getCapturedFbqQueue();
   assert.ok(queue.some((args) => args[0] === 'consent' && args[1] === 'revoke'));
   assert.equal(trackDemoCompleteRegistration(), false);
   assert.equal(trackDemoPageView(2), false);
+
+  // Explicit opt-in from footer re-enables tracking
+  setMarketingConsent('granted');
+  assert.equal(isMarketingTrackingPermitted(), true);
+  assert.equal(trackDemoPageView(3), true);
 });
 
 test('/demo PageView loads fbevents.js once, disables autoConfig/pushState, uses no PII/advanced matching, and dedupes StrictMode', () => {
   resetAll();
   const dom = setupDomMock('/demo', '?email=leak@example.com&token=abc', '#extra');
-  setMarketingConsent('granted');
 
   // First call (StrictMode mount 1)
   assert.equal(trackDemoPageView(1), true);
@@ -188,7 +221,6 @@ test('/demo PageView loads fbevents.js once, disables autoConfig/pushState, uses
 test('/demo PageView is blocked on non-demo routes and when auth token hash is pending', () => {
   resetAll();
   const dom = setupDomMock('/enroll');
-  setMarketingConsent('granted');
 
   assert.equal(trackDemoPageView(1), false);
   assert.equal(dom.appendedScripts.length, 0);
@@ -203,7 +235,6 @@ test('/demo PageView is blocked on non-demo routes and when auth token hash is p
 test('Immediate-session demo-origin signup dispatches CompleteRegistration once with no custom PII', () => {
   resetAll();
   const dom = setupDomMock('/');
-  setMarketingConsent('granted');
 
   const attempt = beginDemoSignupAttempt(true);
   assert.ok(attempt);
@@ -240,7 +271,6 @@ test('Immediate-session demo-origin signup dispatches CompleteRegistration once 
 test('Signup OTP branch: no event on submit, failed OTP, or resend; fires once after OTP verification succeeds', () => {
   resetAll();
   const dom = setupDomMock('/demo');
-  setMarketingConsent('granted');
 
   // 1. User submits signup form -> Supabase returns session: null (OTP sent)
   const attempt = beginDemoSignupAttempt(true);
@@ -271,7 +301,6 @@ test('Signup OTP branch: no event on submit, failed OTP, or resend; fires once a
 test('Negative cases: failure/cancel, reload, existing login (including unconfirmed OTP), and non-demo origin never dispatch', () => {
   resetAll();
   const dom = setupDomMock('/demo');
-  setMarketingConsent('granted');
 
   // Case 1: Signup error cancels active attempt
   const failedAttempt = beginDemoSignupAttempt(true);

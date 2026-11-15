@@ -503,18 +503,18 @@ export const AuthModal: React.FC<AuthModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-slate-900/65 backdrop-blur-xs overflow-y-auto">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-2.5 sm:p-4 bg-slate-900/65 backdrop-blur-xs">
       <div
         role="dialog"
         aria-modal="true"
         aria-labelledby="auth-modal-title"
-        className="bg-white rounded-2xl max-w-md w-full max-h-[92dvh] overflow-y-auto shadow-2xl border border-slate-200 relative my-auto"
+        className="bg-white rounded-2xl max-w-md w-full max-h-[92dvh] overflow-y-auto shadow-2xl border border-slate-200 relative"
       >
         
         {/* Welcome Success Popup Modal (Triggered on OTP verification success) */}
         {showWelcomeModal && (
-          <div className="absolute inset-0 z-50 bg-white p-6 sm:p-8 flex flex-col items-center justify-center text-center">
-            <div className="w-16 h-16 rounded-2xl bg-emerald-100 text-emerald-700 flex items-center justify-center font-bold mb-4 shadow-sm">
+          <div className="absolute inset-0 z-50 bg-white p-5 sm:p-8 flex flex-col items-center justify-center text-center overflow-y-auto">
+            <div className="w-16 h-16 rounded-2xl bg-emerald-100 text-emerald-700 flex items-center justify-center font-bold mb-4 shadow-sm shrink-0">
               <CheckCircle2 size={38} className="text-emerald-700" />
             </div>
 
@@ -540,7 +540,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                   onClose();
                 }
               }}
-              className="w-full min-h-[48px] px-5 py-3 bg-emerald-700 hover:bg-emerald-800 text-white font-extrabold text-sm sm:text-base rounded-xl shadow-md shadow-emerald-700/20 transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-800 focus-visible:ring-offset-2"
+              className="w-full min-h-[48px] px-5 py-3 bg-emerald-700 hover:bg-emerald-800 text-white font-extrabold text-sm sm:text-base rounded-xl shadow-md shadow-emerald-700/20 transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-800 focus-visible:ring-offset-2 shrink-0"
             >
               ঠিক আছে
             </button>
@@ -548,7 +548,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
         )}
 
         {/* Top Header Banner */}
-        <div className="bg-slate-900 p-5 sm:p-6 text-white relative">
+        <div className="bg-slate-900 p-4 sm:p-6 text-white relative">
           <button
             type="button"
             onClick={handleRequestClose}
@@ -559,11 +559,11 @@ export const AuthModal: React.FC<AuthModalProps> = ({
           </button>
           
           <div className="flex items-center gap-3 pr-11">
-            <div className="w-11 h-11 rounded-xl bg-amber-400/20 border border-amber-400/30 text-white flex items-center justify-center font-bold text-xl shrink-0">
+            <div className="w-10 h-10 sm:w-11 sm:h-11 rounded-xl bg-amber-400/20 border border-amber-400/30 text-white flex items-center justify-center font-bold text-xl shrink-0">
               {settings.logo_emoji || '🧮'}
             </div>
-            <div>
-              <h3 id="auth-modal-title" className="font-extrabold text-lg sm:text-xl leading-snug text-white">
+            <div className="min-w-0">
+              <h3 id="auth-modal-title" className="font-extrabold text-base sm:text-xl leading-snug text-white break-words">
                 {settings.site_name || 'অ্যাবাকাস পেরেন্ট পোর্টাল'}
               </h3>
               <p className="text-xs sm:text-sm text-slate-300 leading-snug mt-0.5">
@@ -574,13 +574,13 @@ export const AuthModal: React.FC<AuthModalProps> = ({
         </div>
 
         {/* Tab Selection - 48px+ tactile desktop/mobile targets */}
-        <div role="tablist" aria-label="অ্যাকাউন্ট ট্যাব" className="p-2.5 bg-slate-100 border-b border-slate-200 flex items-stretch gap-2">
+        <div role="tablist" aria-label="অ্যাকাউন্ট ট্যাব" className="p-2 sm:p-2.5 bg-slate-100 border-b border-slate-200 flex items-stretch gap-1.5 sm:gap-2">
           <button
             type="button"
             role="tab"
             aria-selected={activeTab === 'login'}
             onClick={() => { clearDemoAttempt(); setActiveTab('login'); setError(null); setSuccessMsg(null); }}
-            className={`flex-1 min-h-[48px] px-3 py-2.5 rounded-xl text-sm sm:text-[15px] font-extrabold leading-snug transition-colors cursor-pointer flex items-center justify-center text-center focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 ${
+            className={`flex-1 min-h-[48px] px-2 sm:px-3 py-2.5 rounded-xl text-[13px] sm:text-[15px] font-extrabold leading-snug transition-colors cursor-pointer flex items-center justify-center text-center focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 ${
               activeTab === 'login'
                 ? 'bg-amber-400 text-slate-950 border-2 border-amber-500 shadow-xs focus-visible:ring-slate-900'
                 : 'bg-white text-slate-800 border border-slate-300 hover:bg-amber-50 hover:text-slate-950 focus-visible:ring-slate-900'
@@ -595,7 +595,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
               role="tab"
               aria-selected={activeTab === 'register'}
               onClick={() => { clearDemoAttempt(); setActiveTab('register'); setError(null); setSuccessMsg(null); }}
-              className={`flex-1 min-h-[48px] px-3 py-2.5 rounded-xl text-sm sm:text-[15px] font-extrabold leading-snug transition-colors cursor-pointer flex items-center justify-center text-center focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 ${
+              className={`flex-1 min-h-[48px] px-2 sm:px-3 py-2.5 rounded-xl text-[13px] sm:text-[15px] font-extrabold leading-snug transition-colors cursor-pointer flex items-center justify-center text-center focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 ${
                 activeTab === 'register'
                   ? 'bg-emerald-700 text-white border-2 border-emerald-800 shadow-xs focus-visible:ring-emerald-800'
                   : 'bg-white text-slate-800 border border-slate-300 hover:bg-emerald-50 hover:text-emerald-950 focus-visible:ring-emerald-800'
@@ -610,16 +610,16 @@ export const AuthModal: React.FC<AuthModalProps> = ({
               type="button"
               role="tab"
               aria-selected={true}
-              className="flex-1 min-h-[48px] px-3 py-2.5 rounded-xl text-sm sm:text-[15px] font-extrabold leading-snug bg-slate-900 text-white border-2 border-slate-900 flex items-center justify-center gap-1.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-900 focus-visible:ring-offset-2"
+              className="flex-1 min-h-[48px] px-2 sm:px-3 py-2.5 rounded-xl text-[13px] sm:text-[15px] font-extrabold leading-snug bg-slate-900 text-white border-2 border-slate-900 flex items-center justify-center gap-1.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-900 focus-visible:ring-offset-2"
             >
-              <KeyRound size={15} />
+              <KeyRound size={15} className="shrink-0" />
               <span>কোড যাচাই</span>
             </button>
           )}
         </div>
 
         {/* Content Body */}
-        <div className="p-5 sm:p-6 space-y-4">
+        <div className="p-4 sm:p-6 space-y-4">
 
           {/* Global Error / Success Banners */}
           {error && activeTab !== 'verify-otp' && (

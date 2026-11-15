@@ -1,4 +1,4 @@
-import { isMarketingConsentGranted, trackDemoCompleteRegistration } from './metaPixel';
+import { isMarketingTrackingPermitted, trackDemoCompleteRegistration } from './metaPixel';
 
 export type SignupOrigin = 'demo' | 'other';
 
@@ -63,7 +63,7 @@ export function claimAndTrackDemoRegistration(
   claimedAttemptIds.add(attemptId);
   activeAttempt = null;
 
-  const checkConsent = deps.isConsentGranted ?? isMarketingConsentGranted;
+  const checkConsent = deps.isConsentGranted ?? isMarketingTrackingPermitted;
   if (!checkConsent()) {
     return false;
   }

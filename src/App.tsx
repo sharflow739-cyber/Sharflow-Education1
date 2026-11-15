@@ -20,13 +20,12 @@ import { AuthModal } from './components/AuthModal';
 import { AccessDeniedView } from './components/AccessDeniedView';
 import { ResetPasswordModal } from './components/ResetPasswordModal';
 import { SetupRequiredView } from './components/SetupRequiredView';
-import { MarketingConsentBanner } from './components/MarketingConsentBanner';
 
 import { AlertOctagon, LogOut, AlertCircle, X } from 'lucide-react';
 
 export default function App() {
   const { settings } = useSettings();
-  const { marketingConsent } = useConsent();
+  const { isMarketingPermitted } = useConsent();
 
   // Auth & Profile
   const [currentUser, setCurrentUser] = useState<UserProfile | null>(null);
@@ -133,13 +132,13 @@ export default function App() {
     window.scrollTo({ top: 0, behavior: 'smooth' });
   }, []);
 
-  // Track Meta Pixel PageView strictly on /demo when marketing consent is granted
+  // Track Meta Pixel PageView strictly on /demo when privacy requirements permit
   useEffect(() => {
     if (!isSupabaseConfigured || authLoading) return;
     if (currentPath !== '/demo' || demoVisitSeq <= 0) return;
-    if (marketingConsent !== 'granted') return;
+    if (!isMarketingPermitted) return;
     trackDemoPageView(demoVisitSeq);
-  }, [authLoading, currentPath, demoVisitSeq, marketingConsent]);
+  }, [authLoading, currentPath, demoVisitSeq, isMarketingPermitted]);
 
   // Fetch User Profile by Auth ID
   const fetchUserProfile = useCallback(async (userId: string): Promise<UserProfile | null> => {
@@ -387,7 +386,7 @@ export default function App() {
   const publishedClassesCount = classes.filter((c) => c.is_published).length;
 
   return (
-    <div className="min-h-screen flex flex-col bg-slate-50 text-slate-900 selection:bg-orange-500 selection:text-white">
+    <div className="min-h-screen overflow-x-clip flex flex-col bg-slate-50 text-slate-900 selection:bg-orange-500 selection:text-white">
       
       {/* Header */}
       <Header
@@ -615,9 +614,6 @@ export default function App() {
 
       {/* Clean Footer with Site Settings and Policy links */}
       <Footer onNavigate={navigateTo} />
-
-      {/* Minimal Marketing Consent Opt-In Banner */}
-      <MarketingConsentBanner />
 
       {/* Auth Modal */}
       <AuthModal

@@ -121,7 +121,7 @@ export const DemoPage: React.FC<DemoPageProps> = ({
   return (
     <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-12 space-y-8">
       {/* Top Breadcrumb / Back button */}
-      <div className="flex items-center justify-between gap-3">
+      <div className="flex flex-wrap items-center justify-between gap-2">
         <button
           onClick={() => onNavigate('/')}
           className="inline-flex items-center gap-1.5 text-xs font-bold text-slate-600 hover:text-slate-900 transition-colors cursor-pointer"
@@ -150,7 +150,7 @@ export const DemoPage: React.FC<DemoPageProps> = ({
       {/* Demo Video Container (Authenticated Only) OR Auth Gate */}
       <div className="space-y-4">
         {!isAuthorizedForDemo ? (
-          <div className="p-8 sm:p-10 bg-gradient-to-br from-slate-900 via-slate-900 to-orange-950 text-white rounded-3xl border border-slate-800 shadow-xl text-center space-y-5">
+          <div className="p-5 sm:p-10 bg-gradient-to-br from-slate-900 via-slate-900 to-orange-950 text-white rounded-3xl border border-slate-800 shadow-xl text-center space-y-5">
             <div className="w-16 h-16 rounded-2xl bg-orange-500/20 border border-orange-400/30 text-orange-300 mx-auto flex items-center justify-center shadow-lg">
               <Lock size={30} />
             </div>
@@ -168,18 +168,18 @@ export const DemoPage: React.FC<DemoPageProps> = ({
               <button
                 type="button"
                 onClick={() => onOpenAuth('register')}
-                className="w-full sm:w-auto px-6 py-3.5 bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white font-extrabold text-xs sm:text-sm rounded-2xl shadow-lg shadow-orange-500/25 transition-all inline-flex items-center justify-center gap-2 cursor-pointer active:scale-98"
+                className="w-full sm:w-auto min-h-[48px] px-5 sm:px-6 py-3.5 bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white font-extrabold text-xs sm:text-sm rounded-2xl shadow-lg shadow-orange-500/25 transition-all inline-flex items-center justify-center gap-2 cursor-pointer active:scale-98 text-center"
               >
-                <UserPlus size={17} />
+                <UserPlus size={17} className="shrink-0" />
                 <span>ফ্রি ডেমো দেখতে অ্যাকাউন্ট খুলুন</span>
               </button>
 
               <button
                 type="button"
                 onClick={() => onOpenAuth('login')}
-                className="w-full sm:w-auto px-6 py-3.5 bg-white/10 hover:bg-white/20 text-white font-bold text-xs sm:text-sm rounded-2xl border border-white/20 transition-all inline-flex items-center justify-center gap-2 cursor-pointer"
+                className="w-full sm:w-auto min-h-[48px] px-5 sm:px-6 py-3.5 bg-white/10 hover:bg-white/20 text-white font-bold text-xs sm:text-sm rounded-2xl border border-white/20 transition-all inline-flex items-center justify-center gap-2 cursor-pointer text-center"
               >
-                <LogIn size={16} />
+                <LogIn size={16} className="shrink-0" />
                 <span>ইতিমধ্যে অ্যাকাউন্ট আছে? লগইন করুন</span>
               </button>
             </div>

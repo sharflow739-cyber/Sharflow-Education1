@@ -3,11 +3,14 @@ import {
   MarketingConsentStatus,
   getMarketingConsent,
   setMarketingConsent,
+  isBrowserPrivacyOptOut,
 } from '../lib/metaPixel';
 
 interface ConsentContextValue {
   marketingConsent: MarketingConsentStatus;
+  isMarketingPermitted: boolean;
   isConsentGranted: boolean;
+  isBrowserOptOut: boolean;
   grantMarketingConsent: () => void;
   denyMarketingConsent: () => void;
   withdrawMarketingConsent: () => void;
@@ -15,7 +18,9 @@ interface ConsentContextValue {
 
 const ConsentContext = createContext<ConsentContextValue>({
   marketingConsent: 'unset',
+  isMarketingPermitted: true,
   isConsentGranted: false,
+  isBrowserOptOut: false,
   grantMarketingConsent: () => {},
   denyMarketingConsent: () => {},
   withdrawMarketingConsent: () => {},
@@ -25,6 +30,7 @@ export const ConsentProvider: React.FC<{ children: React.ReactNode }> = ({ child
   const [marketingConsent, setMarketingConsentState] = useState<MarketingConsentStatus>(() =>
     getMarketingConsent()
   );
+  const browserOptOut = isBrowserPrivacyOptOut();
 
   const grantMarketingConsent = useCallback(() => {
     setMarketingConsent('granted');
@@ -41,11 +47,16 @@ export const ConsentProvider: React.FC<{ children: React.ReactNode }> = ({ child
     setMarketingConsentState('denied');
   }, []);
 
+  const isMarketingPermitted =
+    marketingConsent === 'granted' || (marketingConsent === 'unset' && !browserOptOut);
+
   return (
     <ConsentContext.Provider
       value={{
         marketingConsent,
+        isMarketingPermitted,
         isConsentGranted: marketingConsent === 'granted',
+        isBrowserOptOut: browserOptOut && marketingConsent === 'unset',
         grantMarketingConsent,
         denyMarketingConsent,
         withdrawMarketingConsent,

@@ -9,7 +9,12 @@ interface FooterProps {
 
 export const Footer: React.FC<FooterProps> = ({ onNavigate }) => {
   const { settings } = useSettings();
-  const { marketingConsent, grantMarketingConsent, withdrawMarketingConsent } = useConsent();
+  const {
+    isMarketingPermitted,
+    isBrowserOptOut,
+    grantMarketingConsent,
+    withdrawMarketingConsent,
+  } = useConsent();
 
   const handleLinkClick = (e: React.MouseEvent, path: string) => {
     e.preventDefault();
@@ -30,7 +35,7 @@ export const Footer: React.FC<FooterProps> = ({ onNavigate }) => {
           {/* Col 1: Platform Info */}
           <div className="md:col-span-2 space-y-3">
             <div className="flex items-center gap-2">
-              <div className="w-8 h-8 rounded-lg bg-orange-500 text-white flex items-center justify-center font-bold text-lg">
+              <div className="w-8 h-8 rounded-lg bg-orange-500 text-white flex items-center justify-center font-bold text-lg shrink-0">
                 {settings.logo_emoji || '🧮'}
               </div>
               <span className="font-extrabold text-white text-base">
@@ -111,7 +116,7 @@ export const Footer: React.FC<FooterProps> = ({ onNavigate }) => {
                 {settings.contact_email && (
                   <li className="flex items-center gap-2">
                     <Mail size={14} className="text-orange-500 shrink-0" />
-                    <span>ইমেইল: {settings.contact_email}</span>
+                    <span className="break-all">ইমেইল: {settings.contact_email}</span>
                   </li>
                 )}
                 {settings.contact_hours && (
@@ -139,34 +144,34 @@ export const Footer: React.FC<FooterProps> = ({ onNavigate }) => {
           </div>
         )}
 
-        {/* Bottom copyright, marketing consent control & credit */}
-        <div className="pt-6 border-t border-slate-800 flex flex-col sm:flex-row items-center justify-between gap-3 text-[11px]">
+        {/* Bottom copyright, marketing privacy control & credit */}
+        <div className="pt-6 border-t border-slate-800 flex flex-col sm:flex-row items-center justify-between gap-3 text-[11px] text-center sm:text-left">
           <p>© {new Date().getFullYear()} {settings.copyright_text}</p>
-          <div className="flex flex-wrap items-center justify-center gap-4">
-            <div className="flex items-center gap-2 text-slate-400">
+          <div className="flex flex-wrap items-center justify-center gap-x-4 gap-y-2">
+            <div className="flex flex-wrap items-center justify-center gap-2 text-slate-300">
               <span>
-                মার্কেটিং সম্মতি:{' '}
-                <strong className="text-slate-200">
-                  {marketingConsent === 'granted'
+                মার্কেটিং পিক্সেল (/demo):{' '}
+                <strong className="text-white">
+                  {isMarketingPermitted
                     ? 'চালু'
-                    : marketingConsent === 'denied'
-                    ? 'বন্ধ'
-                    : 'অনির্বাচিত'}
+                    : isBrowserOptOut
+                    ? 'বন্ধ (ব্রাউজার গোপনীয়তা)'
+                    : 'বন্ধ'}
                 </strong>
               </span>
-              {marketingConsent === 'granted' ? (
+              {isMarketingPermitted ? (
                 <button
                   type="button"
                   onClick={withdrawMarketingConsent}
-                  className="text-orange-400 hover:text-orange-300 underline font-semibold cursor-pointer"
+                  className="px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-orange-300 hover:text-orange-200 border border-slate-700 font-bold transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-400"
                 >
-                  সম্মতি প্রত্যাহার করুন
+                  বন্ধ করুন (Opt-out)
                 </button>
               ) : (
                 <button
                   type="button"
                   onClick={grantMarketingConsent}
-                  className="text-emerald-400 hover:text-emerald-300 underline font-semibold cursor-pointer"
+                  className="px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-emerald-300 hover:text-emerald-200 border border-slate-700 font-bold transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400"
                 >
                   সম্মতি দিন
                 </button>
