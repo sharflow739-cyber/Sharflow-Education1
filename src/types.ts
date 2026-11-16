@@ -15,6 +15,16 @@ export interface UserProfile {
   reject_reason?: string | null;
 }
 
+export interface CourseChapter {
+  id: string;
+  title: string;
+  subtitle?: string;
+  sort_order: number;
+  is_default?: boolean;
+  created_at?: string;
+  updated_at?: string;
+}
+
 export interface ClassItem {
   id: string;
   class_number: number;
@@ -25,6 +35,7 @@ export interface ClassItem {
   created_at?: string;
   is_free?: boolean;
   thumbnail_url?: string | null;
+  chapter_id?: string | null;
   // Optional backward compatibility fields
   youtube_video_id?: string;
   short_intro?: string;

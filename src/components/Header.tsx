@@ -94,10 +94,12 @@ export const Header: React.FC<HeaderProps> = ({
             )}
           </div>
 
-          {/* Row 2 on mobile (<lg), center on desktop (lg+): Wrapping Navigation Links */}
+          {/* Row 2 on mobile (<lg) for guests, tablet/desktop (md+) for signed-in users */}
           <nav
             aria-label="প্রধান ন্যাভিগেশন"
-            className="order-3 lg:order-2 w-full lg:w-auto flex flex-wrap items-center gap-1.5 sm:gap-2 pt-2 lg:pt-0 border-t border-orange-100/80 lg:border-t-0"
+            className={`${
+              currentUser && currentUser.is_active ? 'hidden md:flex' : 'flex'
+            } order-3 lg:order-2 w-full lg:w-auto flex-wrap items-center gap-1.5 sm:gap-2 pt-2 lg:pt-0 border-t border-orange-100/80 lg:border-t-0`}
           >
             {!currentUser ? (
               <>

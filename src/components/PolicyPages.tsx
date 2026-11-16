@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { useSettings } from '../contexts/SettingsContext';
+import { useConsent } from '../contexts/ConsentContext';
 import { 
   ArrowLeft, Phone, Mail, Clock, Shield, FileText, 
   RotateCcw, Send, CheckCircle2, AlertCircle 
@@ -13,6 +14,12 @@ interface PolicyPagesProps {
 
 export const PolicyPages: React.FC<PolicyPagesProps> = ({ type, onNavigate }) => {
   const { settings } = useSettings();
+  const {
+    isMarketingPermitted,
+    isBrowserOptOut,
+    grantMarketingConsent,
+    withdrawMarketingConsent,
+  } = useConsent();
 
   // Contact form submission state
   const [contactName, setContactName] = useState('');
@@ -212,6 +219,49 @@ export const PolicyPages: React.FC<PolicyPagesProps> = ({ type, onNavigate }) =>
                 </div>
               </>
             )}
+
+            {/* Visitor Tracking Control (accessible on Privacy page without cluttering footer) */}
+            <div className="p-4 sm:p-5 bg-slate-50 rounded-2xl border border-slate-200 space-y-3">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                <div className="space-y-1">
+                  <h3 className="font-bold text-slate-900 text-sm">
+                    পাবলিক পেজ অ্যানালিটিক্স ও মার্কেটিং ট্র্যাকিং পছন্দসমূহ
+                  </h3>
+                  <p className="text-slate-600 text-xs leading-relaxed">
+                    পাবলিক পেজ ভিজিট এবং ফ্রি ডেমো নিবন্ধন পরিসংখ্যানের জন্য নিরাপদ Meta Pixel ব্যবহৃত হয়। কোনো ব্যক্তিগত নাম, ইমেইল, ফোন নম্বর, পাসওয়ার্ড বা লগইন টোকেন পাঠানো হয় না এবং ব্রাউজারের গোপনীয়তা সংকেত (GPC) সম্মান করা হয়।
+                  </p>
+                </div>
+                <div className="shrink-0 flex flex-wrap items-center gap-2">
+                  <span className="text-xs font-bold text-slate-700 px-2.5 py-1 bg-white border border-slate-200 rounded-lg">
+                    অবস্থা:{' '}
+                    <strong className="text-slate-900">
+                      {isMarketingPermitted
+                        ? 'চালু'
+                        : isBrowserOptOut
+                        ? 'বন্ধ (ব্রাউজার গোপনীয়তা)'
+                        : 'বন্ধ'}
+                    </strong>
+                  </span>
+                  {isMarketingPermitted ? (
+                    <button
+                      type="button"
+                      onClick={withdrawMarketingConsent}
+                      className="min-h-[44px] px-4 py-2 rounded-xl bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-900 focus-visible:ring-offset-2"
+                    >
+                      ট্র্যাকিং বন্ধ করুন (Opt-out)
+                    </button>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={grantMarketingConsent}
+                      className="min-h-[44px] px-4 py-2 rounded-xl bg-emerald-700 hover:bg-emerald-800 text-white font-bold text-xs transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-700 focus-visible:ring-offset-2"
+                    >
+                      ট্র্যাকিং চালু করুন
+                    </button>
+                  )}
+                </div>
+              </div>
+            </div>
           </div>
         )}
 

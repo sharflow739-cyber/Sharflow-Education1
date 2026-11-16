@@ -1,0 +1,154 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import {
+  DEFAULT_COURSE_CHAPTERS,
+  UNCATEGORIZED_CHAPTER_KEY,
+  computeClassOrderAfterMoveWithinGroup,
+  groupClassesByChapter,
+  inferUnambiguousChapterId,
+  reorderChaptersList,
+  resolveClassChapterId,
+} from '../courseChapters.ts';
+import { ClassItem, CourseChapter } from '../../types.ts';
+
+const SAMPLE_CLASSES: ClassItem[] = [
+  {
+    id: 'class-01',
+    class_number: 1,
+    title: 'অ্যাবাকাসের সাথে পরিচয়',
+    description: 'মৌলিক ধারণা',
+    video_url: '',
+    is_published: true,
+    is_free: true,
+  },
+  {
+    id: 'class-04',
+    class_number: 2,
+    title: 'সরাসরি যোগ (Direct Addition)',
+    description: 'সহজ যোগ',
+    video_url: '',
+    is_published: true,
+    is_free: true,
+  },
+  {
+    id: 'class-05',
+    class_number: 3,
+    title: 'সরাসরি বিয়োগ (Direct Subtraction)',
+    description: 'সহজ বিয়োগ',
+    video_url: '',
+    is_published: true,
+    is_free: false,
+  },
+  {
+    id: 'class-06',
+    class_number: 4,
+    title: 'স্মল ফ্রেন্ডস যোগ (+4, +3, +2, +1)',
+    description: '৫-এর পরিপূরক ব্যবহার করে যোগ',
+    video_url: '',
+    is_published: true,
+    is_free: false,
+  },
+  {
+    id: 'class-08',
+    class_number: 5,
+    title: 'মেন্টাল ম্যাথ ও মানসিকভাবে গণনা',
+    description: 'মানসিক অনুশীলন',
+    video_url: '',
+    is_published: true,
+    is_free: false,
+  },
+];
+
+test('Default chapters match exact Bengali order and English equivalents', () => {
+  assert.deepEqual(
+    DEFAULT_COURSE_CHAPTERS.map((c) => [c.title, c.subtitle]),
+    [
+      ['সরাসরি যোগ-বিয়োগ', 'Without Complement'],
+      ['৫-এর বন্ধু', 'Five Complement'],
+      ['১০-এর বন্ধু', 'Ten Complement'],
+      ['মিশ্র নিয়ম', 'Mixed Complement'],
+    ]
+  );
+});
+
+test('inferUnambiguousChapterId assigns unambiguous topics only and leaves intro/mental math as null', () => {
+  assert.equal(inferUnambiguousChapterId(SAMPLE_CLASSES[0]), null); // অ্যাবাকাসের সাথে পরিচয় -> অন্যান্য
+  assert.equal(inferUnambiguousChapterId(SAMPLE_CLASSES[1]), 'direct');
+  assert.equal(inferUnambiguousChapterId(SAMPLE_CLASSES[2]), 'direct');
+  assert.equal(inferUnambiguousChapterId(SAMPLE_CLASSES[3]), 'five-complement');
+  assert.equal(inferUnambiguousChapterId(SAMPLE_CLASSES[4]), null); // মেন্টাল ম্যাথ -> অন্যান্য
+  assert.equal(
+    inferUnambiguousChapterId({ title: '১০-এর বন্ধু বিয়োগ', description: 'Big Friend' }),
+    'ten-complement'
+  );
+  assert.equal(
+    inferUnambiguousChapterId({ title: 'মিশ্র নিয়ম (+6 থেকে +9)', description: 'Mixed Complement' }),
+    'mixed-complement'
+  );
+});
+
+test('groupClassesByChapter respects stored null chapter_id when migration is active and keeps অন্যান্য visible', () => {
+  const dbClasses: ClassItem[] = [
+    { ...SAMPLE_CLASSES[0], chapter_id: null },
+    { ...SAMPLE_CLASSES[1], chapter_id: 'direct' },
+    { ...SAMPLE_CLASSES[2], chapter_id: 'direct' },
+    { ...SAMPLE_CLASSES[3], chapter_id: 'five-complement' },
+    { ...SAMPLE_CLASSES[4], chapter_id: null },
+  ];
+
+  // If admin intentionally clears chapter_id on class-05 -> goes to অন্যান্য
+  const movedToUncategorized: ClassItem[] = dbClasses.map((c) =>
+    c.id === 'class-05' ? { ...c, chapter_id: null } : c
+  );
+  assert.equal(
+    resolveClassChapterId(movedToUncategorized[2], DEFAULT_COURSE_CHAPTERS, true),
+    null
+  );
+
+  const groups = groupClassesByChapter(dbClasses, DEFAULT_COURSE_CHAPTERS, true);
+  assert.deepEqual(
+    groups.find((g) => g.key === 'direct')?.classes.map((c) => c.id),
+    ['class-04', 'class-05']
+  );
+  assert.deepEqual(
+    groups.find((g) => g.key === 'five-complement')?.classes.map((c) => c.id),
+    ['class-06']
+  );
+  assert.deepEqual(
+    groups.find((g) => g.key === UNCATEGORIZED_CHAPTER_KEY)?.classes.map((c) => c.id),
+    ['class-01', 'class-08']
+  );
+});
+
+test('reorderChaptersList and computeClassOrderAfterMoveWithinGroup persist deterministic order', () => {
+  const reorderedChapters = reorderChaptersList(DEFAULT_COURSE_CHAPTERS, 'five-complement', 'up');
+  assert.ok(reorderedChapters);
+  assert.deepEqual(
+    reorderedChapters.map((c: CourseChapter) => [c.id, c.sort_order]),
+    [
+      ['five-complement', 1],
+      ['direct', 2],
+      ['ten-complement', 3],
+      ['mixed-complement', 4],
+    ]
+  );
+
+  const dbClasses: ClassItem[] = [
+    { ...SAMPLE_CLASSES[1], chapter_id: 'direct', class_number: 1 },
+    { ...SAMPLE_CLASSES[2], chapter_id: 'direct', class_number: 2 },
+    { ...SAMPLE_CLASSES[3], chapter_id: 'five-complement', class_number: 3 },
+  ];
+
+  const updates = computeClassOrderAfterMoveWithinGroup(
+    dbClasses,
+    DEFAULT_COURSE_CHAPTERS,
+    true,
+    'direct',
+    'class-05',
+    'up'
+  );
+  assert.deepEqual(updates, [
+    { id: 'class-05', class_number: 1 },
+    { id: 'class-04', class_number: 2 },
+  ]);
+});

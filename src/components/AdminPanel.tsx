@@ -1,6 +1,15 @@
-import React, { useState, useEffect } from 'react';
-import { ClassItem, UserProfile, AdminRequest, SiteSettings, ClassResource } from '../types';
+import React, { useState, useEffect, useMemo } from 'react';
+import { ClassItem, CourseChapter, UserProfile, AdminRequest, SiteSettings, ClassResource } from '../types';
 import { supabase, isSupabaseConfigured, OWNER_EMAIL } from '../lib/supabase';
+import {
+  DEFAULT_COURSE_CHAPTERS,
+  UNCATEGORIZED_CHAPTER_KEY,
+  computeClassOrderAfterMoveWithinGroup,
+  groupClassesByChapter,
+  reorderChaptersList,
+  resolveClassChapterId,
+  sortChapters,
+} from '../lib/courseChapters';
 import { useSettings } from '../contexts/SettingsContext';
 import { VideoPlayer } from './VideoPlayer';
 import { AdminEbooksManager } from './AdminEbooksManager';
@@ -11,12 +20,14 @@ import {
   CheckCircle2, XCircle, ArrowLeft, Save, Video, Eye, EyeOff,
   Users, ShieldAlert, Settings, BookOpen, Search, AlertCircle,
   RotateCcw, Sparkles, Check, X, ShieldX, Info,
-  GraduationCap, Mail, RefreshCw, Clock, Send, Download, FileText
+  GraduationCap, Mail, RefreshCw, Clock, Send, Download, FileText, FolderKanban
 } from 'lucide-react';
 
 interface AdminPanelProps {
   currentUser: UserProfile;
   classes: ClassItem[];
+  chapters?: CourseChapter[];
+  chaptersSupported?: boolean;
   onReloadClasses: () => Promise<void>;
   onBackToDashboard: () => void;
   pendingRequestsCount: number;
@@ -28,6 +39,8 @@ interface AdminPanelProps {
 export const AdminPanel: React.FC<AdminPanelProps> = ({
   currentUser,
   classes,
+  chapters = DEFAULT_COURSE_CHAPTERS,
+  chaptersSupported = false,
   onReloadClasses,
   onBackToDashboard,
   pendingRequestsCount,
@@ -54,6 +67,22 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
   const [isClassModalOpen, setIsClassModalOpen] = useState(false);
   const [savingClass, setSavingClass] = useState(false);
   const [importingClasses, setImportingClasses] = useState(false);
+  // Chapter management state & computed groupings
+  const orderedChapters = useMemo(() => sortChapters(chapters), [chapters]);
+  const adminChapterGroups = useMemo(
+    () => groupClassesByChapter(classes, orderedChapters, chaptersSupported),
+    [classes, orderedChapters, chaptersSupported]
+  );
+
+  const [newChapterTitle, setNewChapterTitle] = useState('');
+  const [newChapterSubtitle, setNewChapterSubtitle] = useState('');
+  const [savingChapter, setSavingChapter] = useState(false);
+  const [editingChapterId, setEditingChapterId] = useState<string | null>(null);
+  const [editingChapterTitle, setEditingChapterTitle] = useState('');
+  const [editingChapterSubtitle, setEditingChapterSubtitle] = useState('');
+  const [confirmDeleteChapterId, setConfirmDeleteChapterId] = useState<string | null>(null);
+  const [reorderingKey, setReorderingKey] = useState<string | null>(null);
+
   const [editingClass, setEditingClass] = useState<Partial<ClassItem>>({
     class_number: classes.length + 1,
     title: '',
@@ -61,6 +90,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
     video_url: '',
     is_published: true,
     is_free: true,
+    chapter_id: null,
   });
 
   // Resources state for class edit modal
@@ -96,6 +126,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
       video_url: '',
       is_published: true,
       is_free: true,
+      chapter_id: null,
     });
     setCustomThumbnailFileName('');
     setEditingResources([]);
@@ -105,10 +136,12 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
   };
 
   const handleOpenEditClass = async (cls: ClassItem) => {
+    const resolvedChapter = resolveClassChapterId(cls, orderedChapters, chaptersSupported);
     setEditingClass({
       ...cls,
       video_url: '',
       is_free: cls.is_free !== false,
+      chapter_id: cls.chapter_id ?? resolvedChapter ?? null,
     });
     // Prefill with last path segment of thumbnail_url if not "thumbnail.jpg", otherwise empty
     let initialFileName = '';
@@ -246,6 +279,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
         is_published: editingClass.is_published ?? true,
         is_free: editingClass.is_free !== false,
         thumbnail_url: computedThumbnailUrl ?? null,
+        ...(chaptersSupported ? { chapter_id: editingClass.chapter_id || null } : {}),
       };
 
       const { error } = await supabase.from('classes').upsert(record);
@@ -320,29 +354,219 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
     }
   };
 
-  const handleMoveClass = async (index: number, direction: 'up' | 'down') => {
-    const targetIndex = direction === 'up' ? index - 1 : index + 1;
-    if (targetIndex < 0 || targetIndex >= classes.length) return;
-    if (!isSupabaseConfigured || !supabase) return;
-
-    const list = [...classes];
-    const temp = list[index];
-    list[index] = list[targetIndex];
-    list[targetIndex] = temp;
-
-    const updated = list.map((item, idx) => ({
-      ...item,
-      class_number: idx + 1,
-    }));
+  const handleCreateChapter = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newChapterTitle.trim()) return;
+    if (!isSupabaseConfigured || !supabase || !chaptersSupported) {
+      showToast('error', 'অধ্যায় সংরক্ষণ করতে প্রথমে supabase-chapters-migration.sql রান করুন।');
+      return;
+    }
 
     try {
-      const { error } = await supabase.from('classes').upsert(updated);
+      setSavingChapter(true);
+      const nextSortOrder =
+        orderedChapters.reduce((max, ch) => Math.max(max, ch.sort_order), 0) + 1;
+      const { error } = await supabase.from('course_chapters').insert({
+        id: `chapter-${Date.now()}`,
+        title: newChapterTitle.trim(),
+        subtitle: newChapterSubtitle.trim(),
+        sort_order: nextSortOrder,
+        is_default: false,
+        updated_at: new Date().toISOString(),
+      });
       if (error) throw error;
+
+      setNewChapterTitle('');
+      setNewChapterSubtitle('');
+      showToast('success', 'নতুন অধ্যায় তৈরি করা হয়েছে');
+      await onReloadClasses();
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'অধ্যায় তৈরি ব্যর্থ হয়েছে';
+      showToast('error', msg);
+    } finally {
+      setSavingChapter(false);
+    }
+  };
+
+  const handleSaveChapterRename = async (chapterId: string) => {
+    if (!editingChapterTitle.trim()) return;
+    if (!isSupabaseConfigured || !supabase || !chaptersSupported) {
+      showToast('error', 'অধ্যায় সংরক্ষণ করতে প্রথমে supabase-chapters-migration.sql রান করুন।');
+      return;
+    }
+
+    try {
+      setSavingChapter(true);
+      const { error } = await supabase
+        .from('course_chapters')
+        .update({
+          title: editingChapterTitle.trim(),
+          subtitle: editingChapterSubtitle.trim(),
+          updated_at: new Date().toISOString(),
+        })
+        .eq('id', chapterId);
+      if (error) throw error;
+
+      setEditingChapterId(null);
+      showToast('success', 'অধ্যায়ের নাম আপডেট করা হয়েছে');
+      await onReloadClasses();
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'অধ্যায়ের নাম পরিবর্তন ব্যর্থ হয়েছে';
+      showToast('error', msg);
+    } finally {
+      setSavingChapter(false);
+    }
+  };
+
+  const handleMoveChapter = async (chapterId: string, direction: 'up' | 'down') => {
+    if (!isSupabaseConfigured || !supabase || !chaptersSupported) {
+      showToast('error', 'অধ্যায় ক্রম সংরক্ষণ করতে প্রথমে supabase-chapters-migration.sql রান করুন।');
+      return;
+    }
+    const nextChapters = reorderChaptersList(orderedChapters, chapterId, direction);
+    if (!nextChapters) return;
+
+    try {
+      setReorderingKey(`ch-${chapterId}`);
+      await Promise.all(
+        nextChapters.map((ch) =>
+          supabase
+            .from('course_chapters')
+            .update({ sort_order: ch.sort_order, updated_at: new Date().toISOString() })
+            .eq('id', ch.id)
+        )
+      );
+
+      // Keep global class_number aligned with reordered chapters cleanly
+      const nextGroups = groupClassesByChapter(classes, nextChapters, chaptersSupported);
+      const flattened = nextGroups.flatMap((g) => g.classes);
+      const classOrderUpdates = flattened
+        .map((cls, index) => ({ id: cls.id, class_number: index + 1, prev: cls.class_number }))
+        .filter((u) => u.class_number !== u.prev);
+
+      if (classOrderUpdates.length > 0) {
+        await Promise.all(
+          classOrderUpdates.map((u) =>
+            supabase.from('classes').update({ class_number: u.class_number }).eq('id', u.id)
+          )
+        );
+      }
+
+      showToast('success', 'অধ্যায়ের ক্রম পরিবর্তন করা হয়েছে');
+      await onReloadClasses();
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'অধ্যায়ের ক্রম সংরক্ষণ ব্যর্থ হয়েছে';
+      showToast('error', msg);
+    } finally {
+      setReorderingKey(null);
+    }
+  };
+
+  const handleDeleteChapter = async (chapterId: string) => {
+    if (!isSupabaseConfigured || !supabase || !chaptersSupported) return;
+    try {
+      setSavingChapter(true);
+      const { error } = await supabase.from('course_chapters').delete().eq('id', chapterId);
+      if (error) throw error;
+
+      const remaining = orderedChapters.filter((ch) => ch.id !== chapterId);
+      await Promise.all(
+        remaining.map((ch, idx) =>
+          supabase
+            .from('course_chapters')
+            .update({ sort_order: idx + 1, updated_at: new Date().toISOString() })
+            .eq('id', ch.id)
+        )
+      );
+
+      setConfirmDeleteChapterId(null);
+      showToast('success', 'অধ্যায় মুছে ফেলা হয়েছে এবং এর ক্লাসগুলো অন্যান্য বিভাগে রাখা হয়েছে');
+      await onReloadClasses();
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'অধ্যায় মুছতে ব্যর্থ হয়েছে';
+      showToast('error', msg);
+    } finally {
+      setSavingChapter(false);
+    }
+  };
+
+  const handleMoveClassWithinGroup = async (
+    groupKey: string,
+    classId: string,
+    direction: 'up' | 'down'
+  ) => {
+    if (!isSupabaseConfigured || !supabase) return;
+    const updates = computeClassOrderAfterMoveWithinGroup(
+      classes,
+      orderedChapters,
+      chaptersSupported,
+      groupKey,
+      classId,
+      direction
+    );
+    if (!updates || updates.length === 0) return;
+
+    try {
+      setReorderingKey(`cls-${classId}`);
+      const results = await Promise.all(
+        updates.map((u) =>
+          supabase.from('classes').update({ class_number: u.class_number }).eq('id', u.id)
+        )
+      );
+      const failed = results.find((r) => r.error);
+      if (failed?.error) throw failed.error;
+
       showToast('success', 'ক্লাসের ক্রম পরিবর্তন করা হয়েছে');
       await onReloadClasses();
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : 'ক্রম সংরক্ষণ ব্যর্থ হয়েছে';
       showToast('error', msg);
+    } finally {
+      setReorderingKey(null);
+    }
+  };
+
+  const handleChangeClassChapter = async (cls: ClassItem, nextChapterId: string | null) => {
+    if (!isSupabaseConfigured || !supabase || !chaptersSupported) {
+      showToast('error', 'অধ্যায় পরিবর্তন সংরক্ষণ করতে প্রথমে supabase-chapters-migration.sql রান করুন।');
+      return;
+    }
+    const normalizedNext = nextChapterId && nextChapterId.trim() ? nextChapterId.trim() : null;
+    if ((cls.chapter_id || null) === normalizedNext) return;
+
+    try {
+      setReorderingKey(`move-${cls.id}`);
+      const { error: chapterErr } = await supabase
+        .from('classes')
+        .update({ chapter_id: normalizedNext })
+        .eq('id', cls.id);
+      if (chapterErr) throw chapterErr;
+
+      // Recompute deterministic sequential class_number across updated chapter groupings
+      const simulated = classes.map((item) =>
+        item.id === cls.id ? { ...item, chapter_id: normalizedNext } : item
+      );
+      const nextGroups = groupClassesByChapter(simulated, orderedChapters, true);
+      const flattened = nextGroups.flatMap((g) => g.classes);
+      const numUpdates = flattened
+        .map((item, idx) => ({ id: item.id, class_number: idx + 1, prev: item.class_number }))
+        .filter((u) => u.class_number !== u.prev);
+
+      if (numUpdates.length > 0) {
+        await Promise.all(
+          numUpdates.map((u) =>
+            supabase.from('classes').update({ class_number: u.class_number }).eq('id', u.id)
+          )
+        );
+      }
+
+      showToast('success', 'ক্লাসটির অধ্যায় পরিবর্তন করা হয়েছে');
+      await onReloadClasses();
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'অধ্যায় পরিবর্তন ব্যর্থ হয়েছে';
+      showToast('error', msg);
+    } finally {
+      setReorderingKey(null);
     }
   };
 
@@ -863,10 +1087,10 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
       {/* TAB 1: CLASSES CRUD */}
       {/* ======================================================== */}
       {activeTab === 'classes' && (
-        <div className="space-y-4">
-          <div className="flex items-center justify-between gap-3">
+        <div className="space-y-6">
+          <div className="flex flex-wrap items-center justify-between gap-3">
             <p className="text-xs text-slate-500">
-              অভিভাবকদের জন্য ক্লাসের তালিকা, বিবরণ ও ভিডিও লিংক সম্পাদনা করুন।
+              অভিভাবকদের জন্য অধ্যায়, ক্লাসের ক্রম, বিবরণ ও ভিডিও লিংক সম্পাদনা করুন।
             </p>
             <div className="flex items-center gap-2">
               {classes.length === 0 && (
@@ -881,7 +1105,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
               )}
               <button
                 onClick={handleOpenAddClass}
-                className="px-4 py-2 bg-orange-500 hover:bg-orange-600 text-white rounded-xl text-xs font-bold shadow-xs transition-all flex items-center gap-1.5 cursor-pointer"
+                className="min-h-[40px] px-4 py-2 bg-orange-500 hover:bg-orange-600 text-white rounded-xl text-xs font-bold shadow-xs transition-all flex items-center gap-1.5 cursor-pointer"
               >
                 <Plus size={15} />
                 <span>নতুন ক্লাস যোগ করুন</span>
@@ -889,124 +1113,411 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
             </div>
           </div>
 
-          <div className="space-y-3">
-            {classes.map((cls, idx) => (
-              <div
-                key={cls.id}
-                className="bg-white p-4 sm:p-5 rounded-2xl border border-slate-200 shadow-2xs hover:border-slate-300 transition-all flex flex-col sm:flex-row sm:items-center justify-between gap-4"
+          {!chaptersSupported && (
+            <div className="p-4 bg-amber-50 border border-amber-200 rounded-2xl text-xs text-amber-950 flex items-start gap-2.5">
+              <AlertCircle size={17} className="text-amber-600 shrink-0 mt-0.5" />
+              <div className="space-y-1">
+                <p className="font-extrabold">অধ্যায় ডাটাবেজ মাইগ্রেশন বাকি আছে</p>
+                <p className="text-[11px] text-amber-800 leading-relaxed">
+                  নতুন অধ্যায় তৈরি, নাম পরিবর্তন, অধ্যায়ের ক্রম এবং ক্লাস অধ্যায় পরিবর্তনের স্থায়ী সংরক্ষণের জন্য Supabase SQL Editor-এ{' '}
+                  <code className="px-1.5 py-0.5 bg-amber-100 rounded font-mono">
+                    src/lib/supabase-chapters-migration.sql
+                  </code>{' '}
+                  ফাইলটি একবার রান করুন।
+                </p>
+              </div>
+            </div>
+          )}
+
+          {/* Chapter Management Card */}
+          <div className="bg-white rounded-2xl border border-slate-200 shadow-2xs p-4 sm:p-5 space-y-4">
+            <div className="flex items-center justify-between gap-2 border-b border-slate-100 pb-3">
+              <div className="flex items-center gap-2">
+                <FolderKanban size={18} className="text-orange-500 shrink-0" />
+                <div>
+                  <h2 className="font-extrabold text-slate-900 text-sm">
+                    অধ্যায় ব্যবস্থাপনা (Course Chapters)
+                  </h2>
+                  <p className="text-[11px] text-slate-500">
+                    সরাসরি যোগ-বিয়োগ (Without Complement), ৫-এর বন্ধু (Five Complement), ১০-এর বন্ধু (Ten Complement), মিশ্র নিয়ম (Mixed Complement) বা নতুন অধ্যায় পরিচালনা করুন।
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            {/* Create New Chapter Form */}
+            <form onSubmit={handleCreateChapter} className="grid grid-cols-1 sm:grid-cols-5 gap-2.5">
+              <input
+                type="text"
+                value={newChapterTitle}
+                onChange={(e) => setNewChapterTitle(e.target.value)}
+                placeholder="নতুন অধ্যায়ের বাংলা নাম *"
+                required
+                disabled={!chaptersSupported || savingChapter}
+                className="sm:col-span-2 px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold focus:bg-white focus:outline-none focus:border-orange-500 disabled:opacity-60"
+              />
+              <input
+                type="text"
+                value={newChapterSubtitle}
+                onChange={(e) => setNewChapterSubtitle(e.target.value)}
+                placeholder="ইংরেজি নাম (ঐচ্ছিক, যেমন: Five Complement)"
+                disabled={!chaptersSupported || savingChapter}
+                className="sm:col-span-2 px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium focus:bg-white focus:outline-none focus:border-orange-500 disabled:opacity-60"
+              />
+              <button
+                type="submit"
+                disabled={!chaptersSupported || savingChapter || !newChapterTitle.trim()}
+                className="min-h-[40px] px-4 py-2 bg-slate-900 hover:bg-slate-800 text-white rounded-xl text-xs font-extrabold inline-flex items-center justify-center gap-1.5 cursor-pointer disabled:opacity-50"
               >
-                <div className="flex items-start gap-3">
-                  <div className="w-10 h-10 rounded-xl bg-orange-100 text-orange-700 flex items-center justify-center font-black text-sm shrink-0">
-                    {cls.class_number}
-                  </div>
-                  <div className="space-y-1">
-                    <div className="flex items-center gap-2 flex-wrap">
-                      <h3 className="font-extrabold text-slate-900 text-sm">
-                        {cls.title}
-                      </h3>
-                      {cls.is_published ? (
-                        <span className="px-2 py-0.5 bg-emerald-50 text-emerald-700 border border-emerald-200 rounded text-[10px] font-bold">
-                          পাবলিশড
+                <Plus size={14} />
+                <span>অধ্যায় যোগ</span>
+              </button>
+            </form>
+
+            {/* Existing Ordered Chapters List */}
+            <div className="space-y-2">
+              {orderedChapters.map((ch, cIdx) => {
+                const count = adminChapterGroups.find((g) => g.key === ch.id)?.classes.length || 0;
+                const isEditingThis = editingChapterId === ch.id;
+                const isConfirmingDelete = confirmDeleteChapterId === ch.id;
+
+                return (
+                  <div
+                    key={ch.id}
+                    className="p-3 bg-slate-50 rounded-xl border border-slate-200/80 flex flex-col sm:flex-row sm:items-center justify-between gap-3"
+                  >
+                    {isEditingThis ? (
+                      <div className="flex-1 grid grid-cols-1 sm:grid-cols-2 gap-2">
+                        <input
+                          type="text"
+                          value={editingChapterTitle}
+                          onChange={(e) => setEditingChapterTitle(e.target.value)}
+                          placeholder="অধ্যায়ের বাংলা নাম"
+                          className="px-3 py-2 bg-white border border-orange-300 rounded-lg text-xs font-bold focus:outline-none"
+                        />
+                        <input
+                          type="text"
+                          value={editingChapterSubtitle}
+                          onChange={(e) => setEditingChapterSubtitle(e.target.value)}
+                          placeholder="ইংরেজি নাম (ঐচ্ছিক)"
+                          className="px-3 py-2 bg-white border border-slate-200 rounded-lg text-xs font-medium focus:outline-none"
+                        />
+                      </div>
+                    ) : (
+                      <div className="flex items-center gap-3 min-w-0">
+                        <span className="w-7 h-7 rounded-lg bg-orange-100 text-orange-800 font-black text-xs inline-flex items-center justify-center shrink-0">
+                          {cIdx + 1}
                         </span>
+                        <div className="min-w-0">
+                          <div className="flex flex-wrap items-center gap-2">
+                            <span className="font-extrabold text-slate-900 text-xs sm:text-sm truncate">
+                              {ch.title}
+                            </span>
+                            {ch.subtitle && (
+                              <span className="text-[11px] font-semibold text-slate-500">
+                                ({ch.subtitle})
+                              </span>
+                            )}
+                          </div>
+                          <span className="text-[11px] text-slate-500">
+                            {count}টি ক্লাস নির্ধারিত
+                          </span>
+                        </div>
+                      </div>
+                    )}
+
+                    <div className="flex flex-wrap items-center gap-1.5 self-end sm:self-center shrink-0">
+                      {isEditingThis ? (
+                        <>
+                          <button
+                            type="button"
+                            onClick={() => handleSaveChapterRename(ch.id)}
+                            disabled={savingChapter || !editingChapterTitle.trim()}
+                            className="min-h-[38px] px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-bold inline-flex items-center gap-1 cursor-pointer disabled:opacity-50"
+                          >
+                            <Check size={14} />
+                            <span>সংরক্ষণ</span>
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setEditingChapterId(null)}
+                            className="min-h-[38px] px-3 py-1.5 bg-white hover:bg-slate-100 text-slate-700 border border-slate-200 rounded-lg text-xs font-bold cursor-pointer"
+                          >
+                            বাতিল
+                          </button>
+                        </>
+                      ) : isConfirmingDelete ? (
+                        <>
+                          <button
+                            type="button"
+                            onClick={() => handleDeleteChapter(ch.id)}
+                            disabled={savingChapter}
+                            className="min-h-[38px] px-3 py-1.5 bg-rose-600 hover:bg-rose-700 text-white rounded-lg text-xs font-bold cursor-pointer"
+                          >
+                            নিশ্চিত মুছুন
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setConfirmDeleteChapterId(null)}
+                            className="min-h-[38px] px-3 py-1.5 bg-white hover:bg-slate-100 text-slate-700 border border-slate-200 rounded-lg text-xs font-bold cursor-pointer"
+                          >
+                            বাতিল
+                          </button>
+                        </>
                       ) : (
-                        <span className="px-2 py-0.5 bg-slate-100 text-slate-600 border border-slate-200 rounded text-[10px] font-bold">
-                          ড্রাফট (লুকানো)
+                        <>
+                          <button
+                            type="button"
+                            onClick={() => handleMoveChapter(ch.id, 'up')}
+                            disabled={!chaptersSupported || cIdx === 0 || reorderingKey === `ch-${ch.id}`}
+                            aria-label={`${ch.title} অধ্যায় উপরে নিন`}
+                            title="উপরে নিন"
+                            className="min-h-[40px] min-w-[40px] p-2 text-slate-600 hover:text-slate-900 disabled:opacity-25 bg-white hover:bg-slate-100 border border-slate-200 rounded-lg inline-flex items-center justify-center cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-500"
+                          >
+                            <ArrowUp size={15} />
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleMoveChapter(ch.id, 'down')}
+                            disabled={
+                              !chaptersSupported ||
+                              cIdx === orderedChapters.length - 1 ||
+                              reorderingKey === `ch-${ch.id}`
+                            }
+                            aria-label={`${ch.title} অধ্যায় নিচে নিন`}
+                            title="নিচে নিন"
+                            className="min-h-[40px] min-w-[40px] p-2 text-slate-600 hover:text-slate-900 disabled:opacity-25 bg-white hover:bg-slate-100 border border-slate-200 rounded-lg inline-flex items-center justify-center cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-500"
+                          >
+                            <ArrowDown size={15} />
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setEditingChapterId(ch.id);
+                              setEditingChapterTitle(ch.title);
+                              setEditingChapterSubtitle(ch.subtitle || '');
+                              setConfirmDeleteChapterId(null);
+                            }}
+                            disabled={!chaptersSupported}
+                            aria-label={`${ch.title} অধ্যায়ের নাম পরিবর্তন করুন`}
+                            title="নাম পরিবর্তন"
+                            className="min-h-[40px] px-2.5 py-2 text-orange-700 hover:bg-orange-50 bg-white border border-slate-200 rounded-lg text-xs font-bold inline-flex items-center gap-1 cursor-pointer disabled:opacity-40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-500"
+                          >
+                            <Edit3 size={14} />
+                            <span>নাম পরিবর্তন</span>
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setConfirmDeleteChapterId(ch.id)}
+                            disabled={!chaptersSupported}
+                            aria-label={`${ch.title} অধ্যায় মুছে ফেলুন`}
+                            title="মুছে ফেলুন"
+                            className="min-h-[40px] min-w-[40px] p-2 text-rose-600 hover:bg-rose-50 bg-white border border-slate-200 rounded-lg inline-flex items-center justify-center cursor-pointer disabled:opacity-40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-rose-500"
+                          >
+                            <Trash2 size={15} />
+                          </button>
+                        </>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* Lessons Organized by Chapters */}
+          {classes.length === 0 ? (
+            <div className="bg-white p-12 text-center rounded-2xl border border-slate-200 space-y-4">
+              <p className="text-xs text-slate-500">এখনও কোনো ক্লাস যোগ করা হয়নি।</p>
+              <button
+                onClick={handleImportSampleClasses}
+                disabled={importingClasses}
+                className="px-4 py-2 bg-orange-500 hover:bg-orange-600 text-white rounded-xl text-xs font-bold shadow-xs inline-flex items-center gap-2 cursor-pointer"
+              >
+                <Sparkles size={14} />
+                <span>নমুনা ৮টি ক্লাস ইমপোর্ট করুন</span>
+              </button>
+            </div>
+          ) : (
+            <div className="space-y-6">
+              {adminChapterGroups.map((group) => (
+                <section
+                  key={group.key}
+                  aria-label={group.title}
+                  className="bg-white rounded-2xl border border-slate-200 shadow-2xs overflow-hidden"
+                >
+                  <div className="px-4 sm:px-5 py-3.5 bg-slate-50 border-b border-slate-200 flex flex-wrap items-center justify-between gap-2">
+                    <div className="flex flex-wrap items-baseline gap-2">
+                      <h3 className="font-black text-slate-900 text-sm sm:text-base">
+                        {group.title}
+                      </h3>
+                      {group.subtitle && (
+                        <span className="text-xs font-semibold text-slate-500">
+                          ({group.subtitle})
+                        </span>
+                      )}
+                      {group.key === UNCATEGORIZED_CHAPTER_KEY && (
+                        <span className="text-[11px] font-semibold text-amber-700 bg-amber-50 border border-amber-200 px-2 py-0.5 rounded-md">
+                          অধ্যায় নির্ধারিত নয়
                         </span>
                       )}
                     </div>
-                    <p className="text-xs text-slate-500 line-clamp-1 max-w-xl">
-                      {cls.description || 'কোনো বিবরণ দেওয়া হয়নি'}
-                    </p>
-                    <div className="text-[11px] text-slate-400 font-mono truncate max-w-sm">
-                      ভিডিও সোর্স: {cls.video_url || 'সংযুক্ত নেই'}
+                    <span className="text-xs font-bold text-slate-500">
+                      {group.classes.length}টি ক্লাস
+                    </span>
+                  </div>
+
+                  {group.classes.length === 0 ? (
+                    <div className="p-6 text-center text-xs text-slate-400">
+                      এই অধ্যায়ে এখনো কোনো ক্লাস নেই। নিচের যেকোনো ক্লাসের ড্রপডাউন থেকে এই অধ্যায়ে সরাতে পারেন।
                     </div>
-                  </div>
-                </div>
+                  ) : (
+                    <div className="divide-y divide-slate-100">
+                      {group.classes.map((cls, idx) => {
+                        const assignedChapterId =
+                          resolveClassChapterId(cls, orderedChapters, chaptersSupported) || '';
+                        return (
+                          <div
+                            key={cls.id}
+                            className="p-4 sm:p-5 hover:bg-slate-50/60 transition-colors flex flex-col lg:flex-row lg:items-center justify-between gap-4"
+                          >
+                            <div className="flex items-start gap-3 min-w-0">
+                              <div className="w-10 h-10 rounded-xl bg-orange-100 text-orange-700 flex items-center justify-center font-black text-sm shrink-0">
+                                {cls.class_number}
+                              </div>
+                              <div className="space-y-1 min-w-0">
+                                <div className="flex items-center gap-2 flex-wrap">
+                                  <h4 className="font-extrabold text-slate-900 text-sm">
+                                    {cls.title}
+                                  </h4>
+                                  {cls.is_published ? (
+                                    <span className="px-2 py-0.5 bg-emerald-50 text-emerald-700 border border-emerald-200 rounded text-[10px] font-bold">
+                                      পাবলিশড
+                                    </span>
+                                  ) : (
+                                    <span className="px-2 py-0.5 bg-slate-100 text-slate-600 border border-slate-200 rounded text-[10px] font-bold">
+                                      ড্রাফট (লুকানো)
+                                    </span>
+                                  )}
+                                </div>
+                                <p className="text-xs text-slate-500 line-clamp-1 max-w-xl">
+                                  {cls.description || 'কোনো বিবরণ দেওয়া হয়নি'}
+                                </p>
+                              </div>
+                            </div>
 
-                <div className="flex items-center gap-2 self-end sm:self-center shrink-0">
-                  {/* Segmented Control: ফ্রি | প্রিমিয়াম */}
-                  <div className="inline-flex rounded-xl p-0.5 bg-slate-100 border border-slate-200 text-xs font-bold shrink-0">
-                    <button
-                      type="button"
-                      onClick={() => handleToggleClassFree(cls, true)}
-                      className={`px-2.5 py-1 rounded-lg transition-all cursor-pointer ${
-                        cls.is_free !== false
-                          ? 'bg-emerald-600 text-white shadow-2xs font-extrabold'
-                          : 'text-slate-600 hover:text-slate-900'
-                      }`}
-                      title="ফ্রি ক্লাস নির্বাচন করুন"
-                    >
-                      ফ্রি
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => handleToggleClassFree(cls, false)}
-                      className={`px-2.5 py-1 rounded-lg transition-all cursor-pointer ${
-                        cls.is_free === false
-                          ? 'bg-amber-500 text-slate-950 shadow-2xs font-extrabold'
-                          : 'text-slate-600 hover:text-slate-900'
-                      }`}
-                      title="প্রিমিয়াম ক্লাস নির্বাচন করুন"
-                    >
-                      প্রিমিয়াম
-                    </button>
-                  </div>
+                            <div className="flex flex-wrap items-center gap-2 self-end lg:self-center shrink-0">
+                              {/* Chapter Move Selector */}
+                              <select
+                                aria-label={`${cls.title} অধ্যায় পরিবর্তন`}
+                                value={assignedChapterId}
+                                disabled={!chaptersSupported || reorderingKey === `move-${cls.id}`}
+                                onChange={(e) =>
+                                  handleChangeClassChapter(cls, e.target.value || null)
+                                }
+                                className="min-h-[40px] max-w-[220px] px-2.5 py-1.5 bg-slate-50 hover:bg-white border border-slate-200 rounded-xl text-xs font-bold text-slate-700 cursor-pointer disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-500"
+                              >
+                                <option value="">অন্যান্য (অনির্ধারিত)</option>
+                                {orderedChapters.map((ch) => (
+                                  <option key={ch.id} value={ch.id}>
+                                    {ch.title}
+                                    {ch.subtitle ? ` (${ch.subtitle})` : ''}
+                                  </option>
+                                ))}
+                              </select>
 
-                  <button
-                    onClick={() => handleMoveClass(idx, 'up')}
-                    disabled={idx === 0}
-                    className="p-1.5 text-slate-500 hover:text-slate-800 disabled:opacity-20 hover:bg-slate-100 rounded-lg cursor-pointer"
-                    title="উপরে নিন"
-                  >
-                    <ArrowUp size={15} />
-                  </button>
-                  <button
-                    onClick={() => handleMoveClass(idx, 'down')}
-                    disabled={idx === classes.length - 1}
-                    className="p-1.5 text-slate-500 hover:text-slate-800 disabled:opacity-20 hover:bg-slate-100 rounded-lg cursor-pointer"
-                    title="নিচে নিন"
-                  >
-                    <ArrowDown size={15} />
-                  </button>
-                  <button
-                    onClick={() => handleTogglePublished(cls)}
-                    className="p-1.5 text-slate-500 hover:text-slate-800 hover:bg-slate-100 rounded-lg cursor-pointer"
-                    title={cls.is_published ? 'আনপাবলিশ করুন' : 'পাবলিশ করুন'}
-                  >
-                    {cls.is_published ? <EyeOff size={15} /> : <Eye size={15} />}
-                  </button>
-                  <button
-                    onClick={() => handleOpenEditClass(cls)}
-                    className="p-1.5 text-orange-600 hover:text-orange-700 hover:bg-orange-50 rounded-lg cursor-pointer"
-                    title="সম্পাদনা"
-                  >
-                    <Edit3 size={15} />
-                  </button>
-                  <button
-                    onClick={() => handleDeleteClass(cls.id, cls.title)}
-                    className="p-1.5 text-rose-500 hover:text-rose-700 hover:bg-rose-50 rounded-lg cursor-pointer"
-                    title="মুছে ফেলুন"
-                  >
-                    <Trash2 size={15} />
-                  </button>
-                </div>
-              </div>
-            ))}
+                              {/* Segmented Control: ফ্রি | প্রিমিয়াম */}
+                              <div className="inline-flex rounded-xl p-0.5 bg-slate-100 border border-slate-200 text-xs font-bold shrink-0">
+                                <button
+                                  type="button"
+                                  onClick={() => handleToggleClassFree(cls, true)}
+                                  className={`min-h-[36px] px-2.5 py-1 rounded-lg transition-all cursor-pointer ${
+                                    cls.is_free !== false
+                                      ? 'bg-emerald-600 text-white shadow-2xs font-extrabold'
+                                      : 'text-slate-600 hover:text-slate-900'
+                                  }`}
+                                  title="ফ্রি ক্লাস নির্বাচন করুন"
+                                >
+                                  ফ্রি
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => handleToggleClassFree(cls, false)}
+                                  className={`min-h-[36px] px-2.5 py-1 rounded-lg transition-all cursor-pointer ${
+                                    cls.is_free === false
+                                      ? 'bg-amber-500 text-slate-950 shadow-2xs font-extrabold'
+                                      : 'text-slate-600 hover:text-slate-900'
+                                  }`}
+                                  title="প্রিমিয়াম ক্লাস নির্বাচন করুন"
+                                >
+                                  প্রিমিয়াম
+                                </button>
+                              </div>
 
-            {classes.length === 0 && (
-              <div className="bg-white p-12 text-center rounded-2xl border border-slate-200 space-y-4">
-                <p className="text-xs text-slate-500">এখনও কোনো ক্লাস যোগ করা হয়নি।</p>
-                <button
-                  onClick={handleImportSampleClasses}
-                  disabled={importingClasses}
-                  className="px-4 py-2 bg-orange-500 hover:bg-orange-600 text-white rounded-xl text-xs font-bold shadow-xs inline-flex items-center gap-2 cursor-pointer"
-                >
-                  <Sparkles size={14} />
-                  <span>নমুনা ৮টি ক্লাস ইমপোর্ট করুন</span>
-                </button>
-              </div>
-            )}
-          </div>
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  handleMoveClassWithinGroup(group.key, cls.id, 'up')
+                                }
+                                disabled={idx === 0 || reorderingKey === `cls-${cls.id}`}
+                                aria-label={`${cls.title} উপরে নিন`}
+                                title="অধ্যায়ের ভেতরে উপরে নিন"
+                                className="min-h-[40px] min-w-[40px] p-2 text-slate-600 hover:text-slate-900 disabled:opacity-25 hover:bg-slate-100 border border-slate-200 rounded-lg inline-flex items-center justify-center cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-500"
+                              >
+                                <ArrowUp size={15} />
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  handleMoveClassWithinGroup(group.key, cls.id, 'down')
+                                }
+                                disabled={
+                                  idx === group.classes.length - 1 ||
+                                  reorderingKey === `cls-${cls.id}`
+                                }
+                                aria-label={`${cls.title} নিচে নিন`}
+                                title="অধ্যায়ের ভেতরে নিচে নিন"
+                                className="min-h-[40px] min-w-[40px] p-2 text-slate-600 hover:text-slate-900 disabled:opacity-25 hover:bg-slate-100 border border-slate-200 rounded-lg inline-flex items-center justify-center cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-500"
+                              >
+                                <ArrowDown size={15} />
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => handleTogglePublished(cls)}
+                                aria-label={cls.is_published ? `${cls.title} আনপাবলিশ করুন` : `${cls.title} পাবলিশ করুন`}
+                                title={cls.is_published ? 'আনপাবলিশ করুন' : 'পাবলিশ করুন'}
+                                className="min-h-[40px] min-w-[40px] p-2 text-slate-600 hover:text-slate-900 hover:bg-slate-100 border border-slate-200 rounded-lg inline-flex items-center justify-center cursor-pointer"
+                              >
+                                {cls.is_published ? <EyeOff size={15} /> : <Eye size={15} />}
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => handleOpenEditClass(cls)}
+                                aria-label={`${cls.title} সম্পাদনা`}
+                                title="সম্পাদনা"
+                                className="min-h-[40px] min-w-[40px] p-2 text-orange-600 hover:text-orange-700 hover:bg-orange-50 border border-orange-200 rounded-lg inline-flex items-center justify-center cursor-pointer"
+                              >
+                                <Edit3 size={15} />
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => handleDeleteClass(cls.id, cls.title)}
+                                aria-label={`${cls.title} মুছে ফেলুন`}
+                                title="মুছে ফেলুন"
+                                className="min-h-[40px] min-w-[40px] p-2 text-rose-500 hover:text-rose-700 hover:bg-rose-50 border border-rose-200 rounded-lg inline-flex items-center justify-center cursor-pointer"
+                              >
+                                <Trash2 size={15} />
+                              </button>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                </section>
+              ))}
+            </div>
+          )}
         </div>
       )}
 
@@ -2345,6 +2856,33 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                     className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold"
                   />
                 </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-slate-700 mb-1">
+                  অধ্যায় (Chapter / Topic)
+                </label>
+                <select
+                  value={editingClass.chapter_id || ''}
+                  disabled={!chaptersSupported}
+                  onChange={(e) =>
+                    setEditingClass({ ...editingClass, chapter_id: e.target.value || null })
+                  }
+                  className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold disabled:opacity-60"
+                >
+                  <option value="">অন্যান্য (অনির্ধারিত)</option>
+                  {orderedChapters.map((ch) => (
+                    <option key={ch.id} value={ch.id}>
+                      {ch.title}
+                      {ch.subtitle ? ` (${ch.subtitle})` : ''}
+                    </option>
+                  ))}
+                </select>
+                {!chaptersSupported && (
+                  <p className="text-[11px] text-amber-700 mt-1">
+                    অধ্যায় সংরক্ষণ সক্রিয় করতে প্রথমে supabase-chapters-migration.sql রান করুন।
+                  </p>
+                )}
               </div>
 
               <div>

@@ -7,6 +7,9 @@ import {
   setMarketingConsent,
   isMarketingTrackingPermitted,
   ensureSafeCanonicalDemoUrl,
+  ensureSafeCanonicalPublicUrl,
+  hasAuthCallbackOrResetUrl,
+  trackPublicPageView,
   trackDemoPageView,
   trackDemoCompleteRegistration,
   resetMetaPixelStateForTests,
@@ -325,3 +328,64 @@ test('Negative cases: failure/cancel, reload, existing login (including unconfir
   assert.equal(dom.appendedScripts.length, 0);
   assert.equal(dom.getCapturedFbqQueue().length, 0);
 });
+
+test('Public PageView initializes Pixel once and fires one PageView per visit across /, /demo, and /enroll', () => {
+  resetAll();
+  const dom = setupDomMock('/', '?email=parent@example.com&phone=01700000000&otp=123456', '#hero');
+
+  // Initial load on homepage (/) strips sensitive query/hash and fires once
+  assert.equal(trackPublicPageView('/', 1), true);
+  // StrictMode / re-render duplicate for visit 1 is ignored
+  assert.equal(trackPublicPageView('/', 1), false);
+  assert.equal(dom.locationState.pathname, '/');
+  assert.equal(dom.locationState.search, '');
+  assert.equal(dom.locationState.hash, '');
+
+  // Client-side navigation to /enroll
+  dom.locationState.pathname = '/enroll';
+  dom.locationState.search = '?name=Parent&password=secret';
+  assert.equal(trackPublicPageView('/enroll', 2), true);
+  assert.equal(trackPublicPageView('/enroll', 2), false);
+  assert.equal(dom.locationState.search, '');
+
+  // Client-side navigation to /demo
+  dom.locationState.pathname = '/demo';
+  assert.equal(trackPublicPageView('/demo', 3), true);
+  assert.equal(trackPublicPageView('/demo', 3), false);
+
+  // Script loaded once across all three public pages
+  assert.equal(dom.appendedScripts.length, 1);
+
+  const pageViewCalls = dom
+    .getCapturedFbqQueue()
+    .filter((args) => args[0] === 'track' && args[1] === 'PageView');
+  assert.equal(pageViewCalls.length, 3);
+});
+
+test('Pixel stays off admin, ebooks, password reset, and auth callback pages/URLs', () => {
+  const blockedUrls: Array<{ path: string; search?: string; hash?: string }> = [
+    { path: '/admin' },
+    { path: '/ebooks' },
+    { path: '/auth/callback' },
+    { path: '/reset-password' },
+    { path: '/', search: '?code=pkce_auth_code' },
+    { path: '/', search: '?token_hash=hash123&type=recovery' },
+    { path: '/demo', hash: '#access_token=jwt&type=signup' },
+    { path: '/', hash: '#error_code=otp_expired' },
+  ];
+
+  blockedUrls.forEach((entry, idx) => {
+    resetAll();
+    const dom = setupDomMock(entry.path, entry.search || '', entry.hash || '');
+    assert.equal(trackPublicPageView(entry.path, idx + 1), false);
+    assert.equal(ensureSafeCanonicalPublicUrl(), null);
+    assert.equal(dom.appendedScripts.length, 0);
+    assert.equal(dom.mockWindow.fbq, undefined);
+  });
+
+  assert.equal(hasAuthCallbackOrResetUrl({ pathname: '/reset-password' }), true);
+  assert.equal(hasAuthCallbackOrResetUrl({ pathname: '/auth/callback' }), true);
+  assert.equal(hasAuthCallbackOrResetUrl({ pathname: '/', search: '?code=abc' }), true);
+  assert.equal(hasAuthCallbackOrResetUrl({ pathname: '/enroll', search: '' }), false);
+});
+

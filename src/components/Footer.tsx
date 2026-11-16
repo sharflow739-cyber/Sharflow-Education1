@@ -1,7 +1,6 @@
 import React from 'react';
 import { Phone, Mail, Clock, ShieldCheck, Heart, FileText, Shield, RotateCcw } from 'lucide-react';
 import { useSettings } from '../contexts/SettingsContext';
-import { useConsent } from '../contexts/ConsentContext';
 
 interface FooterProps {
   onNavigate?: (path: string) => void;
@@ -9,12 +8,6 @@ interface FooterProps {
 
 export const Footer: React.FC<FooterProps> = ({ onNavigate }) => {
   const { settings } = useSettings();
-  const {
-    isMarketingPermitted,
-    isBrowserOptOut,
-    grantMarketingConsent,
-    withdrawMarketingConsent,
-  } = useConsent();
 
   const handleLinkClick = (e: React.MouseEvent, path: string) => {
     e.preventDefault();
@@ -144,43 +137,12 @@ export const Footer: React.FC<FooterProps> = ({ onNavigate }) => {
           </div>
         )}
 
-        {/* Bottom copyright, marketing privacy control & credit */}
+        {/* Bottom copyright & credit */}
         <div className="pt-6 border-t border-slate-800 flex flex-col sm:flex-row items-center justify-between gap-3 text-[11px] text-center sm:text-left">
           <p>© {new Date().getFullYear()} {settings.copyright_text}</p>
-          <div className="flex flex-wrap items-center justify-center gap-x-4 gap-y-2">
-            <div className="flex flex-wrap items-center justify-center gap-2 text-slate-300">
-              <span>
-                মার্কেটিং পিক্সেল (/demo):{' '}
-                <strong className="text-white">
-                  {isMarketingPermitted
-                    ? 'চালু'
-                    : isBrowserOptOut
-                    ? 'বন্ধ (ব্রাউজার গোপনীয়তা)'
-                    : 'বন্ধ'}
-                </strong>
-              </span>
-              {isMarketingPermitted ? (
-                <button
-                  type="button"
-                  onClick={withdrawMarketingConsent}
-                  className="px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-orange-300 hover:text-orange-200 border border-slate-700 font-bold transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-400"
-                >
-                  বন্ধ করুন (Opt-out)
-                </button>
-              ) : (
-                <button
-                  type="button"
-                  onClick={grantMarketingConsent}
-                  className="px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-emerald-300 hover:text-emerald-200 border border-slate-700 font-bold transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400"
-                >
-                  সম্মতি দিন
-                </button>
-              )}
-            </div>
-            <p className="flex items-center gap-1 text-slate-500">
-              {settings.footer_tagline} <Heart size={12} className="text-rose-500 fill-rose-500" />
-            </p>
-          </div>
+          <p className="flex items-center gap-1 text-slate-500">
+            {settings.footer_tagline} <Heart size={12} className="text-rose-500 fill-rose-500" />
+          </p>
         </div>
       </div>
     </footer>

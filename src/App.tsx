@@ -1,12 +1,18 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { UserProfile, ClassItem } from './types';
+import { UserProfile, ClassItem, CourseChapter } from './types';
 import { supabase, isSupabaseConfigured, OWNER_EMAIL } from './lib/supabase';
+import { DEFAULT_COURSE_CHAPTERS, sortChapters } from './lib/courseChapters';
 import { useSettings } from './contexts/SettingsContext';
 import { useConsent } from './contexts/ConsentContext';
-import { trackDemoPageView } from './lib/metaPixel';
+import {
+  trackPublicPageView,
+  isPublicPixelPath,
+  hasAuthCallbackOrResetUrl,
+} from './lib/metaPixel';
 import { SignupOrigin } from './lib/demoSignupPixel';
 
 import { Header } from './components/Header';
+import { MobileBottomNav } from './components/MobileBottomNav';
 import { Footer } from './components/Footer';
 import { HomePage } from './components/HomePage';
 import { DemoPage } from './components/DemoPage';
@@ -88,17 +94,17 @@ export default function App() {
   });
   usePublicPageAnalytics(authLoading || currentUser ? '' : currentPath);
   const prevPathRef = useRef<string>(currentPath);
-  const [demoVisitSeq, setDemoVisitSeq] = useState<number>(() => {
-    if (typeof window !== 'undefined' && window.location.pathname === '/demo') {
-      return 1;
-    }
-    return 0;
-  });
+  const initialAuthCallbackOrResetRef = useRef<boolean>(
+    typeof window !== 'undefined' && hasAuthCallbackOrResetUrl(window.location)
+  );
+  const [publicVisitSeq, setPublicVisitSeq] = useState<number>(1);
 
   const [currentClass, setCurrentClass] = useState<ClassItem | null>(null);
 
   // App Data (Loaded from Supabase)
   const [classes, setClasses] = useState<ClassItem[]>([]);
+  const [chapters, setChapters] = useState<CourseChapter[]>(DEFAULT_COURSE_CHAPTERS);
+  const [chaptersSupported, setChaptersSupported] = useState<boolean>(false);
   const [classesLoading, setClassesLoading] = useState(false);
   const [classesError, setClassesError] = useState<string | null>(null);
 
@@ -150,8 +156,9 @@ export default function App() {
       const prevPath = prevPathRef.current;
       prevPathRef.current = path;
       setCurrentPath(path);
-      if (path === '/demo' && prevPath !== '/demo') {
-        setDemoVisitSeq((seq) => seq + 1);
+      initialAuthCallbackOrResetRef.current = hasAuthCallbackOrResetUrl(window.location);
+      if (path !== prevPath) {
+        setPublicVisitSeq((seq) => seq + 1);
       }
       // Support class deep links (e.g. /class/class-01 or /class-01)
       if (path.startsWith('/class/')) {
@@ -175,19 +182,34 @@ export default function App() {
     }
     prevPathRef.current = path;
     setCurrentPath(path);
-    if (path === '/demo' && prevPath !== '/demo') {
-      setDemoVisitSeq((seq) => seq + 1);
+    initialAuthCallbackOrResetRef.current = hasAuthCallbackOrResetUrl(window.location);
+    if (path !== prevPath) {
+      setPublicVisitSeq((seq) => seq + 1);
     }
     window.scrollTo({ top: 0, behavior: 'smooth' });
   }, []);
 
-  // Track Meta Pixel PageView strictly on /demo when privacy requirements permit
+  // Track Meta Pixel PageView once per public page visit when privacy requirements permit.
+  // Excludes /admin, /ebooks, member dashboard (/ while signed in), password reset, and auth callbacks.
   useEffect(() => {
     if (!isSupabaseConfigured || authLoading) return;
-    if (currentPath !== '/demo' || demoVisitSeq <= 0) return;
     if (!isMarketingPermitted) return;
-    trackDemoPageView(demoVisitSeq);
-  }, [authLoading, currentPath, demoVisitSeq, isMarketingPermitted]);
+    if (isResetPasswordModalOpen || legacyLinkNotice) return;
+    if (initialAuthCallbackOrResetRef.current) return;
+    if (currentUser && !currentUser.is_active) return;
+    if (currentUser && currentPath === '/') return;
+    if (!isPublicPixelPath(currentPath)) return;
+
+    trackPublicPageView(currentPath, publicVisitSeq);
+  }, [
+    authLoading,
+    currentPath,
+    currentUser,
+    isMarketingPermitted,
+    isResetPasswordModalOpen,
+    legacyLinkNotice,
+    publicVisitSeq,
+  ]);
 
   // Fetch User Profile by Auth ID
   const fetchUserProfile = useCallback(async (userId: string): Promise<UserProfile | null> => {
@@ -251,12 +273,37 @@ export default function App() {
     }
   }, [currentUser]);
 
+  // Fetch Course Chapters from Supabase (with safe fallback prior to migration)
+  const fetchChapters = useCallback(async () => {
+    if (!isSupabaseConfigured || !supabase) return;
+    try {
+      const { data, error } = await supabase
+        .from('course_chapters')
+        .select('*')
+        .order('sort_order', { ascending: true });
+
+      if (error) {
+        setChaptersSupported(false);
+        setChapters(DEFAULT_COURSE_CHAPTERS);
+      } else {
+        setChaptersSupported(true);
+        setChapters(
+          data && data.length > 0 ? sortChapters(data as CourseChapter[]) : DEFAULT_COURSE_CHAPTERS
+        );
+      }
+    } catch {
+      setChaptersSupported(false);
+      setChapters(DEFAULT_COURSE_CHAPTERS);
+    }
+  }, []);
+
   // Fetch Classes from Supabase
   const fetchClasses = useCallback(async () => {
     if (!isSupabaseConfigured || !supabase) return;
     try {
       setClassesLoading(true);
       setClassesError(null);
+      await fetchChapters();
       const { data, error } = await supabase
         .from('classes')
         .select('*')
@@ -274,7 +321,7 @@ export default function App() {
     } finally {
       setClassesLoading(false);
     }
-  }, []);
+  }, [fetchChapters]);
 
   // Subscribe to real Supabase Auth State
   useEffect(() => {
@@ -299,6 +346,7 @@ export default function App() {
     // Auth state changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
       if (event === 'PASSWORD_RECOVERY') {
+        initialAuthCallbackOrResetRef.current = true;
         setIsResetPasswordModalOpen(true);
       }
       if (session?.user) {
@@ -363,9 +411,13 @@ export default function App() {
     if (supabase) {
       await supabase.auth.signOut();
     }
+    const wasOnDashboardRoot = prevPathRef.current === '/';
     setCurrentUser(null);
     setCurrentClass(null);
     navigateTo('/');
+    if (wasOnDashboardRoot) {
+      setPublicVisitSeq((seq) => seq + 1);
+    }
   };
 
   // If Supabase credentials are not configured, display clear setup screen
@@ -433,9 +485,14 @@ export default function App() {
 
   // Calculate published classes count for homepage trust indicator
   const publishedClassesCount = classes.filter((c) => c.is_published).length;
+  const showMobileBottomNav = Boolean(currentUser && currentUser.is_active);
 
   return (
-    <div className="min-h-screen overflow-x-clip flex flex-col bg-slate-50 text-slate-900 selection:bg-orange-500 selection:text-white">
+    <div
+      className={`min-h-screen overflow-x-clip flex flex-col bg-slate-50 text-slate-900 selection:bg-orange-500 selection:text-white ${
+        showMobileBottomNav ? 'pb-[calc(4.75rem+env(safe-area-inset-bottom,0px))] md:pb-0' : ''
+      }`}
+    >
       
       {/* Header */}
       <Header
@@ -578,6 +635,8 @@ export default function App() {
             <AdminPanel
               currentUser={currentUser}
               classes={classes}
+              chapters={chapters}
+              chaptersSupported={chaptersSupported}
               onReloadClasses={fetchClasses}
               onBackToDashboard={() => navigateTo('/')}
               pendingRequestsCount={pendingRequestsCount}
@@ -649,6 +708,8 @@ export default function App() {
                 {!classesLoading && !classesError && (
                   <Dashboard
                     classes={classes}
+                    chapters={chapters}
+                    chaptersSupported={chaptersSupported}
                     currentUser={currentUser}
                     onSelectClass={(cls) => {
                       setCurrentClass(cls);
@@ -663,6 +724,22 @@ export default function App() {
 
       {/* Clean Footer with Site Settings and Policy links */}
       <Footer onNavigate={navigateTo} />
+
+      {/* Fixed Mobile Bottom Navigation for Signed-in Active Users */}
+      {showMobileBottomNav && currentUser && (
+        <MobileBottomNav
+          currentUser={currentUser}
+          activePath={currentClass ? `/class/${currentClass.id}` : currentPath}
+          onNavigate={navigateTo}
+          onOpenDashboard={() => {
+            setCurrentClass(null);
+            navigateTo('/');
+          }}
+          onLogout={handleLogout}
+          pendingRequestsCount={pendingRequestsCount}
+          pendingStudentsCount={0}
+        />
+      )}
 
       {/* Auth Modal */}
       <AuthModal
