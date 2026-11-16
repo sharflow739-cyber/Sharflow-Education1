@@ -3,7 +3,7 @@ import { useSettings } from '../contexts/SettingsContext';
 import { 
   ArrowLeft, CheckCircle2, Phone, Mail, Clock, ShieldCheck, 
   HelpCircle, CreditCard, AlertCircle, FileText, Sparkles, Send,
-  ExternalLink, UserCheck, Info
+  ExternalLink, UserCheck, Info, PlayCircle, ArrowDown
 } from 'lucide-react';
 
 interface EnrollPageProps {
@@ -24,6 +24,7 @@ export const EnrollPage: React.FC<EnrollPageProps> = ({ onNavigate, onOpenAuth }
   const refundText = (settings.refund_policy_text || '').trim();
   const paymentEnabled = Boolean(settings.enable_direct_payment);
   const paymentInstructions = (settings.payment_instructions || '').trim();
+  const supportEmail = (settings.contact_email || '').trim();
 
   // Verified Live Lemon Squeezy USD 20.33 checkout URL (can be customized via settings.lemonsqueezy_checkout_url)
   const defaultLiveCheckoutUrl = 'https://sharflow.lemonsqueezy.com/checkout/buy/290414a1-f82a-4414-bb9b-23e406df5be4';
@@ -32,8 +33,22 @@ export const EnrollPage: React.FC<EnrollPageProps> = ({ onNavigate, onOpenAuth }
 
   const hasContact = Boolean(
     (settings.contact_phone && settings.contact_phone.trim()) ||
-    (settings.contact_email && settings.contact_email.trim())
+    supportEmail
   );
+
+  const handleScrollToCheckout = (e: React.MouseEvent<HTMLAnchorElement>) => {
+    const target = document.getElementById('enroll-checkout');
+    if (!target) return;
+    e.preventDefault();
+    const prefersReducedMotion =
+      typeof window !== 'undefined' &&
+      typeof window.matchMedia === 'function' &&
+      window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    target.scrollIntoView({
+      behavior: prefersReducedMotion ? 'auto' : 'smooth',
+      block: 'start',
+    });
+  };
 
   useEffect(() => {
     if (!paymentEnabled || !activeCheckoutUrl) return;
@@ -234,8 +249,140 @@ export const EnrollPage: React.FC<EnrollPageProps> = ({ onNavigate, onOpenAuth }
         </div>
       </div>
 
+      {/* Free vs Premium Course Benefits Comparison */}
+      <section id="course-comparison" aria-labelledby="comparison-heading" className="space-y-4">
+        <div className="text-center space-y-1.5">
+          <h2 id="comparison-heading" className="text-xl sm:text-2xl font-black text-slate-900">
+            ফ্রি বনাম প্রিমিয়াম কোর্স সুবিধা
+          </h2>
+          <p className="text-xs sm:text-sm text-slate-600 max-w-xl mx-auto leading-relaxed">
+            আপনার প্রয়োজন অনুযায়ী ফ্রি রিসোর্স দিয়ে শুরু করুন অথবা সম্পূর্ণ প্রিমিয়াম কোর্সে ভর্তি হন।
+          </p>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-5 items-stretch">
+          {/* Free Plan Card */}
+          <div className="bg-white rounded-3xl border border-slate-200 shadow-sm p-5 sm:p-7 flex flex-col justify-between gap-6">
+            <div className="space-y-4">
+              <div className="flex items-start justify-between gap-3 border-b border-slate-100 pb-4">
+                <div className="space-y-1 min-w-0">
+                  <span className="inline-block px-2.5 py-0.5 rounded-full bg-slate-100 text-slate-800 text-[11px] font-extrabold">
+                    ফ্রি
+                  </span>
+                  <h3 className="text-lg sm:text-xl font-black text-slate-900">
+                    ফ্রি অ্যাকাউন্ট সুবিধা
+                  </h3>
+                  <p className="text-xs text-slate-500">
+                    অ্যাকাউন্ট খুলে যাচাই করে বিনামূল্যে শেখা শুরু করুন
+                  </p>
+                </div>
+              </div>
+
+              <ul className="space-y-3 text-xs sm:text-sm text-slate-700 font-medium">
+                <li className="flex items-start gap-2.5">
+                  <CheckCircle2 size={17} className="text-emerald-600 shrink-0 mt-0.5" />
+                  <span>নির্বাচিত ফ্রি ক্লাস</span>
+                </li>
+                <li className="flex items-start gap-2.5">
+                  <CheckCircle2 size={17} className="text-emerald-600 shrink-0 mt-0.5" />
+                  <span>লাইব্রেরিতে ফ্রি বই</span>
+                </li>
+                <li className="flex items-start gap-2.5">
+                  <CheckCircle2 size={17} className="text-emerald-600 shrink-0 mt-0.5" />
+                  <span>ফ্রি ভার্চুয়াল অ্যাবাকাস</span>
+                </li>
+              </ul>
+            </div>
+
+            <button
+              type="button"
+              onClick={() => onNavigate('/demo')}
+              className="w-full min-h-[48px] px-5 py-3 bg-slate-900 hover:bg-slate-800 text-white font-extrabold text-sm rounded-2xl shadow-xs transition-colors inline-flex items-center justify-center gap-2 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-900 focus-visible:ring-offset-2"
+            >
+              <PlayCircle size={18} className="shrink-0" />
+              <span>ফ্রি ক্লাস দেখুন</span>
+            </button>
+          </div>
+
+          {/* Premium Plan Card */}
+          <div className="bg-gradient-to-b from-orange-50/80 via-white to-emerald-50/40 rounded-3xl border-2 border-orange-300 shadow-sm p-5 sm:p-7 flex flex-col justify-between gap-6">
+            <div className="space-y-4">
+              <div className="flex items-start justify-between gap-3 border-b border-orange-200/70 pb-4">
+                <div className="space-y-1 min-w-0">
+                  <span className="inline-block px-2.5 py-0.5 rounded-full bg-orange-500 text-white text-[11px] font-extrabold">
+                    প্রিমিয়াম
+                  </span>
+                  <h3 className="text-lg sm:text-xl font-black text-slate-900">
+                    প্রিমিয়াম পূর্ণাঙ্গ কোর্স
+                  </h3>
+                  <p className="text-xs text-slate-600">
+                    অভিভাবকদের জন্য সম্পূর্ণ ধারাবাহিক কোর্স ও সাপোর্ট
+                  </p>
+                </div>
+                <div className="text-right shrink-0">
+                  <span className="text-[11px] font-bold text-slate-500 block">এককালীন ফি</span>
+                  <span className="text-lg sm:text-xl font-black text-slate-900 tabular-nums">
+                    ৳ {fee}
+                  </span>
+                </div>
+              </div>
+
+              <ul className="space-y-3 text-xs sm:text-sm text-slate-800 font-medium">
+                <li className="flex items-start gap-2.5">
+                  <CheckCircle2 size={17} className="text-emerald-600 shrink-0 mt-0.5" />
+                  <span>ফ্রি সুবিধাসহ সম্পূর্ণ ক্লাস</span>
+                </li>
+                <li className="flex items-start gap-2.5">
+                  <CheckCircle2 size={17} className="text-emerald-600 shrink-0 mt-0.5" />
+                  <span>ধাপে ধাপে গাইডলাইন</span>
+                </li>
+                <li className="flex items-start gap-2.5">
+                  <CheckCircle2 size={17} className="text-emerald-600 shrink-0 mt-0.5" />
+                  <span>প্র্যাকটিস শিট</span>
+                </li>
+                <li className="flex items-start gap-2.5">
+                  <CheckCircle2 size={17} className="text-emerald-600 shrink-0 mt-0.5" />
+                  <span>বই ও ভার্চুয়াল অ্যাবাকাস</span>
+                </li>
+                <li className="flex items-start gap-2.5">
+                  <CheckCircle2 size={17} className="text-emerald-600 shrink-0 mt-0.5" />
+                  <span>ফিজিক্যাল অ্যাবাকাস পাঠানো হবে</span>
+                </li>
+                <li className="flex items-start gap-2.5">
+                  <CheckCircle2 size={17} className="text-emerald-600 shrink-0 mt-0.5" />
+                  <span>
+                    যেকোনো সমস্যায় সপ্তাহে ৭ দিন ইমেইল সাপোর্ট
+                    {supportEmail && (
+                      <>
+                        {' ('}
+                        <a
+                          href={`mailto:${supportEmail}`}
+                          className="font-bold text-orange-700 hover:underline break-all"
+                        >
+                          {supportEmail}
+                        </a>
+                        {')'}
+                      </>
+                    )}
+                  </span>
+                </li>
+              </ul>
+            </div>
+
+            <a
+              href="#enroll-checkout"
+              onClick={handleScrollToCheckout}
+              className="w-full min-h-[48px] px-5 py-3 bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white font-extrabold text-sm rounded-2xl shadow-md shadow-orange-500/20 transition-all inline-flex items-center justify-center gap-2 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-500 focus-visible:ring-offset-2"
+            >
+              <span>পেমেন্ট ও ভর্তির অংশে যান</span>
+              <ArrowDown size={17} className="shrink-0" />
+            </a>
+          </div>
+        </div>
+      </section>
+
       {/* Enrollment Action Section */}
-      <div className="bg-white rounded-3xl border border-slate-200 shadow-sm p-4 sm:p-8 space-y-6">
+      <div id="enroll-checkout" className="bg-white rounded-3xl border border-slate-200 shadow-sm p-4 sm:p-8 space-y-6 scroll-mt-20">
         <h3 className="text-lg font-black text-slate-900 flex items-center gap-2">
           <CreditCard size={20} className="text-orange-500 shrink-0" />
           <span>ভর্তি প্রক্রিয়া ও পেমেন্ট</span>
@@ -450,7 +597,7 @@ export const EnrollPage: React.FC<EnrollPageProps> = ({ onNavigate, onOpenAuth }
             onClick={() => onNavigate('/demo')}
             className="text-orange-600 hover:underline font-bold cursor-pointer"
           >
-            ফ্রি ডেমো ক্লাস দেখুন
+            ফ্রি ক্লাস দেখুন
           </button>
         </p>
       </div>

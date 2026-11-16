@@ -37,6 +37,9 @@ export const HomePage: React.FC<HomePageProps> = ({
             <span>অভিভাবকদের জন্য বিশেষ অনলাইন কোর্স</span>
           </div>
 
+          {/* Public Welcome Video Slot - appears in hero before h1; hides gracefully when missing */}
+          <PublicWelcomeVideo src={resolvedWelcomeVideoUrl} />
+
           {/* Main Headline */}
           <h1 className="text-3xl sm:text-5xl font-black text-slate-900 tracking-tight leading-tight sm:leading-snug">
             নিজে অ্যাবাকাস শিখুন, সন্তানকে ঘরে শেখান
@@ -54,7 +57,7 @@ export const HomePage: React.FC<HomePageProps> = ({
               className="w-full sm:w-auto px-6 py-3.5 bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white font-extrabold text-sm rounded-2xl shadow-lg shadow-orange-500/25 transition-all flex items-center justify-center gap-2 active:scale-98 cursor-pointer"
             >
               <PlayCircle size={18} />
-              <span>ফ্রি ডেমো দেখতে অ্যাকাউন্ট খুলুন</span>
+              <span>ফ্রি ক্লাস দেখুন</span>
             </button>
 
             <button
@@ -107,9 +110,6 @@ export const HomePage: React.FC<HomePageProps> = ({
               </span>
             )}
           </div>
-
-          {/* Public Welcome Video Slot - defaults to /sharflow-welcome-signup.mp4 unless overridden; hides gracefully when missing */}
-          <PublicWelcomeVideo src={resolvedWelcomeVideoUrl} />
         </div>
       </section>
 
@@ -190,6 +190,19 @@ export const HomePage: React.FC<HomePageProps> = ({
                 অনলাইনে সরাসরি পুঁতি ওঠানামা করে অনুশীলন করার ইন্টারঅ্যাক্টিভ টুল।
               </p>
             </a>
+          </div>
+
+          <div className="pt-3 border-t border-slate-100 flex flex-wrap items-center justify-between gap-2 text-xs">
+            <span className="text-slate-600 font-medium">
+              ফ্রি ও প্রিমিয়াম কোর্সের সুবিধাসমূহের তুলনা দেখতে চান?
+            </span>
+            <button
+              type="button"
+              onClick={() => onNavigate('/enroll')}
+              className="font-extrabold text-orange-600 hover:text-orange-700 hover:underline cursor-pointer"
+            >
+              ফ্রি বনাম প্রিমিয়াম তুলনা দেখুন →
+            </button>
           </div>
         </div>
       </section>
@@ -434,7 +447,7 @@ export const HomePage: React.FC<HomePageProps> = ({
               className="w-full sm:w-auto px-6 py-3 bg-orange-500 hover:bg-orange-600 text-white font-extrabold text-xs rounded-xl shadow-md transition-all flex items-center justify-center gap-2 cursor-pointer"
             >
               <PlayCircle size={16} />
-              <span>ফ্রি ডেমো দেখতে অ্যাকাউন্ট খুলুন</span>
+              <span>ফ্রি ক্লাস দেখুন</span>
             </button>
             <button
               onClick={() => onNavigate('/enroll')}

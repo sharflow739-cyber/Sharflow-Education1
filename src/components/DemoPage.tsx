@@ -171,7 +171,7 @@ export const DemoPage: React.FC<DemoPageProps> = ({
                 className="w-full sm:w-auto min-h-[48px] px-5 sm:px-6 py-3.5 bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white font-extrabold text-xs sm:text-sm rounded-2xl shadow-lg shadow-orange-500/25 transition-all inline-flex items-center justify-center gap-2 cursor-pointer active:scale-98 text-center"
               >
                 <UserPlus size={17} className="shrink-0" />
-                <span>ফ্রি ডেমো দেখতে অ্যাকাউন্ট খুলুন</span>
+                <span>ফ্রি ক্লাস দেখুন</span>
               </button>
 
               <button
