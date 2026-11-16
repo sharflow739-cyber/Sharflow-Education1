@@ -24,7 +24,6 @@ import { SetupRequiredView } from './components/SetupRequiredView';
 import { AlertOctagon, LogOut, AlertCircle, X } from 'lucide-react';
 
 const analyticsId = 'G-T6MR5VKW39';
-const analyticsConsentKey = 'sharflow-analytics-consent';
 const analyticsPublicPaths = new Set(['/', '/demo', '/enroll', '/contact', '/privacy', '/terms', '/refund']);
 
 type AnalyticsWindow = Window & {
@@ -33,21 +32,14 @@ type AnalyticsWindow = Window & {
   'ga-disable-G-T6MR5VKW39'?: boolean;
 };
 
-function SiteAnalytics({ path }: { path: string }) {
-  const [enabled, setEnabled] = useState(() => {
-    try {
-      return localStorage.getItem(analyticsConsentKey) === 'granted';
-    } catch {
-      return false;
-    }
-  });
+function usePublicPageAnalytics(path: string) {
   const lastPage = useRef<string | null>(null);
   const publicPage = analyticsPublicPaths.has(path);
 
   useEffect(() => {
     const analytics = window as AnalyticsWindow;
-    analytics['ga-disable-G-T6MR5VKW39'] = !enabled || !publicPage;
-    if (!enabled || !publicPage) {
+    analytics['ga-disable-G-T6MR5VKW39'] = !publicPage;
+    if (!publicPage) {
       lastPage.current = null;
       return;
     }
@@ -76,26 +68,7 @@ function SiteAnalytics({ path }: { path: string }) {
       page_location: location,
       page_referrer: '',
     });
-  }, [enabled, path, publicPage]);
-
-  function toggleAnalytics() {
-    const next = !enabled;
-    try {
-      localStorage.setItem(analyticsConsentKey, next ? 'granted' : 'denied');
-    } catch {
-      // Keep the preference for this visit if browser storage is unavailable.
-    }
-    setEnabled(next);
-  }
-
-  return (
-    <div className="border-t border-slate-200 bg-slate-50 px-4 py-3 text-center text-sm text-slate-700">
-      <span>সম্মতি দিলে Google Analytics পাবলিক পেজের ভিজিট গণনা করতে কুকি ব্যবহার করবে। </span>
-      <button type="button" onClick={toggleAnalytics} className="font-semibold text-indigo-700 underline">
-        {enabled ? 'Analytics বন্ধ করুন' : 'Analytics-এর জন্য সম্মতি দিন'}
-      </button>
-    </div>
-  );
+  }, [path, publicPage]);
 }
 
 export default function App() {
@@ -113,6 +86,7 @@ export default function App() {
     }
     return '/';
   });
+  usePublicPageAnalytics(authLoading || currentUser ? '' : currentPath);
   const prevPathRef = useRef<string>(currentPath);
   const [demoVisitSeq, setDemoVisitSeq] = useState<number>(() => {
     if (typeof window !== 'undefined' && window.location.pathname === '/demo') {
@@ -686,8 +660,6 @@ export default function App() {
             )
           )}
       </main>
-
-      <SiteAnalytics path={authLoading || currentUser ? '' : currentPath} />
 
       {/* Clean Footer with Site Settings and Policy links */}
       <Footer onNavigate={navigateTo} />
