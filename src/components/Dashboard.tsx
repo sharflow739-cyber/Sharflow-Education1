@@ -1,9 +1,8 @@
-import React, { useMemo, useState } from 'react';
+import React, { useMemo } from 'react';
 import { ClassItem, CourseChapter, UserProfile } from '../types';
 import { useSettings } from '../contexts/SettingsContext';
 import {
   DEFAULT_COURSE_CHAPTERS,
-  UNCATEGORIZED_CHAPTER_KEY,
   groupClassesByChapter,
   sortChapters,
 } from '../lib/courseChapters';
@@ -28,7 +27,6 @@ export const Dashboard: React.FC<DashboardProps> = ({
 }) => {
   const { settings } = useSettings();
   const isPremium = currentUser?.role === 'admin' || currentUser?.enrollment_status === 'approved';
-  const [selectedChapterKey, setSelectedChapterKey] = useState<string>('all');
 
   // Only show published classes to parents
   const displayClasses = useMemo(
@@ -43,42 +41,10 @@ export const Dashboard: React.FC<DashboardProps> = ({
     [displayClasses, orderedChapters, chaptersSupported]
   );
 
-  const uncategorizedGroup = useMemo(
-    () => chapterGroups.find((g) => g.key === UNCATEGORIZED_CHAPTER_KEY) || null,
+  const visibleGroups = useMemo(
+    () => chapterGroups.filter((grp) => grp.classes.length > 0),
     [chapterGroups]
   );
-
-  const effectiveSelectedKey =
-    selectedChapterKey !== 'all' &&
-    selectedChapterKey !== UNCATEGORIZED_CHAPTER_KEY &&
-    !orderedChapters.some((ch) => ch.id === selectedChapterKey)
-      ? 'all'
-      : selectedChapterKey === UNCATEGORIZED_CHAPTER_KEY && !uncategorizedGroup
-      ? 'all'
-      : selectedChapterKey;
-
-  const visibleGroups = useMemo(() => {
-    if (effectiveSelectedKey === 'all') {
-      return chapterGroups.filter((grp) => grp.classes.length > 0);
-    }
-    const matched = chapterGroups.find((grp) => grp.key === effectiveSelectedKey);
-    if (matched) {
-      return [matched];
-    }
-    const ch = orderedChapters.find((c) => c.id === effectiveSelectedKey);
-    if (ch) {
-      return [
-        {
-          chapter: ch,
-          key: ch.id,
-          title: ch.title,
-          subtitle: ch.subtitle,
-          classes: [],
-        },
-      ];
-    }
-    return [];
-  }, [chapterGroups, effectiveSelectedKey, orderedChapters]);
 
   const handleCardAction = (cls: ClassItem, isLocked: boolean) => {
     if (isLocked) {
@@ -182,67 +148,6 @@ export const Dashboard: React.FC<DashboardProps> = ({
         </p>
       </div>
 
-      {/* Compact Horizontally Scrollable Chapter Filter Row */}
-      {displayClasses.length > 0 && (
-        <div
-          role="tablist"
-          aria-label="অধ্যায় ফিল্টার"
-          className="w-full max-w-full flex items-center gap-2 overflow-x-auto pb-1.5 sm:flex-wrap"
-        >
-          <button
-            type="button"
-            role="tab"
-            aria-selected={effectiveSelectedKey === 'all'}
-            onClick={() => setSelectedChapterKey('all')}
-            className={`shrink-0 whitespace-nowrap min-h-[38px] px-3.5 py-1.5 rounded-full text-xs font-extrabold border transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-500 ${
-              effectiveSelectedKey === 'all'
-                ? 'bg-orange-500 text-white border-orange-500 shadow-xs'
-                : 'bg-white text-slate-700 border-slate-200 hover:border-orange-300 hover:text-slate-900'
-            }`}
-          >
-            সব ({displayClasses.length})
-          </button>
-
-          {orderedChapters.map((ch) => {
-            const count = chapterGroups.find((g) => g.key === ch.id)?.classes.length || 0;
-            const isSelected = effectiveSelectedKey === ch.id;
-            return (
-              <button
-                key={ch.id}
-                type="button"
-                role="tab"
-                aria-selected={isSelected}
-                onClick={() => setSelectedChapterKey(ch.id)}
-                className={`shrink-0 whitespace-nowrap min-h-[38px] px-3.5 py-1.5 rounded-full text-xs font-extrabold border transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-500 ${
-                  isSelected
-                    ? 'bg-orange-500 text-white border-orange-500 shadow-xs'
-                    : 'bg-white text-slate-700 border-slate-200 hover:border-orange-300 hover:text-slate-900'
-                }`}
-              >
-                {ch.title}
-                {count > 0 ? ` (${count})` : ''}
-              </button>
-            );
-          })}
-
-          {uncategorizedGroup && uncategorizedGroup.classes.length > 0 && (
-            <button
-              type="button"
-              role="tab"
-              aria-selected={effectiveSelectedKey === UNCATEGORIZED_CHAPTER_KEY}
-              onClick={() => setSelectedChapterKey(UNCATEGORIZED_CHAPTER_KEY)}
-              className={`shrink-0 whitespace-nowrap min-h-[38px] px-3.5 py-1.5 rounded-full text-xs font-extrabold border transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-500 ${
-                effectiveSelectedKey === UNCATEGORIZED_CHAPTER_KEY
-                  ? 'bg-orange-500 text-white border-orange-500 shadow-xs'
-                  : 'bg-white text-slate-700 border-slate-200 hover:border-orange-300 hover:text-slate-900'
-              }`}
-            >
-              অন্যান্য ({uncategorizedGroup.classes.length})
-            </button>
-          )}
-        </div>
-      )}
-
       {/* Chapter Sections + Class Grid */}
       {displayClasses.length === 0 ? (
         <div className="p-12 text-center bg-white rounded-2xl border border-slate-200 text-slate-500 text-xs">
@@ -275,24 +180,9 @@ export const Dashboard: React.FC<DashboardProps> = ({
                 </span>
               </div>
 
-              {group.classes.length > 0 ? (
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-                  {group.classes.map(renderClassCard)}
-                </div>
-              ) : (
-                <div className="p-8 text-center bg-white rounded-2xl border border-slate-200 space-y-3">
-                  <p className="text-xs text-slate-500">
-                    এই অধ্যায়ে এখনো কোনো প্রকাশিত ক্লাস যোগ করা হয়নি।
-                  </p>
-                  <button
-                    type="button"
-                    onClick={() => setSelectedChapterKey('all')}
-                    className="min-h-[38px] px-4 py-1.5 bg-orange-500 hover:bg-orange-600 text-white text-xs font-bold rounded-xl transition-colors cursor-pointer"
-                  >
-                    সব ক্লাস দেখুন
-                  </button>
-                </div>
-              )}
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+                {group.classes.map(renderClassCard)}
+              </div>
             </section>
           ))}
         </div>
