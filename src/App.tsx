@@ -26,6 +26,7 @@ import { AuthModal } from './components/AuthModal';
 import { AccessDeniedView } from './components/AccessDeniedView';
 import { ResetPasswordModal } from './components/ResetPasswordModal';
 import { SetupRequiredView } from './components/SetupRequiredView';
+import { SupportWidget } from './components/SupportWidget';
 
 import { AlertOctagon, LogOut, AlertCircle, X } from 'lucide-react';
 
@@ -479,6 +480,11 @@ export default function App() {
           </div>
         </main>
         <Footer onNavigate={navigateTo} />
+        <SupportWidget
+          showMobileBottomNav={false}
+          isHidden={isAuthModalOpen || isResetPasswordModalOpen}
+          activePath={currentPath}
+        />
       </div>
     );
   }
@@ -571,8 +577,14 @@ export default function App() {
         {/* ======================================================== */}
         {currentPath === '/enroll' && (
           <EnrollPage
+            currentUser={currentUser}
             onNavigate={navigateTo}
-            onOpenAuth={() => openAuthModal('login', null, 'other')}
+            onOpenAuth={(tab = 'login') => openAuthModal(tab, '/enroll', 'other')}
+            onRefreshProfile={async () => {
+              if (!currentUser?.id) return;
+              const updated = await fetchUserProfile(currentUser.id);
+              if (updated) setCurrentUser(updated);
+            }}
           />
         )}
 
@@ -740,6 +752,13 @@ export default function App() {
           pendingStudentsCount={0}
         />
       )}
+
+      {/* Sitewide Mobile-Safe Support Widget */}
+      <SupportWidget
+        showMobileBottomNav={showMobileBottomNav}
+        isHidden={isAuthModalOpen || isResetPasswordModalOpen}
+        activePath={currentClass ? `/class/${currentClass.id}` : currentPath}
+      />
 
       {/* Auth Modal */}
       <AuthModal

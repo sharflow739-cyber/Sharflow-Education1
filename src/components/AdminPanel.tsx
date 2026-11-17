@@ -13,6 +13,7 @@ import {
 import { useSettings } from '../contexts/SettingsContext';
 import { VideoPlayer } from './VideoPlayer';
 import { AdminEbooksManager } from './AdminEbooksManager';
+import { AdminManualPaymentsTab } from './AdminManualPaymentsTab';
 import { DEFAULT_CLASSES } from '../data/defaultCourses';
 import { sendStudentStatusEmail } from '../lib/studentEmail';
 import { 
@@ -20,7 +21,7 @@ import {
   CheckCircle2, XCircle, ArrowLeft, Save, Video, Eye, EyeOff,
   Users, ShieldAlert, Settings, BookOpen, Search, AlertCircle,
   RotateCcw, Sparkles, Check, X, ShieldX, Info,
-  GraduationCap, Mail, RefreshCw, Clock, Send, Download, FileText, FolderKanban
+  GraduationCap, Mail, RefreshCw, Clock, Send, Download, FileText, FolderKanban, CreditCard
 } from 'lucide-react';
 
 interface AdminPanelProps {
@@ -52,14 +53,15 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
   const { settings, updateSettings, resetSettingsGroup } = useSettings();
 
   // Active Admin Tab
-  const [activeTab, setActiveTab] = useState<'classes' | 'ebooks' | 'students' | 'requests' | 'users' | 'settings'>('classes');
+  const [activeTab, setActiveTab] = useState<'classes' | 'ebooks' | 'students' | 'payments' | 'requests' | 'users' | 'settings'>('classes');
+  const [pendingPaymentsCount, setPendingPaymentsCount] = useState(0);
 
   // Toasts
   const [toast, setToast] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
-  const showToast = (type: 'success' | 'error', message: string) => {
+  const showToast = React.useCallback((type: 'success' | 'error', message: string) => {
     setToast({ type, message });
     setTimeout(() => setToast(null), 4000);
-  };
+  }, []);
 
   // ==========================================
   // TAB 1: CLASSES STATE & ACTIONS
@@ -624,6 +626,17 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
 
   useEffect(() => {
     fetchStudents();
+    if (isSupabaseConfigured && supabase) {
+      supabase
+        .from('manual_payment_claims')
+        .select('id', { count: 'exact', head: true })
+        .eq('status', 'pending')
+        .then(({ count, error }) => {
+          if (!error && typeof count === 'number') {
+            setPendingPaymentsCount(count);
+          }
+        });
+    }
   }, []);
 
   useEffect(() => {
@@ -1035,6 +1048,23 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
           {Boolean(initialPendingStudentsCount && initialPendingStudentsCount > 0) && (
             <span className="px-1.5 py-0.2 bg-rose-500 text-white rounded-full text-[10px] font-black">
               {initialPendingStudentsCount}
+            </span>
+          )}
+        </button>
+
+        <button
+          onClick={() => setActiveTab('payments')}
+          className={`relative px-4 py-2.5 text-xs font-bold rounded-t-xl transition-all border-b-2 flex items-center gap-2 cursor-pointer shrink-0 ${
+            activeTab === 'payments'
+              ? 'border-orange-500 text-orange-600 bg-white'
+              : 'border-transparent text-slate-500 hover:text-slate-800'
+          }`}
+        >
+          <CreditCard size={15} />
+          <span>পেমেন্ট ও রিভিউ</span>
+          {pendingPaymentsCount > 0 && (
+            <span className="px-1.5 py-0.2 bg-amber-500 text-slate-950 rounded-full text-[10px] font-black">
+              {pendingPaymentsCount}
             </span>
           )}
         </button>
@@ -1526,6 +1556,17 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
       {/* ======================================================== */}
       {activeTab === 'ebooks' && (
         <AdminEbooksManager currentUser={currentUser} showToast={showToast} />
+      )}
+
+      {/* ======================================================== */}
+      {/* TAB 2B: MANUAL PAYMENTS CONFIG & REVIEW QUEUE */}
+      {/* ======================================================== */}
+      {activeTab === 'payments' && (
+        <AdminManualPaymentsTab
+          showToast={showToast}
+          onPaymentApproved={fetchStudents}
+          onPendingCountChange={setPendingPaymentsCount}
+        />
       )}
 
       {/* ======================================================== */}
@@ -2615,8 +2656,8 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                   onClick={() => handleResetGroup('লঞ্চ ও ভর্তি সেটিংস', [
                     'course_fee_bdt', 'course_duration_access',
                     'course_includes_text', 'refund_policy_text', 'terms_policy_text',
-                    'privacy_policy_text', 'enable_direct_payment', 'payment_instructions',
-                    'lemonsqueezy_checkout_url', 'public_welcome_video_url'
+                    'privacy_policy_text', 'payment_instructions',
+                    'public_welcome_video_url'
                   ])}
                   className="px-2.5 py-1 text-slate-500 hover:text-slate-800 text-xs font-semibold flex items-center gap-1 cursor-pointer"
                 >
@@ -2626,8 +2667,8 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                   onClick={() => handleSaveGroup('লঞ্চ ও ভর্তি সেটিংস', [
                     'course_fee_bdt', 'course_duration_access',
                     'course_includes_text', 'refund_policy_text', 'terms_policy_text',
-                    'privacy_policy_text', 'enable_direct_payment', 'payment_instructions',
-                    'lemonsqueezy_checkout_url', 'public_welcome_video_url'
+                    'privacy_policy_text', 'payment_instructions',
+                    'public_welcome_video_url'
                   ])}
                   disabled={savingSettingsGroup === 'লঞ্চ ও ভর্তি সেটিংস'}
                   className="px-4 py-1.5 bg-orange-500 hover:bg-orange-600 text-white rounded-xl text-xs font-bold shadow-xs flex items-center gap-1 cursor-pointer disabled:opacity-50"
@@ -2712,53 +2753,35 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                 <p className="text-[11px] text-slate-400 mt-1">ফাঁকা রাখলে সিস্টেমের ডিফল্ট তালিকা প্রদর্শিত হবে।</p>
               </div>
 
-              {/* Direct Payment Toggle (Default OFF) */}
+              {/* bKash / Nagad Manual Payment Management Link & General Instructions */}
               <div className="sm:col-span-2 p-4 bg-slate-50 rounded-2xl border border-slate-200 space-y-3">
-                <div className="flex items-center justify-between">
+                <div className="flex flex-wrap items-center justify-between gap-2">
                   <div>
-                    <div className="font-bold text-slate-900">সরাসরি অনলাইন পেমেন্ট সক্রিয়করণ</div>
+                    <div className="font-bold text-slate-900">বিকাশ ও নগদ ম্যানুয়াল পেমেন্ট মাধ্যম</div>
                     <div className="text-[11px] text-slate-500">
-                      ডিফল্টে বন্ধ থাকে। বন্ধ থাকলে ভিজিটরকে যাচাইকৃত হটলাইন/ইমেইল দিয়ে "ভর্তির আগ্রহ জানান" প্রদর্শন করা হয়।
+                      প্রতিটি মাধ্যমের নির্ধারিত ফি (BDT), রিসিভার নম্বর ও সঠিক পদ্ধতি "পেমেন্ট ও রিভিউ" ট্যাব থেকে সেট করুন।
                     </div>
                   </div>
-                  <input
-                    type="checkbox"
-                    checked={Boolean(formSettings.enable_direct_payment)}
-                    onChange={(e) => setFormSettings({ ...formSettings, enable_direct_payment: e.target.checked })}
-                    className="w-4 h-4 text-orange-600 rounded cursor-pointer"
-                  />
+                  <button
+                    type="button"
+                    onClick={() => setActiveTab('payments')}
+                    className="px-3.5 py-2 bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold rounded-xl cursor-pointer inline-flex items-center gap-1.5"
+                  >
+                    <CreditCard size={14} />
+                    <span>পেমেন্ট ও রিভিউ ট্যাবে যান</span>
+                  </button>
                 </div>
 
-                {formSettings.enable_direct_payment && (
-                  <div className="space-y-3">
-                    <div>
-                      <label className="block font-bold text-slate-700 mb-1">
-                        লাইভ Lemon Squeezy চেকআউট লিংক (ঐচ্ছিক)
-                      </label>
-                      <input
-                        type="url"
-                        value={formSettings.lemonsqueezy_checkout_url || ''}
-                        onChange={(e) => setFormSettings({ ...formSettings, lemonsqueezy_checkout_url: e.target.value })}
-                        placeholder="https://sharflow.lemonsqueezy.com/checkout/buy/..."
-                        className="w-full px-3 py-2 bg-white border border-slate-200 rounded-xl focus:outline-none focus:border-orange-500 font-medium text-xs"
-                      />
-                      <p className="text-[11px] text-slate-400 mt-1">
-                        লাইভ চেকআউট লিংক দিলে শিক্ষার্থী সরাসরি Lemon Squeezy-তে গিয়ে পেমেন্ট করতে পারবেন।
-                      </p>
-                    </div>
-
-                    <div>
-                      <label className="block font-bold text-slate-700 mb-1">পেমেন্ট নির্দেশিকা (বিকাশ/নগদ/ব্যাংক/অন্যান্য)</label>
-                      <textarea
-                        rows={3}
-                        value={formSettings.payment_instructions || ''}
-                        onChange={(e) => setFormSettings({ ...formSettings, payment_instructions: e.target.value })}
-                        placeholder="বিকাশ/নগদ মার্চেন্ট নম্বর এবং ট্রানজ্যাকশন আইডি পাঠানোর নিয়মাবলী লিখুন..."
-                        className="w-full px-3 py-2 bg-white border border-slate-200 rounded-xl focus:outline-none focus:border-orange-500 font-medium text-xs"
-                      />
-                    </div>
-                  </div>
-                )}
+                <div>
+                  <label className="block font-bold text-slate-700 mb-1">সাধারণ ভর্তি ও পেমেন্ট নির্দেশিকা (ঐচ্ছিক)</label>
+                  <textarea
+                    rows={3}
+                    value={formSettings.payment_instructions || ''}
+                    onChange={(e) => setFormSettings({ ...formSettings, payment_instructions: e.target.value })}
+                    placeholder="ভর্তি পেজের পেমেন্ট অংশের নিচে প্রদর্শনের জন্য অতিরিক্ত কোনো সাধারণ নির্দেশনা লিখতে পারেন..."
+                    className="w-full px-3 py-2 bg-white border border-slate-200 rounded-xl focus:outline-none focus:border-orange-500 font-medium text-xs"
+                  />
+                </div>
               </div>
 
               {/* Custom Policy Texts */}

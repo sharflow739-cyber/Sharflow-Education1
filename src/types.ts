@@ -134,7 +134,6 @@ export interface SiteSettings {
   privacy_policy_text: string;
   enable_direct_payment: boolean;
   payment_instructions: string;
-  lemonsqueezy_checkout_url: string;
   public_welcome_video_url: string;
 
   // Student Registration & Approval texts
@@ -204,7 +203,6 @@ export const DEFAULT_SITE_SETTINGS: SiteSettings = {
   privacy_policy_text: '',
   enable_direct_payment: false,
   payment_instructions: '',
-  lemonsqueezy_checkout_url: '',
   public_welcome_video_url: '',
 
   // Video
@@ -220,12 +218,6 @@ export const DEFAULT_SITE_SETTINGS: SiteSettings = {
 
 declare global {
   interface Window {
-    createLemonSqueezy?: () => void;
-    LemonSqueezy?: {
-      Url?: {
-        Open?: (url: string) => void;
-      };
-    };
     fbq?: ((...args: unknown[]) => void) & {
       callMethod?: (...args: unknown[]) => void;
       queue?: unknown[];
