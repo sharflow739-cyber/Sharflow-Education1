@@ -169,10 +169,10 @@ export const ClassView: React.FC<ClassViewProps> = ({
 
             <div className="space-y-2">
               <h2 className="text-lg sm:text-xl font-extrabold text-white">
-                🔒 এই ক্লাসটি প্রিমিয়াম মেম্বারদের জন্য।
+                🔒 এই ক্লাসটি সম্পূর্ণ প্যাকেজের সদস্যদের জন্য।
               </h2>
               <p className="text-xs sm:text-sm text-slate-300">
-                সম্পূর্ণ কোর্সের ভিডিও লেসন ও রিসোর্স আনলক করতে কোর্সটিতে ভর্তি হন:
+                সম্পূর্ণ প্যাকেজের ভিডিও লেসন ও রিসোর্স আনলক করতে প্যাকেজটি নিন:
               </p>
             </div>
 
@@ -191,7 +191,7 @@ export const ClassView: React.FC<ClassViewProps> = ({
                 className="px-6 py-3 bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold text-xs sm:text-sm rounded-xl enroll-buy-btn inline-flex items-center gap-2 cursor-pointer"
               >
                 <ShoppingCart size={16} />
-                <span>কিনুন</span>
+                <span>প্যাকেজ নিন</span>
               </button>
             </div>
 
@@ -253,7 +253,7 @@ export const ClassView: React.FC<ClassViewProps> = ({
               className="mt-1 px-5 py-2.5 bg-orange-500 hover:bg-orange-600 text-white font-bold text-xs rounded-xl shadow-xs transition-all inline-flex items-center gap-1.5 cursor-pointer"
             >
               <ShoppingCart size={14} />
-              <span>ভর্তির তথ্য ও কোর্স ফি দেখুন</span>
+              <span>প্যাকেজের বিস্তারিত ও ফি দেখুন</span>
             </button>
           )}
         </div>

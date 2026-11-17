@@ -128,7 +128,7 @@ export const Header: React.FC<HeaderProps> = ({
                     size={14}
                     className={activePath === '/demo' ? 'text-[#E4BE67] shrink-0' : 'text-[#8B641E] shrink-0'}
                   />
-                  <span>ডেমো ক্লাস</span>
+                  <span>ফ্রি ক্লাস</span>
                 </a>
                 <a
                   href="/enroll"
@@ -144,7 +144,7 @@ export const Header: React.FC<HeaderProps> = ({
                     size={14}
                     className={activePath === '/enroll' ? 'text-[#E4BE67] shrink-0' : 'text-[#8B641E] shrink-0'}
                   />
-                  <span>ভর্তির তথ্য</span>
+                  <span>সম্পূর্ণ প্যাকেজ</span>
                 </a>
                 <button
                   type="button"
@@ -198,7 +198,7 @@ export const Header: React.FC<HeaderProps> = ({
                   <span>ই-বুক</span>
                 </a>
 
-                {/* 'কোর্স কিনুন' link for logged-in free users lacking premium access */}
+                {/* 'প্যাকেজ নিন' link for logged-in free users lacking premium access */}
                 {!isPremium && (
                   <a
                     href="/enroll"
@@ -214,7 +214,7 @@ export const Header: React.FC<HeaderProps> = ({
                       size={13}
                       className={activePath === '/enroll' ? 'text-[#E4BE67] shrink-0' : 'text-[#8B641E] shrink-0'}
                     />
-                    <span>কোর্স কিনুন</span>
+                    <span>প্যাকেজ নিন</span>
                   </a>
                 )}
 

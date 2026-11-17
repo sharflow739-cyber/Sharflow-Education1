@@ -4,7 +4,7 @@ import { PublicWelcomeVideo } from './PublicWelcomeVideo';
 import { SorobanMiniDemo } from './SorobanMiniDemo';
 import { 
   PlayCircle, UserPlus, CheckCircle2, HelpCircle, 
-  Smartphone, BookOpen, Clock, Calculator, Video, ArrowRight, LogIn
+  Smartphone, BookOpen, Clock, Calculator, Video, ArrowRight, LogIn, Lock
 } from 'lucide-react';
 
 interface HomePageProps {
@@ -27,6 +27,10 @@ export const HomePage: React.FC<HomePageProps> = ({
   const resolvedWelcomeVideoUrl =
     (settings.public_welcome_video_url || '').trim() || '/sharflow-welcome-signup.mp4';
 
+  const openFreeClassAuth = (tab: 'login' | 'register' = 'register') => {
+    onOpenFreeResourcesAuth?.('/', tab);
+  };
+
   const openAbacusModal = (tab: 'login' | 'register' = 'login') => {
     if (onOpenAbacusAuth) {
       onOpenAbacusAuth(tab);
@@ -48,31 +52,31 @@ export const HomePage: React.FC<HomePageProps> = ({
           {/* Badge */}
           <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-[#222328] border border-[#D4AF5F]/35 text-[#E8C778] text-xs font-extrabold shadow-2xs">
             <span>{settings.logo_emoji || '🧮'}</span>
-            <span>অভিভাবকদের জন্য বিশেষ অনলাইন কোর্স</span>
+            <span>অভিভাবকদের জন্য বাংলা অনলাইন অ্যাবাকাস শেখার প্রোগ্রাম</span>
           </div>
 
-          {/* Public Welcome Video Slot - appears in hero before h1; hides gracefully when missing */}
+          {/* Public Website Guideline Video Slot - appears in hero before h1; hides gracefully when missing */}
           <PublicWelcomeVideo src={resolvedWelcomeVideoUrl} />
 
           {/* Main Headline */}
           <h1 className="text-3xl sm:text-5xl font-black text-[#FAF7F0] tracking-tight leading-tight sm:leading-snug text-balance">
-            নিজে অ্যাবাকাস শিখুন, সন্তানকে ঘরে শেখান
+            ফ্রিতে অ্যাবাকাস শেখা শুরু করুন
           </h1>
 
-          {/* Subtitle / Explainer */}
+          {/* Supporting Text */}
           <p className="text-base sm:text-lg text-[#DDD6C7] max-w-2xl mx-auto font-medium leading-relaxed">
-            অভিভাবকদের জন্য বাংলায় ধাপে ধাপে সোরোবান শেখার সম্পূর্ণ ধারাবাহিক কোর্স।
+            নতুন অ্যাকাউন্ট খুলুন, ইমেইল যাচাই করুন এবং লগইন করে ফ্রি ক্লাস ও শেখার রিসোর্স ব্যবহার করুন।
           </p>
 
           {/* Primary & Secondary Action Buttons */}
           <div className="pt-2 flex flex-col sm:flex-row items-center justify-center gap-3 sm:gap-4 max-w-2xl mx-auto">
             <button
               type="button"
-              onClick={() => onNavigate('/demo')}
+              onClick={() => openFreeClassAuth('register')}
               className="w-full sm:w-auto min-h-[48px] px-6 py-3.5 bg-gradient-to-r from-[#E4BE67] via-[#D7AC4C] to-[#C89B3B] hover:from-[#ECC978] hover:to-[#D5A847] text-[#141517] font-extrabold text-sm rounded-2xl shadow-lg shadow-[#D4AF5F]/20 transition-all flex items-center justify-center gap-2 active:scale-98 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#F4D992] focus-visible:ring-offset-2 focus-visible:ring-offset-[#18191C]"
             >
               <PlayCircle size={18} />
-              <span>ডেমো ক্লাস দেখুন</span>
+              <span>ফ্রি ক্লাস দেখুন</span>
             </button>
 
             <button
@@ -85,26 +89,26 @@ export const HomePage: React.FC<HomePageProps> = ({
             </button>
           </div>
 
-          {/* Clear Public Demo vs Free Resources Guide */}
+          {/* Package Guide & Quick Links */}
           <div className="max-w-xl mx-auto bg-[#1E1F24]/95 border border-[#D4AF5F]/25 rounded-2xl px-4 py-3 text-xs sm:text-sm text-[#EFE9DC] font-semibold leading-relaxed shadow-2xs space-y-1.5">
             <p>
-              লগইন ছাড়াই পাবলিক ডেমো ক্লাস দেখুন। সম্পূর্ণ ফ্রি ক্লাস, ই-বুক ও ভার্চুয়াল অ্যাবাকাস ব্যবহার করতে লগইন বা ফ্রি অ্যাকাউন্ট তৈরি করুন।
+              সম্পূর্ণ প্রোগ্রাম: <span className="text-[#E8C778] font-extrabold">ঘরে ঘরে অ্যাবাকাস — প্যারেন্ট স্টার্টার প্যাকেজ</span>
             </p>
             <p className="text-[11px] sm:text-xs text-[#CFC7B7] font-medium flex flex-wrap items-center justify-center gap-x-2.5 gap-y-1">
-              <button
-                type="button"
-                onClick={() => onOpenFreeResourcesAuth?.('/', 'register')}
-                className="font-extrabold text-[#E8C778] underline hover:text-[#F4D992] cursor-pointer"
-              >
-                নতুন অ্যাকাউন্ট তৈরি করুন (OTP)
-              </button>
-              <span aria-hidden="true">·</span>
               <button
                 type="button"
                 onClick={() => onNavigate('/enroll')}
                 className="font-extrabold text-[#FAF7F0] underline hover:text-[#E8C778] cursor-pointer"
               >
-                ভর্তির তথ্য দেখুন
+                প্যাকেজের বিস্তারিত দেখুন
+              </button>
+              <span aria-hidden="true">·</span>
+              <button
+                type="button"
+                onClick={() => onNavigate('/enroll')}
+                className="font-extrabold text-[#E8C778] underline hover:text-[#F4D992] cursor-pointer"
+              >
+                প্যাকেজ নিন
               </button>
             </p>
           </div>
@@ -143,12 +147,12 @@ export const HomePage: React.FC<HomePageProps> = ({
               ভর্তির আগে দেখে নিন
             </h2>
             <p className="text-xs sm:text-sm text-[#4F4B43] max-w-2xl leading-relaxed">
-              কোর্সে ভর্তি হওয়ার আগেই আমাদের পাবলিক ডেমো ক্লাস, বাংলা ই-বুক লাইব্রেরি এবং ভার্চুয়াল সোরোবান অ্যাবাকাস সম্পর্কে পরিষ্কার ধারণা নিন।
+              সম্পূর্ণ প্যাকেজ নেওয়ার আগেই আমাদের ফ্রি ক্লাস, বাংলা ই-বুক লাইব্রেরি এবং ভার্চুয়াল সোরোবান অ্যাবাকাস সম্পর্কে পরিষ্কার ধারণা নিন।
             </p>
           </div>
 
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-5 items-stretch">
-            {/* Card 1: Public Demo Class & Free Classes */}
+            {/* Card 1: Free Class Preview (Login-Gated) */}
             <article className="p-5 rounded-2xl bg-[#FBF7EC] border border-[#E6D9B8] flex flex-col justify-between gap-4">
               <div className="space-y-3">
                 <div className="flex items-center gap-3">
@@ -157,26 +161,23 @@ export const HomePage: React.FC<HomePageProps> = ({
                   </div>
                   <div className="min-w-0">
                     <p className="text-[11px] font-bold text-[#855E18]">
-                      পাবলিক ডেমো · লগইন ছাড়াই দেখুন
+                      ফ্রি ক্লাস · লগইন আবশ্যক
                     </p>
                     <h3 className="font-extrabold text-[#18191C] text-base leading-snug">
-                      ডেমো ক্লাস প্রিভিউ
+                      ফ্রি ক্লাস প্রিভিউ
                     </h3>
                   </div>
                 </div>
 
-                <a
-                  href="/demo"
-                  onClick={(e) => {
-                    e.preventDefault();
-                    onNavigate('/demo');
-                  }}
-                  aria-label="পাবলিক ডেমো ক্লাস দেখুন"
-                  className="group/thumb relative aspect-video w-full rounded-xl overflow-hidden bg-[#18191C] border border-[#C89D4A]/45 block cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#9E7324] focus-visible:ring-offset-2"
+                <button
+                  type="button"
+                  onClick={() => openFreeClassAuth('register')}
+                  aria-label="ফ্রি ক্লাস দেখুন (অ্যাকাউন্টে আনলক হয়)"
+                  className="group/thumb relative aspect-video w-full rounded-xl overflow-hidden bg-[#18191C] border border-[#C89D4A]/45 block cursor-pointer text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#9E7324] focus-visible:ring-offset-2"
                 >
                   <img
                     src={CLASS_PREVIEW_IMAGE_PATH}
-                    alt="সোরোবান অ্যাবাকাস হাতে অনুশীলনের ডেমো ক্লাস প্রিভিউ"
+                    alt="সোরোবান অ্যাবাকাস হাতে অনুশীলনের ফ্রি ক্লাস প্রিভিউ"
                     width={1672}
                     height={941}
                     referrerPolicy="no-referrer"
@@ -191,31 +192,29 @@ export const HomePage: React.FC<HomePageProps> = ({
                     className="absolute inset-x-2.5 bottom-2.5 flex items-center justify-between gap-2"
                   >
                     <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-[#141517]/85 border border-[#D4AF5F]/50 text-[#FAF7F0] text-[11px] font-bold">
-                      <span>পাবলিক ডেমো ক্লাস</span>
+                      <Lock size={12} className="text-[#E4BE67] shrink-0" />
+                      <span>অ্যাকাউন্টে আনলক হয়</span>
                     </span>
                     <span className="w-9 h-9 rounded-full bg-gradient-to-r from-[#E4BE67] to-[#CFA242] text-[#141517] flex items-center justify-center shadow-md group-hover/thumb:scale-105 transition-transform motion-reduce:transition-none shrink-0">
                       <PlayCircle size={18} />
                     </span>
                   </div>
-                </a>
+                </button>
 
                 <p className="text-xs sm:text-sm text-[#4F4B43] leading-relaxed">
-                  লগইন ছাড়াই আমাদের পাঠদান পদ্ধতির ডেমো ক্লাস দেখুন। এছাড়া সম্পূর্ণ ফ্রি ক্লাস ও ওয়ার্কশিট পেতে অ্যাকাউন্টে লগইন করুন।
+                  নতুন অ্যাকাউন্ট খুলুন, ইমেইল যাচাই করুন এবং লগইন করে ফ্রি ক্লাস ও শেখার রিসোর্স ব্যবহার করুন।
                 </p>
               </div>
 
               <div className="space-y-2">
-                <a
-                  href="/demo"
-                  onClick={(e) => {
-                    e.preventDefault();
-                    onNavigate('/demo');
-                  }}
+                <button
+                  type="button"
+                  onClick={() => openFreeClassAuth('register')}
                   className="w-full min-h-[44px] px-4 py-2.5 bg-gradient-to-r from-[#E4BE67] to-[#CFA242] hover:from-[#ECC978] hover:to-[#DBB052] text-[#141517] font-extrabold text-xs rounded-xl shadow-xs transition-all inline-flex items-center justify-center gap-2 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#9E7324] focus-visible:ring-offset-2"
                 >
                   <PlayCircle size={16} className="shrink-0" />
-                  <span>ডেমো ক্লাস দেখুন</span>
-                </a>
+                  <span>ফ্রি ক্লাস দেখুন</span>
+                </button>
                 <button
                   type="button"
                   onClick={() => onOpenFreeResourcesAuth?.('/', 'login')}
@@ -354,7 +353,7 @@ export const HomePage: React.FC<HomePageProps> = ({
 
           <div className="pt-3 border-t border-[#EFE9D8] flex flex-wrap items-center justify-between gap-2 text-xs">
             <span className="text-[#4F4B43] font-medium">
-              ফ্রি ও প্রিমিয়াম কোর্সের সুবিধাসমূহের তুলনা দেখতে চান?
+              ফ্রি সুবিধা ও সম্পূর্ণ প্যাকেজের তুলনা দেখতে চান?
             </span>
             <a
               href="/enroll"
@@ -364,7 +363,7 @@ export const HomePage: React.FC<HomePageProps> = ({
               }}
               className="font-extrabold text-[#855E18] hover:text-[#6B4A10] hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#9E7324] rounded"
             >
-              ফ্রি বনাম প্রিমিয়াম তুলনা দেখুন →
+              প্যাকেজের বিস্তারিত দেখুন →
             </a>
           </div>
         </div>
@@ -374,7 +373,7 @@ export const HomePage: React.FC<HomePageProps> = ({
       <section className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 space-y-8">
         <div className="text-center space-y-2">
           <h2 className="text-2xl sm:text-3xl font-extrabold text-[#18191C]">
-            এই কোর্সে আপনি কী কী শিখবেন?
+            এই শেখার প্রোগ্রামে আপনি কী কী শিখবেন?
           </h2>
           <p className="text-xs sm:text-sm text-[#575247] max-w-xl mx-auto">
             কোনো পূর্ব অভিজ্ঞতা ছাড়াই শুরু থেকে সোরোবান অ্যাবাকাসের প্রতিটি ধাপ সহজ নিয়মে সাজানো।
@@ -452,7 +451,7 @@ export const HomePage: React.FC<HomePageProps> = ({
               কীভাবে ক্লাস করবেন?
             </h2>
             <p className="text-xs sm:text-sm text-[#575247] max-w-xl mx-auto">
-              ব্যস্ত অভিভাবকদের সুবিধার কথা বিবেচনা করে কোর্সটি সম্পূর্ণ নিজের সুবিধাজনক সময়ে শেখার উপযোগী।
+              ব্যস্ত অভিভাবকদের সুবিধার কথা বিবেচনা করে ক্লাসগুলো সম্পূর্ণ নিজের সুবিধাজনক সময়ে শেখার উপযোগী।
             </p>
           </div>
 
@@ -490,24 +489,63 @@ export const HomePage: React.FC<HomePageProps> = ({
         </div>
       </section>
 
-      {/* Section 3: কী কী অন্তর্ভুক্ত (What Is Included) */}
+      {/* Section 3: প্যাকেজে কী কী অন্তর্ভুক্ত (What Is Included) */}
       <section className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 space-y-8">
         <div className="text-center space-y-2">
+          <p className="text-xs font-extrabold text-[#855E18]">সম্পূর্ণ প্যাকেজ</p>
           <h2 className="text-2xl sm:text-3xl font-extrabold text-[#18191C]">
-            কোর্সে কী কী অন্তর্ভুক্ত রয়েছে?
+            ঘরে ঘরে অ্যাবাকাস — প্যারেন্ট স্টার্টার প্যাকেজ
           </h2>
           <p className="text-xs sm:text-sm text-[#575247] max-w-xl mx-auto">
-            অভিভাবকদের জন্য প্রয়োজনীয় সব সামগ্রী এক প্ল্যাটফর্মে সাজানো।
+            অভিভাবকদের জন্য প্রয়োজনীয় সব শেখার উপকরণ এক প্যাকেজে সাজানো।
           </p>
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
           <div className="p-4 bg-[#FFFDF9] border border-[#E5DEC9] rounded-2xl flex items-start gap-3">
             <CheckCircle2 size={20} className="text-[#8A6118] shrink-0 mt-0.5" />
             <div className="space-y-1">
-              <h4 className="font-bold text-[#18191C] text-xs sm:text-sm">পর্যায়ক্রমিক ভিডিও লেসন</h4>
+              <h3 className="font-bold text-[#18191C] text-xs sm:text-sm">
+                শুরু থেকে ধাপে ধাপে সম্পূর্ণ ভিডিও ক্লাস
+              </h3>
               <p className="text-xs text-[#4F4B43]">
-                সোবান অ্যাবাকাসের শুরু থেকে মানসিক গণিত পর্যন্ত প্রতিটি বিষয়ের স্পষ্ট ভিডিও।
+                সোরোবান অ্যাবাকাসের প্রাথমিক পরিচিতি থেকে ধাপে ধাপে সব বিষয়ের স্পষ্ট বাংলা ভিডিও।
+              </p>
+            </div>
+          </div>
+
+          <div className="p-4 bg-[#FFFDF9] border border-[#E5DEC9] rounded-2xl flex items-start gap-3">
+            <CheckCircle2 size={20} className="text-[#8A6118] shrink-0 mt-0.5" />
+            <div className="space-y-1">
+              <h3 className="font-bold text-[#18191C] text-xs sm:text-sm">
+                অভিভাবকদের জন্য শেখানো ও অনুশীলনের গাইডলাইন
+              </h3>
+              <p className="text-xs text-[#4F4B43]">
+                নিজে নিয়ম আয়ত্ত করে কীভাবে সন্তানকে ঘরে অনুশীলন করাবেন তার সহজ দিকনির্দেশনা।
+              </p>
+            </div>
+          </div>
+
+          <div className="p-4 bg-[#FFFDF9] border border-[#E5DEC9] rounded-2xl flex items-start gap-3">
+            <CheckCircle2 size={20} className="text-[#8A6118] shrink-0 mt-0.5" />
+            <div className="space-y-1">
+              <h3 className="font-bold text-[#18191C] text-xs sm:text-sm">
+                বাংলা ই-বুক লাইব্রেরি
+              </h3>
+              <p className="text-xs text-[#4F4B43]">
+                সরাসরি সাইটের ভেতরে বুকমার্ক ও পঠিত পৃষ্ঠা সংরক্ষণ সুবিধাসহ বাংলা ই-বুক পড়ার সুযোগ।
+              </p>
+            </div>
+          </div>
+
+          <div className="p-4 bg-[#FFFDF9] border border-[#E5DEC9] rounded-2xl flex items-start gap-3">
+            <CheckCircle2 size={20} className="text-[#8A6118] shrink-0 mt-0.5" />
+            <div className="space-y-1">
+              <h3 className="font-bold text-[#18191C] text-xs sm:text-sm">
+                প্র্যাকটিস শিট
+              </h3>
+              <p className="text-xs text-[#4F4B43]">
+                ক্লাসের সাথে প্রাসঙ্গিক অনুশীলন শিট ও ওয়ার্কশিট ডাউনলোড সুবিধা।
               </p>
             </div>
           </div>
@@ -519,7 +557,9 @@ export const HomePage: React.FC<HomePageProps> = ({
           >
             <CheckCircle2 size={20} className="text-[#8A6118] shrink-0 mt-0.5" />
             <div className="space-y-1">
-              <h4 className="font-bold text-[#18191C] text-xs sm:text-sm">ভার্চুয়াল অ্যাবাকাস টুল</h4>
+              <h3 className="font-bold text-[#18191C] text-xs sm:text-sm">
+                ভার্চুয়াল অ্যাবাকাস
+              </h3>
               <p className="text-xs text-[#4F4B43]">
                 অ্যাকাউন্টে লগইন করে ব্রাউজারে সরাসরি ইন্টারঅ্যাক্টিভ অ্যাবাকাস ফ্রেম ব্যবহারের সুবিধা।
               </p>
@@ -529,22 +569,44 @@ export const HomePage: React.FC<HomePageProps> = ({
           <div className="p-4 bg-[#FFFDF9] border border-[#E5DEC9] rounded-2xl flex items-start gap-3">
             <CheckCircle2 size={20} className="text-[#8A6118] shrink-0 mt-0.5" />
             <div className="space-y-1">
-              <h4 className="font-bold text-[#18191C] text-xs sm:text-sm">ডাউনলোডযোগ্য প্র্যাকটিস শিট</h4>
+              <h3 className="font-bold text-[#18191C] text-xs sm:text-sm">
+                ফিজিক্যাল অ্যাবাকাস পাঠানোর ব্যবস্থা
+              </h3>
               <p className="text-xs text-[#4F4B43]">
-                ক্লাসের সাথে প্রাসঙ্গিক অনুশীলন শিট ও ওয়ার্কশিটের পিডিএফ ফাইল।
+                অ্যাকাউন্ট ও শেখার প্রয়োজনে সন্তানদের অনুশীলনের জন্য ফিজিক্যাল অ্যাবাকাস পাঠানোর ব্যবস্থা।
               </p>
             </div>
           </div>
 
-          <div className="p-4 bg-[#FFFDF9] border border-[#E5DEC9] rounded-2xl flex items-start gap-3">
+          <div className="p-4 bg-[#FFFDF9] border border-[#E5DEC9] rounded-2xl flex items-start gap-3 sm:col-span-2 lg:col-span-3">
             <CheckCircle2 size={20} className="text-[#8A6118] shrink-0 mt-0.5" />
             <div className="space-y-1">
-              <h4 className="font-bold text-[#18191C] text-xs sm:text-sm">ডেডিকেটেড সহায়তা ও হেল্পডেস্ক</h4>
+              <h3 className="font-bold text-[#18191C] text-xs sm:text-sm">
+                সপ্তাহে সাত দিন ইমেইলে সহায়তা
+              </h3>
               <p className="text-xs text-[#4F4B43]">
-                কোর্স চলাকালীন যেকোনো অ্যাকাডেমিক বা টেকনিক্যাল সমস্যার সহায়তার ব্যবস্থা।
+                যেকোনো অ্যাকাডেমিক বা অ্যাকাউন্ট সংক্রান্ত সমস্যার জন্য সপ্তাহে ৭ দিন ইমেইল সাপোর্ট সুবিধা।
               </p>
             </div>
           </div>
+        </div>
+
+        <div className="flex flex-wrap items-center justify-center gap-3 pt-1">
+          <button
+            type="button"
+            onClick={() => onNavigate('/enroll')}
+            className="min-h-[46px] px-6 py-3 bg-[#18191C] hover:bg-[#27292E] text-[#FAF7F0] border border-[#C89D4A]/45 font-extrabold text-xs sm:text-sm rounded-xl shadow-xs inline-flex items-center gap-2 cursor-pointer"
+          >
+            <span>প্যাকেজের বিস্তারিত দেখুন</span>
+            <ArrowRight size={15} className="text-[#E4BE67]" />
+          </button>
+          <button
+            type="button"
+            onClick={() => onNavigate('/enroll')}
+            className="min-h-[46px] px-6 py-3 bg-gradient-to-r from-[#E4BE67] to-[#CFA242] hover:from-[#ECC978] hover:to-[#DBB052] text-[#141517] font-extrabold text-xs sm:text-sm rounded-xl shadow-sm inline-flex items-center gap-2 cursor-pointer"
+          >
+            <span>প্যাকেজ নিন</span>
+          </button>
         </div>
       </section>
 
@@ -563,10 +625,10 @@ export const HomePage: React.FC<HomePageProps> = ({
         <div className="space-y-3">
           <div className="bg-[#FFFDF9] p-4 sm:p-5 rounded-2xl border border-[#E5DEC9] space-y-1.5">
             <h4 className="font-bold text-[#18191C] text-xs sm:text-sm">
-              প্রশ্ন: কোর্সটি কি শিশুদের জন্য নাকি অভিভাবকদের জন্য?
+              প্রশ্ন: এই শেখার প্রোগ্রামটি কি শিশুদের জন্য নাকি অভিভাবকদের জন্য?
             </h4>
             <p className="text-xs text-[#4F4B43] leading-relaxed">
-              উত্তর: কোর্সটি মূলত অভিভাবকদের শেখানোর জন্য ডিজাইন করা হয়েছে, যাতে অভিভাবক নিজে ভালোমতো নিয়মগুলো বুঝে সন্তানকে ঘরে আনন্দদায়ক পরিবেশে নিয়মিত অনুশীলন করাতে পারেন।
+              উত্তর: এই শেখার প্রোগ্রামটি মূলত অভিভাবকদের শেখানোর জন্য ডিজাইন করা হয়েছে, যাতে অভিভাবক নিজে ভালোমতো নিয়মগুলো বুঝে সন্তানকে ঘরে আনন্দদায়ক পরিবেশে নিয়মিত অনুশীলন করাতে পারেন।
             </p>
           </div>
 
@@ -590,7 +652,7 @@ export const HomePage: React.FC<HomePageProps> = ({
 
           <div className="bg-[#FFFDF9] p-4 sm:p-5 rounded-2xl border border-[#E5DEC9] space-y-1.5">
             <h4 className="font-bold text-[#18191C] text-xs sm:text-sm">
-              প্রশ্ন: কত বছর বয়সী শিশুর জন্য এই কোর্স উপযোগী?
+              প্রশ্ন: কত বছর বয়সী শিশুর জন্য এই শেখার প্রোগ্রাম উপযোগী?
             </h4>
             <p className="text-xs text-[#4F4B43] leading-relaxed">
               উত্তর: সাধারণত ৪ থেকে ১২ বছর বয়সী শিশুদের জন্য সোরোবান অ্যাবাকাস পদ্ধতি অত্যন্ত কার্যকর ভূমিকা রাখে।
@@ -603,19 +665,19 @@ export const HomePage: React.FC<HomePageProps> = ({
       <section className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="bg-gradient-to-tr from-[#141517] via-[#1C1D21] to-[#26231C] text-[#FAF7F0] rounded-3xl border border-[#D4AF5F]/30 p-8 sm:p-10 text-center space-y-5 shadow-xl">
           <h3 className="text-2xl sm:text-3xl font-black text-balance">
-            আজই শুরু করুন আপনার সন্তানের অ্যাবাকাস যাত্রা
+            ফ্রিতে অ্যাবাকাস শেখা শুরু করুন
           </h3>
           <p className="text-xs sm:text-sm text-[#D8D1C2] max-w-lg mx-auto leading-relaxed">
-            লগইন ছাড়াই আমাদের পাবলিক ডেমো ক্লাস দেখুন অথবা বিনামূল্যে অ্যাকাউন্ট তৈরি করে ফ্রি ক্লাস, ই-বুক ও ভার্চুয়াল অ্যাবাকাস ব্যবহার শুরু করুন।
+            নতুন অ্যাকাউন্ট খুলুন, ইমেইল যাচাই করুন এবং লগইন করে ফ্রি ক্লাস ও শেখার রিসোর্স ব্যবহার করুন।
           </p>
           <div className="flex flex-col sm:flex-row items-center justify-center gap-3 pt-2">
             <button
               type="button"
-              onClick={() => onNavigate('/demo')}
+              onClick={() => openFreeClassAuth('register')}
               className="w-full sm:w-auto min-h-[44px] px-6 py-3 bg-gradient-to-r from-[#E4BE67] to-[#CFA242] hover:from-[#ECC978] hover:to-[#DBB052] text-[#141517] font-extrabold text-xs rounded-xl shadow-md transition-all flex items-center justify-center gap-2 cursor-pointer"
             >
               <PlayCircle size={16} />
-              <span>ডেমো ক্লাস দেখুন</span>
+              <span>ফ্রি ক্লাস দেখুন</span>
             </button>
             <button
               type="button"
@@ -624,6 +686,14 @@ export const HomePage: React.FC<HomePageProps> = ({
             >
               <LogIn size={16} className="text-[#E4BE67]" />
               <span>ফ্রি রিসোর্স পেতে লগইন করুন</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => onNavigate('/enroll')}
+              className="w-full sm:w-auto min-h-[44px] px-5 py-3 bg-transparent hover:bg-white/8 text-[#E8C778] font-bold text-xs rounded-xl border border-[#D4AF5F]/30 transition-all flex items-center justify-center gap-1.5 cursor-pointer"
+            >
+              <span>সম্পূর্ণ প্যাকেজ</span>
+              <ArrowRight size={14} />
             </button>
           </div>
         </div>

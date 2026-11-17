@@ -992,7 +992,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
               অ্যাবাকাস এডমিন ম্যানেজমেন্ট
             </h1>
             <p className="text-xs text-slate-500">
-              কোর্স কন্টেন্ট, এক্সেস অনুমতি এবং সাইট সেটিংস নিয়ন্ত্রণ করুন
+              প্যাকেজ কন্টেন্ট, এক্সেস অনুমতি এবং সাইট সেটিংস নিয়ন্ত্রণ করুন
             </p>
           </div>
         </div>
@@ -2645,10 +2645,10 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
             <div className="flex items-center justify-between border-b border-slate-100 pb-3">
               <div>
                 <h3 className="font-extrabold text-slate-900 text-sm">
-                  ৬. পাবলিক হোমপেজ, ডেমো ও ভর্তি সেটিংস (Launch & Enrollment)
+                  ৬. পাবলিক হোমপেজ, গাইডলাইন ভিডিও ও প্যাকেজ সেটিংস (Launch & Enrollment)
                 </h3>
                 <p className="text-[11px] text-slate-500">
-                  ১২ নভেম্বরের পাবলিক লঞ্চের জন্য ফ্রি ডেমো লিংক, কোর্স ফি ও ভর্তির নীতিমালা কনফিগার করুন।
+                  ওয়েবসাইট গাইডলাইন ভিডিও, প্যাকেজ ফি ও ভর্তির নীতিমালা কনফিগার করুন।
                 </p>
               </div>
               <div className="flex items-center gap-2">
@@ -2682,7 +2682,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
               
               <div className="sm:col-span-2">
                 <label className="block font-bold text-slate-700 mb-1">
-                  পাবলিক ডেমো ক্লাস ভিডিও লিংক (/demo)
+                  অতিরিক্ত ক্লাস প্রিভিউ ভিডিও লিংক (লগইনকৃত ফ্রি সদস্যদের জন্য, ঐচ্ছিক)
                 </label>
                 <input
                   type="text"
@@ -2692,13 +2692,13 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                   className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:outline-none focus:border-orange-500 font-medium"
                 />
                 <p className="text-[11px] text-slate-400 mt-1">
-                  এখানে দেওয়া ভিডিও লিংকটি লগইন ছাড়াই যেকোনো ভিজিটর /demo পেজে দেখতে পারবেন। লিংক ফাঁকা রাখলে “ডেমো ক্লাসের ভিডিও শীঘ্রই যুক্ত হবে।” বার্তা দেখানো হবে।
+                  ফ্রি ক্লাসগুলো লগইনের পর ড্যাশবোর্ডে থাকে; এটি কেবল লগইনকৃত সদস্যদের জন্য সংরক্ষিত অতিরিক্ত ভিডিও লিংক।
                 </p>
               </div>
 
               <div className="sm:col-span-2">
                 <label className="block font-bold text-slate-700 mb-1">
-                  পাবলিক হোমপেজ স্বাগতম ভিডিও লিংক (ঐচ্ছিক, MP4/WebM)
+                  হোমপেজ ওয়েবসাইট গাইডলাইন ভিডিও লিংক (ঐচ্ছিক, MP4/WebM)
                 </label>
                 <input
                   type="text"
@@ -2708,27 +2708,27 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                   className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:outline-none focus:border-orange-500 font-medium"
                 />
                 <p className="text-[11px] text-slate-400 mt-1">
-                  ফাঁকা রাখলে সাইটের ডিফল্ট /sharflow-welcome-signup.mp4 (ফাইল আপলোড থাকলে) দেখানো হবে। এখানে নতুন URL দিলে সেটি ডিফল্ট ভিডিওটিকে ওভাররাইড করবে; ফাইল না থাকলে কোনো ভাঙা প্লেয়ার দেখাবে না।
+                  হোমপেজের ওয়েবসাইট গাইডলাইন ভিডিও স্লটে দেখানো হবে। ফাঁকা রাখলে ডিফল্ট /sharflow-welcome-signup.mp4 (ফাইল থাকলে) দেখানো হবে। এখানে নতুন URL দিলে সেটি ওভাররাইড করবে।
                 </p>
               </div>
 
               <div>
                 <label className="block font-bold text-slate-700 mb-1">
-                  কোর্স ফি (টাকায়)
+                  প্যাকেজ ফি (টাকায়)
                 </label>
                 <input
                   type="text"
                   value={formSettings.course_fee_bdt || ''}
                   onChange={(e) => setFormSettings({ ...formSettings, course_fee_bdt: e.target.value })}
-                  placeholder="যেমন: ১,৫০০ বা 1500"
+                  placeholder="যেমন: ২,৬৫০ বা 2650"
                   className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:outline-none focus:border-orange-500 font-medium"
                 />
-                <p className="text-[11px] text-slate-400 mt-1">ফাঁকা রাখলে "শীঘ্রই নির্ধারণ করা হচ্ছে" দেখাবে।</p>
+                <p className="text-[11px] text-slate-400 mt-1">ফাঁকা রাখলে ডিফল্ট প্যাকেজ ফি দেখাবে।</p>
               </div>
 
               <div>
                 <label className="block font-bold text-slate-700 mb-1">
-                  কোর্স অ্যাক্সেসের সময়সীমা
+                  প্যাকেজ অ্যাক্সেসের সময়সীমা
                 </label>
                 <input
                   type="text"
@@ -2741,7 +2741,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
 
               <div className="sm:col-span-2">
                 <label className="block font-bold text-slate-700 mb-1">
-                  কোর্সে কী অন্তর্ভুক্ত (Custom Includes)
+                  প্যাকেজে কী অন্তর্ভুক্ত (Custom Includes)
                 </label>
                 <textarea
                   rows={3}
@@ -2750,7 +2750,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                   placeholder="প্রতি লাইনে একটি করে সুযোগ-সুবিধা লিখতে পারেন..."
                   className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:outline-none focus:border-orange-500 font-medium"
                 />
-                <p className="text-[11px] text-slate-400 mt-1">ফাঁকা রাখলে সিস্টেমের ডিফল্ট তালিকা প্রদর্শিত হবে।</p>
+                <p className="text-[11px] text-slate-400 mt-1">ফাঁকা রাখলে সিস্টেমের নির্ধারিত প্যাকেজ তালিকা প্রদর্শিত হবে।</p>
               </div>
 
               {/* bKash / Nagad Manual Payment Management Link & General Instructions */}

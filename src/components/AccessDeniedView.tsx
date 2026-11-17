@@ -174,7 +174,7 @@ export const AccessDeniedView: React.FC<AccessDeniedViewProps> = ({
         ) : (
           <div className="space-y-3 text-center py-2">
             <p className="text-xs text-slate-600">
-              আপনি কোর্স পরিচালনার জন্য এডমিন এক্সেস পেতে চান?
+              আপনি প্ল্যাটফর্ম পরিচালনার জন্য এডমিন এক্সেস পেতে চান?
             </p>
             <button
               onClick={handleRequestAccess}

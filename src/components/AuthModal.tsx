@@ -567,7 +567,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                 {settings.site_name || 'অ্যাবাকাস পেরেন্ট পোর্টাল'}
               </h3>
               <p className="text-xs sm:text-sm text-slate-300 leading-snug mt-0.5">
-                {settings.site_subtitle || 'অভিভাবকদের প্রফেশনাল অনলাইন কোর্স প্ল্যাটফর্ম'}
+                {settings.site_subtitle || 'অভিভাবকদের অনলাইন অ্যাবাকাস শেখার প্ল্যাটফর্ম'}
               </p>
             </div>
           </div>

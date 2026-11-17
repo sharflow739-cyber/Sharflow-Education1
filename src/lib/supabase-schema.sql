@@ -257,9 +257,9 @@ create policy site_settings_insert on public.site_settings for insert to authent
 create policy site_settings_update on public.site_settings for update to authenticated
   using (public.is_admin()) with check (public.is_admin());
 
--- demo_settings: public read for the designated /demo video only; admin write only
-create policy demo_settings_read on public.demo_settings for select to anon, authenticated
-  using (true);
+-- demo_settings: authenticated active users only; admin write only
+create policy demo_settings_read on public.demo_settings for select to authenticated
+  using (public.is_active_user());
 create policy demo_settings_admin_write on public.demo_settings for all to authenticated
   using (public.is_admin()) with check (public.is_admin());
 

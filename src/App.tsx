@@ -452,7 +452,7 @@ export default function App() {
           onOpenAuth={() =>
             openAuthModal(
               'login',
-              currentPath === '/demo' ? '/demo' : null,
+              currentPath === '/demo' ? '/' : null,
               currentPath === '/demo' ? 'demo' : 'other'
             )
           }
@@ -511,7 +511,7 @@ export default function App() {
         onOpenAuth={() =>
           openAuthModal(
             'login',
-            currentPath === '/abacus' ? '/abacus' : currentPath === '/demo' ? '/demo' : null,
+            currentPath === '/abacus' || currentPath === '/abacus/' ? '/abacus' : '/',
             'demo'
           )
         }
@@ -556,9 +556,9 @@ export default function App() {
       <main className="flex-1">
         
         {/* ======================================================== */}
-        {/* ROUTE 1: PUBLIC DEMO (/demo) */}
+        {/* ROUTE 1: FREE CLASS ENTRY (/demo - login gated) */}
         {/* ======================================================== */}
-        {currentPath === '/demo' && (
+        {currentPath === '/demo' && !currentUser && (
           <DemoPage
             currentUser={currentUser}
             onNavigate={navigateTo}
@@ -664,6 +664,7 @@ export default function App() {
             currentUser={currentUser}
             onNavigate={navigateTo}
             onOpenAuth={(tab = 'login') => openAuthModal(tab, '/enroll', 'other')}
+            onOpenFreeClassAuth={(tab = 'register') => openAuthModal(tab, '/', 'demo')}
             onRefreshProfile={async () => {
               if (!currentUser?.id) return;
               const updated = await fetchUserProfile(currentUser.id);
@@ -755,7 +756,7 @@ export default function App() {
         {/* ======================================================== */}
         {/* ROUTE 5: ROOT (/) or /dashboard */}
         {/* ======================================================== */}
-        {currentPath !== '/demo' &&
+        {(currentPath !== '/demo' || Boolean(currentUser)) &&
           currentPath !== '/ebooks' &&
           currentPath !== '/abacus' &&
           currentPath !== '/abacus/' &&
@@ -868,8 +869,6 @@ export default function App() {
             postAuthRedirect ||
             (currentPath === '/abacus' || currentPath === '/abacus/'
               ? '/abacus'
-              : currentPath === '/demo'
-              ? '/demo'
               : '/');
           setPostAuthRedirect(null);
           setAuthOrigin('other');

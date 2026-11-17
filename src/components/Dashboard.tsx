@@ -71,7 +71,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
         key={cls.id}
         role="button"
         tabIndex={0}
-        aria-label={isLocked ? `${cls.title} (প্রিমিয়াম লক করা - কিনুন)` : cls.title}
+        aria-label={isLocked ? `${cls.title} (সম্পূর্ণ প্যাকেজ লক করা - প্যাকেজ নিন)` : cls.title}
         onClick={() => handleCardAction(cls, isLocked)}
         onKeyDown={(e) => {
           if (e.key === 'Enter' || e.key === ' ') {
@@ -119,7 +119,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
             </h3>
           </div>
 
-          {/* Lock status + green 'কিনুন' CTA below for locked premium cards */}
+          {/* Lock status + green 'প্যাকেজ নিন' CTA below for locked cards */}
           {isLocked && (
             <div className="pt-2 border-t border-slate-100 flex items-center justify-between gap-2">
               <span className="inline-flex items-center gap-1.5 text-xs font-bold text-slate-600">
@@ -127,7 +127,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
                 <span>লক করা</span>
               </span>
               <span className="px-3.5 py-1.5 bg-emerald-600 group-hover:bg-emerald-700 text-white text-xs font-extrabold rounded-xl shadow-xs motion-safe:transition-colors whitespace-nowrap">
-                কিনুন
+                প্যাকেজ নিন
               </span>
             </div>
           )}

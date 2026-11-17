@@ -161,7 +161,7 @@ export const DEFAULT_SITE_SETTINGS: SiteSettings = {
   // Login page & Registration
   login_badge: 'অ্যাবাকাস Parent Training',
   login_headline: 'আপনার সন্তানকে ঘরে বসেই প্রফেশনাল উপায়ে অ্যাবাকাস শেখান',
-  login_subtext: 'কোর্স কন্টেন্ট ও ভিডিও লেসন দেখতে আপনার নিবন্ধিত অ্যাকাউন্ট দিয়ে লগইন করুন।',
+  login_subtext: 'ক্লাস ও শেখার রিসোর্স দেখতে আপনার নিবন্ধিত অ্যাকাউন্ট দিয়ে লগইন করুন।',
   login_button_label: 'লগইন করুন',
   allow_registration: true,
 
@@ -185,8 +185,8 @@ export const DEFAULT_SITE_SETTINGS: SiteSettings = {
   contact_phone: '',
   contact_email: '',
   contact_hours: '',
-  security_notice_title: 'কোর্স সিকিউরিটি তথ্য',
-  security_notice_text: 'এই কোর্সের সকল ভিডিও কনটেন্ট নিবন্ধিত অভিভাবকের ব্যক্তিগত শিক্ষার উদ্দেশ্যে তৈরি। ভিডিও ডাউনলোড বা অনুমতি ব্যতীত প্রচার সম্পূর্ণ নিষিদ্ধ।',
+  security_notice_title: 'প্ল্যাটফর্ম সিকিউরিটি তথ্য',
+  security_notice_text: 'এই শেখার প্রোগ্রামের সকল ভিডিও কনটেন্ট নিবন্ধিত অভিভাবকের ব্যক্তিগত শিক্ষার উদ্দেশ্যে তৈরি। ভিডিও ডাউনলোড বা অনুমতি ব্যতীত প্রচার সম্পূর্ণ নিষিদ্ধ।',
   copyright_text: 'Abacus Parent Training Program. সর্বস্বত্ব সংরক্ষিত।',
   footer_tagline: 'অভিভাবক ও শিক্ষার্থীদের জন্য তৈরি',
   show_secure_badge: true,

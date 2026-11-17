@@ -153,7 +153,7 @@ export const MobileBottomNav: React.FC<MobileBottomNavProps> = ({
                   className="w-full min-h-[46px] px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold text-xs rounded-2xl shadow-xs inline-flex items-center justify-center gap-2 cursor-pointer"
                 >
                   <ShoppingCart size={16} />
-                  <span>কোর্স কিনুন</span>
+                  <span>প্যাকেজ নিন</span>
                 </button>
               )}
 

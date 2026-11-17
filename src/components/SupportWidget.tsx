@@ -83,7 +83,7 @@ export const SupportWidget: React.FC<SupportWidgetProps> = ({
             <div className="min-w-0">
               <h2 className="text-sm font-extrabold leading-tight">সহায়তা</h2>
               <p className="text-[11px] text-slate-300 mt-0.5">
-                কোর্স বা অ্যাকাউন্ট বিষয়ে যোগাযোগ করুন
+                প্যাকেজ বা অ্যাকাউন্ট বিষয়ে যোগাযোগ করুন
               </p>
             </div>
             <button

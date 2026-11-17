@@ -140,7 +140,7 @@ export const Footer: React.FC<FooterProps> = ({ onNavigate }) => {
         {settings.security_notice_text && (
           <div className="py-4 border-t border-[#2B2924] text-[11px] text-[#BDB6A8] leading-relaxed">
             <span className="font-bold text-[#EAE4D7]">
-              {settings.security_notice_title || 'কোর্স সিকিউরিটি তথ্য'}:{' '}
+              {settings.security_notice_title || 'প্ল্যাটফর্ম সিকিউরিটি তথ্য'}:{' '}
             </span>
             {settings.security_notice_text}
           </div>

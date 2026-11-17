@@ -9,25 +9,55 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return res.status(405).json({ error: 'শুধুমাত্র GET মেথড গ্রহণযোগ্য' });
   }
 
-  const supabaseUrl = process.env.VITE_SUPABASE_URL || process.env.SUPABASE_URL;
-  const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
-  const supabaseAnonKey = process.env.VITE_SUPABASE_ANON_KEY || process.env.SUPABASE_ANON_KEY;
-  const effectiveKey = supabaseServiceKey || supabaseAnonKey;
+  const authHeader = req.headers.authorization || '';
+  const accessToken = authHeader.startsWith('Bearer ')
+    ? authHeader.slice(7).trim()
+    : '';
 
-  if (!supabaseUrl || !effectiveKey) {
+  if (!accessToken) {
+    return res.status(401).json({ error: 'লগইন প্রয়োজন' });
+  }
+
+  const supabaseUrl = process.env.VITE_SUPABASE_URL || process.env.SUPABASE_URL;
+  const supabaseAnonKey = process.env.VITE_SUPABASE_ANON_KEY || process.env.SUPABASE_ANON_KEY;
+
+  if (!supabaseUrl || !supabaseAnonKey) {
     return res.status(500).json({
       error: 'সার্ভার কনফিগারেশন ত্রুটি: Supabase পরিবেশ চলক অনুপস্থিত',
     });
   }
 
-  const publicSupabase = createClient(supabaseUrl, effectiveKey, {
+  const userSupabase = createClient(supabaseUrl, supabaseAnonKey, {
     auth: {
       persistSession: false,
     },
+    global: {
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+      },
+    },
   });
 
-  // Primary source: designated demo_settings table (never returns gated classes/ebooks)
-  const { data: demoRow, error: demoErr } = await publicSupabase
+  const {
+    data: { user },
+    error: authError,
+  } = await userSupabase.auth.getUser();
+
+  if (authError || !user) {
+    return res.status(401).json({ error: 'অবৈধ বা মেয়াদোত্তীর্ণ সেশন' });
+  }
+
+  const { data: profile, error: profileErr } = await userSupabase
+    .from('profiles')
+    .select('id, is_active')
+    .eq('id', user.id)
+    .maybeSingle();
+
+  if (profileErr || !profile || !profile.is_active) {
+    return res.status(403).json({ error: 'সক্রিয় অ্যাকাউন্ট প্রয়োজন' });
+  }
+
+  const { data: demoRow, error: demoErr } = await userSupabase
     .from('demo_settings')
     .select('video_url')
     .eq('id', 1)
@@ -35,20 +65,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
   if (!demoErr && demoRow && typeof demoRow.video_url === 'string' && demoRow.video_url.trim()) {
     return res.status(200).json({ video_url: demoRow.video_url.trim() });
-  }
-
-  // Fallback if legacy demo URL exists in site_settings
-  const { data: siteRow, error: siteErr } = await publicSupabase
-    .from('site_settings')
-    .select('data')
-    .eq('id', 1)
-    .maybeSingle();
-
-  if (!siteErr && siteRow?.data && typeof siteRow.data === 'object') {
-    const legacyUrl = (siteRow.data as Record<string, unknown>).public_demo_video_url;
-    if (typeof legacyUrl === 'string' && legacyUrl.trim()) {
-      return res.status(200).json({ video_url: legacyUrl.trim() });
-    }
   }
 
   return res.status(200).json({ video_url: '' });

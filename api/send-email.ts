@@ -176,7 +176,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     <div style="border-top: 1px solid #f1f5f9; padding-top: 20px;">
       <h3 style="color: #0f172a; font-size: 18px; margin-top: 0;">অভিনন্দন ${safeName}! 🎉</h3>
       <p style="font-size: 14px; line-height: 1.6; color: #334155;">
-        আপনার ভর্তি অনুমোদিত হয়েছে। এখন লগইন করে কোর্স ও সব ভিডিও ক্লাস দেখতে পারবেন।
+        আপনার ভর্তি অনুমোদিত হয়েছে। এখন লগইন করে সম্পূর্ণ প্যাকেজ ও সব ভিডিও ক্লাস দেখতে পারবেন।
       </p>
       
       <div style="text-align: center; margin: 28px 0;">

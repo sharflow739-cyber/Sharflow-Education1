@@ -47,6 +47,7 @@ interface EnrollPageProps {
   currentUser?: UserProfile | null;
   onNavigate: (path: string) => void;
   onOpenAuth: (tab?: 'login' | 'register') => void;
+  onOpenFreeClassAuth?: (tab?: 'login' | 'register') => void;
   onRefreshProfile?: () => Promise<void>;
 }
 
@@ -54,6 +55,7 @@ export const EnrollPage: React.FC<EnrollPageProps> = ({
   currentUser = null,
   onNavigate,
   onOpenAuth,
+  onOpenFreeClassAuth,
   onRefreshProfile,
 }) => {
   const { settings } = useSettings();
@@ -197,7 +199,7 @@ export const EnrollPage: React.FC<EnrollPageProps> = ({
 
     if (activeProviderConfig.price_bdt && parsedAmount !== activeProviderConfig.price_bdt) {
       setSubmitError(
-        `${PAYMENT_PROVIDER_LABELS[activeProviderConfig.provider]}-এর নির্ধারিত কোর্স ফি ৳${activeProviderConfig.price_bdt}। অনুগ্রহ করে সঠিক পরিমাণ লিখুন।`
+        `${PAYMENT_PROVIDER_LABELS[activeProviderConfig.provider]}-এর নির্ধারিত প্যাকেজ ফি ৳${activeProviderConfig.price_bdt}। অনুগ্রহ করে সঠিক পরিমাণ লিখুন।`
       );
       return;
     }
@@ -224,7 +226,7 @@ export const EnrollPage: React.FC<EnrollPageProps> = ({
       setTrxId('');
       setAmountInput('');
       setSubmitSuccess(
-        'আপনার পেমেন্ট তথ্য সফলভাবে জমা হয়েছে! এডমিন আপনার TrxID ও লেজার যাচাই করে অনুমোদন দেওয়ার সাথে সাথে কোর্স এক্সেস চালু হয়ে যাবে।'
+        'আপনার পেমেন্ট তথ্য সফলভাবে জমা হয়েছে! এডমিন আপনার TrxID ও লেজার যাচাই করে অনুমোদন দেওয়ার সাথে সাথে সম্পূর্ণ প্যাকেজ এক্সেস চালু হয়ে যাবে।'
       );
       await loadPaymentState();
     } catch (err: unknown) {
@@ -263,37 +265,37 @@ export const EnrollPage: React.FC<EnrollPageProps> = ({
         </button>
         <span className="px-3 py-1 bg-emerald-100 text-emerald-800 rounded-full text-xs font-extrabold flex items-center gap-1.5">
           <Sparkles size={13} />
-          <span>ভর্তি তথ্য ও এক্সেস</span>
+          <span>সম্পূর্ণ প্যাকেজ</span>
         </span>
       </div>
 
       {/* Main Title */}
       <div className="text-center space-y-2">
-        <h1 className="text-2xl sm:text-4xl font-black text-slate-900 tracking-tight">
-          কোর্সে ভর্তি সংক্রান্ত তথ্য
+        <h1 className="text-2xl sm:text-4xl font-black text-slate-900 tracking-tight text-balance">
+          ঘরে ঘরে অ্যাবাকাস — প্যারেন্ট স্টার্টার প্যাকেজ
         </h1>
         <p className="text-xs sm:text-sm text-slate-600 max-w-xl mx-auto leading-relaxed">
-          অভিভাবকদের জন্য সোরোবান অ্যাবাকাস অনলাইন ট্রেনিং কোর্সের ফি, সময়সীমা ও ভর্তির নিয়মাবলি।
+          অভিভাবকদের জন্য সোরোবান অ্যাবাকাস অনলাইন শেখার প্রোগ্রামের প্যাকেজ ফি, সময়সীমা ও ভর্তির নিয়মাবলি।
         </p>
       </div>
 
-      {/* Course Fee & Key Details Card */}
+      {/* Package Fee & Key Details Card */}
       <div className="bg-white rounded-3xl border border-slate-200 shadow-sm p-4 sm:p-8 space-y-6">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-100 pb-6">
           <div className="space-y-1">
             <span className="text-xs font-bold text-orange-600 uppercase tracking-wider">
-              কোর্স এক্সেস
+              সম্পূর্ণ প্যাকেজ
             </span>
             <h2 className="text-xl sm:text-2xl font-black text-slate-900">
-              অ্যাবাকাস প্যারেন্ট ট্রেনিং ফুল কোর্স
+              ঘরে ঘরে অ্যাবাকাস — প্যারেন্ট স্টার্টার প্যাকেজ
             </h2>
             <p className="text-xs text-slate-500">
-              অভিভাবকদের জন্য সম্পূর্ণ ধারাবাহিক বাংলা ভিডিও কোর্স।
+              অভিভাবকদের জন্য শুরু থেকে ধাপে ধাপে সম্পূর্ণ বাংলা ভিডিও ক্লাস ও অনুশীলন প্যাকেজ।
             </p>
           </div>
 
           <div className="bg-orange-50 border border-orange-200 rounded-2xl p-4 text-center sm:text-right shrink-0">
-            <span className="text-[11px] font-bold text-slate-500 block">কোর্স ফি</span>
+            <span className="text-[11px] font-bold text-slate-500 block">প্যাকেজ ফি</span>
             <div className="text-2xl sm:text-3xl font-black text-slate-900">
               ৳ {fee}
             </div>
@@ -312,7 +314,7 @@ export const EnrollPage: React.FC<EnrollPageProps> = ({
         <div className="space-y-3">
           <h3 className="font-extrabold text-sm text-slate-900 flex items-center gap-2">
             <CheckCircle2 size={16} className="text-emerald-500" />
-            <span>কোর্সের অন্তর্ভুক্ত সুযোগ-সুবিধাসমূহ:</span>
+            <span>এই প্যাকেজে কী কী থাকছে:</span>
           </h3>
 
           {includesText ? (
@@ -323,19 +325,31 @@ export const EnrollPage: React.FC<EnrollPageProps> = ({
             <ul className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs text-slate-700">
               <li className="flex items-start gap-2 bg-slate-50 p-3 rounded-xl border border-slate-200/80">
                 <CheckCircle2 size={15} className="text-emerald-500 shrink-0 mt-0.5" />
-                <span>সকল ধারাবাহিক ভিডিও লেসনে সম্পূর্ণ এক্সেস</span>
+                <span>শুরু থেকে ধাপে ধাপে সম্পূর্ণ ভিডিও ক্লাস</span>
               </li>
               <li className="flex items-start gap-2 bg-slate-50 p-3 rounded-xl border border-slate-200/80">
                 <CheckCircle2 size={15} className="text-emerald-500 shrink-0 mt-0.5" />
-                <span>ইন্টারঅ্যাক্টিভ ভার্চুয়াল অ্যাবাকাস ব্যবহারের সুবিধা</span>
+                <span>অভিভাবকদের জন্য শেখানো ও অনুশীলনের গাইডলাইন</span>
               </li>
               <li className="flex items-start gap-2 bg-slate-50 p-3 rounded-xl border border-slate-200/80">
                 <CheckCircle2 size={15} className="text-emerald-500 shrink-0 mt-0.5" />
-                <span>ক্লাসভিত্তিক প্র্যাকটিস শিট ও ওয়ার্কশিট ডাউনলোড</span>
+                <span>বাংলা ই-বুক লাইব্রেরি</span>
               </li>
               <li className="flex items-start gap-2 bg-slate-50 p-3 rounded-xl border border-slate-200/80">
                 <CheckCircle2 size={15} className="text-emerald-500 shrink-0 mt-0.5" />
-                <span>মোবাইল বা কম্পিউটারে যেকোনো সুবিধাজনক সময়ে দেখার সুবিধা</span>
+                <span>প্র্যাকটিস শিট</span>
+              </li>
+              <li className="flex items-start gap-2 bg-slate-50 p-3 rounded-xl border border-slate-200/80">
+                <CheckCircle2 size={15} className="text-emerald-500 shrink-0 mt-0.5" />
+                <span>ভার্চুয়াল অ্যাবাকাস</span>
+              </li>
+              <li className="flex items-start gap-2 bg-slate-50 p-3 rounded-xl border border-slate-200/80">
+                <CheckCircle2 size={15} className="text-emerald-500 shrink-0 mt-0.5" />
+                <span>ফিজিক্যাল অ্যাবাকাস পাঠানোর ব্যবস্থা</span>
+              </li>
+              <li className="flex items-start gap-2 bg-slate-50 p-3 rounded-xl border border-slate-200/80 sm:col-span-2">
+                <CheckCircle2 size={15} className="text-emerald-500 shrink-0 mt-0.5" />
+                <span>সপ্তাহে সাত দিন ইমেইলে সহায়তা</span>
               </li>
             </ul>
           )}
@@ -349,8 +363,8 @@ export const EnrollPage: React.FC<EnrollPageProps> = ({
           </h4>
           <p className="text-slate-600 leading-relaxed">
             {duration 
-              ? `কোর্সে ভর্তির পর একাউন্টে ${duration} পর্যন্ত নিয়মিত এক্সেস বজায় থাকবে।`
-              : 'কোর্সে সফলভাবে ভর্তির পর নির্দিষ্ট মেয়াদ পর্যন্ত সুবিধামতো সময়ে যেকোনো স্থান থেকে লেকচার দেখার এক্সেস বজায় থাকবে।'}
+              ? `প্যাকেজ নেওয়ার পর অ্যাকাউন্টে ${duration} পর্যন্ত নিয়মিত এক্সেস বজায় থাকবে।`
+              : 'প্যাকেজ নেওয়ার পর নির্দিষ্ট মেয়াদ পর্যন্ত সুবিধামতো সময়ে যেকোনো স্থান থেকে ভিডিও ক্লাস দেখার এক্সেস বজায় থাকবে।'}
           </p>
         </div>
 
@@ -365,7 +379,7 @@ export const EnrollPage: React.FC<EnrollPageProps> = ({
               refundText
             ) : (
               <span>
-                ডিজিটাল কন্টেন্ট সুরক্ষার জন্য কোর্স ফি পরিশোধ ও এক্সেস পাওয়ার পর প্রযোজ্য নীতিমালা অনুযায়ী আবেদন বিবেচনা করা হয়। বিস্তারিত জানতে আমাদের{' '}
+                ডিজিটাল কন্টেন্ট সুরক্ষার জন্য প্যাকেজ ফি পরিশোধ ও এক্সেস পাওয়ার পর প্রযোজ্য নীতিমালা অনুযায়ী আবেদন বিবেচনা করা হয়। বিস্তারিত জানতে আমাদের{' '}
                 <button
                   onClick={() => onNavigate('/refund')}
                   className="text-orange-600 hover:underline font-bold cursor-pointer"
@@ -379,14 +393,14 @@ export const EnrollPage: React.FC<EnrollPageProps> = ({
         </div>
       </div>
 
-      {/* Free vs Premium Course Benefits Comparison */}
+      {/* Free vs Full Package Comparison */}
       <section id="course-comparison" aria-labelledby="comparison-heading" className="space-y-4">
         <div className="text-center space-y-1.5">
           <h2 id="comparison-heading" className="text-xl sm:text-2xl font-black text-slate-900">
-            ফ্রি বনাম প্রিমিয়াম কোর্স সুবিধা
+            ফ্রি বনাম সম্পূর্ণ প্যাকেজ সুবিধা
           </h2>
           <p className="text-xs sm:text-sm text-slate-600 max-w-xl mx-auto leading-relaxed">
-            আপনার প্রয়োজন অনুযায়ী ফ্রি রিসোর্স দিয়ে শুরু করুন অথবা সম্পূর্ণ প্রিমিয়াম কোর্সে ভর্তি হন।
+            আপনার প্রয়োজন অনুযায়ী ফ্রি ক্লাস ও রিসোর্স দিয়ে শুরু করুন অথবা সম্পূর্ণ প্যাকেজ নিন।
           </p>
         </div>
 
@@ -403,7 +417,7 @@ export const EnrollPage: React.FC<EnrollPageProps> = ({
                     ফ্রি অ্যাকাউন্ট সুবিধা
                   </h3>
                   <p className="text-xs text-slate-500">
-                    অ্যাকাউন্ট খুলে যাচাই করে বিনামূল্যে শেখা শুরু করুন
+                    নতুন অ্যাকাউন্ট খুলুন, ইমেইল যাচাই করুন এবং লগইন করে ফ্রি ক্লাস ও শেখার রিসোর্স ব্যবহার করুন।
                   </p>
                 </div>
               </div>
@@ -415,38 +429,46 @@ export const EnrollPage: React.FC<EnrollPageProps> = ({
                 </li>
                 <li className="flex items-start gap-2.5">
                   <CheckCircle2 size={17} className="text-emerald-600 shrink-0 mt-0.5" />
-                  <span>লাইব্রেরিতে ফ্রি বই</span>
+                  <span>বাংলা ই-বুক লাইব্রেরি (ফ্রি বই)</span>
                 </li>
                 <li className="flex items-start gap-2.5">
                   <CheckCircle2 size={17} className="text-emerald-600 shrink-0 mt-0.5" />
-                  <span>ফ্রি ভার্চুয়াল অ্যাবাকাস</span>
+                  <span>ফ্রি ভার্চুয়াল অ্যাবাকাস</span>
                 </li>
               </ul>
             </div>
 
             <button
               type="button"
-              onClick={() => onNavigate('/demo')}
+              onClick={() => {
+                if (currentUser) {
+                  onNavigate('/');
+                } else if (onOpenFreeClassAuth) {
+                  onOpenFreeClassAuth('register');
+                } else {
+                  onNavigate('/demo');
+                }
+              }}
               className="w-full min-h-[48px] px-5 py-3 bg-slate-900 hover:bg-slate-800 text-white font-extrabold text-sm rounded-2xl shadow-xs transition-colors inline-flex items-center justify-center gap-2 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-900 focus-visible:ring-offset-2"
             >
               <PlayCircle size={18} className="shrink-0" />
-              <span>ডেমো ক্লাস দেখুন</span>
+              <span>ফ্রি ক্লাস দেখুন</span>
             </button>
           </div>
 
-          {/* Premium Plan Card */}
+          {/* Full Package Card */}
           <div className="bg-gradient-to-b from-orange-50/80 via-white to-emerald-50/40 rounded-3xl border-2 border-orange-300 shadow-sm p-5 sm:p-7 flex flex-col justify-between gap-6">
             <div className="space-y-4">
               <div className="flex items-start justify-between gap-3 border-b border-orange-200/70 pb-4">
                 <div className="space-y-1 min-w-0">
                   <span className="inline-block px-2.5 py-0.5 rounded-full bg-orange-500 text-white text-[11px] font-extrabold">
-                    প্রিমিয়াম
+                    সম্পূর্ণ প্যাকেজ
                   </span>
                   <h3 className="text-lg sm:text-xl font-black text-slate-900">
-                    প্রিমিয়াম পূর্ণাঙ্গ কোর্স
+                    ঘরে ঘরে অ্যাবাকাস — প্যারেন্ট স্টার্টার প্যাকেজ
                   </h3>
                   <p className="text-xs text-slate-600">
-                    অভিভাবকদের জন্য সম্পূর্ণ ধারাবাহিক কোর্স ও সাপোর্ট
+                    অভিভাবকদের জন্য সম্পূর্ণ ধারাবাহিক শেখার প্রোগ্রাম ও ইমেইল সহায়তা
                   </p>
                 </div>
                 <div className="text-right shrink-0">
@@ -460,11 +482,15 @@ export const EnrollPage: React.FC<EnrollPageProps> = ({
               <ul className="space-y-3 text-xs sm:text-sm text-slate-800 font-medium">
                 <li className="flex items-start gap-2.5">
                   <CheckCircle2 size={17} className="text-emerald-600 shrink-0 mt-0.5" />
-                  <span>ফ্রি সুবিধাসহ সম্পূর্ণ ক্লাস</span>
+                  <span>শুরু থেকে ধাপে ধাপে সম্পূর্ণ ভিডিও ক্লাস</span>
                 </li>
                 <li className="flex items-start gap-2.5">
                   <CheckCircle2 size={17} className="text-emerald-600 shrink-0 mt-0.5" />
-                  <span>ধাপে ধাপে গাইডলাইন</span>
+                  <span>অভিভাবকদের জন্য শেখানো ও অনুশীলনের গাইডলাইন</span>
+                </li>
+                <li className="flex items-start gap-2.5">
+                  <CheckCircle2 size={17} className="text-emerald-600 shrink-0 mt-0.5" />
+                  <span>বাংলা ই-বুক লাইব্রেরি</span>
                 </li>
                 <li className="flex items-start gap-2.5">
                   <CheckCircle2 size={17} className="text-emerald-600 shrink-0 mt-0.5" />
@@ -472,16 +498,16 @@ export const EnrollPage: React.FC<EnrollPageProps> = ({
                 </li>
                 <li className="flex items-start gap-2.5">
                   <CheckCircle2 size={17} className="text-emerald-600 shrink-0 mt-0.5" />
-                  <span>বই ও ভার্চুয়াল অ্যাবাকাস</span>
+                  <span>ভার্চুয়াল অ্যাবাকাস</span>
                 </li>
                 <li className="flex items-start gap-2.5">
                   <CheckCircle2 size={17} className="text-emerald-600 shrink-0 mt-0.5" />
-                  <span>ফিজিক্যাল অ্যাবাকাস পাঠানো হবে</span>
+                  <span>ফিজিক্যাল অ্যাবাকাস পাঠানোর ব্যবস্থা</span>
                 </li>
                 <li className="flex items-start gap-2.5">
                   <CheckCircle2 size={17} className="text-emerald-600 shrink-0 mt-0.5" />
                   <span>
-                    যেকোনো সমস্যায় সপ্তাহে ৭ দিন ইমেইল সাপোর্ট
+                    সপ্তাহে সাত দিন ইমেইলে সহায়তা
                     {supportEmail && (
                       <>
                         {' ('}
@@ -504,7 +530,7 @@ export const EnrollPage: React.FC<EnrollPageProps> = ({
               onClick={handleScrollToCheckout}
               className="w-full min-h-[48px] px-5 py-3 bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white font-extrabold text-sm rounded-2xl shadow-md shadow-orange-500/20 transition-all inline-flex items-center justify-center gap-2 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-500 focus-visible:ring-offset-2"
             >
-              <span>পেমেন্ট ও ভর্তির অংশে যান</span>
+              <span>প্যাকেজ নিন</span>
               <ArrowDown size={17} className="shrink-0" />
             </a>
           </div>
@@ -519,10 +545,10 @@ export const EnrollPage: React.FC<EnrollPageProps> = ({
         <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-100 pb-4">
           <h3 className="text-lg font-black text-slate-900 flex items-center gap-2">
             <CreditCard size={20} className="text-orange-500 shrink-0" />
-            <span>ভর্তি প্রক্রিয়া ও ম্যানুয়াল পেমেন্ট</span>
+            <span>প্যাকেজ গ্রহণ ও ম্যানুয়াল পেমেন্ট</span>
           </h3>
           <span className="text-xs font-extrabold text-slate-800 bg-orange-50 border border-orange-200 px-3 py-1 rounded-full tabular-nums">
-            কোর্স ফি: ৳ {activeProviderConfig?.price_bdt ?? fee}
+            প্যাকেজ ফি: ৳ {activeProviderConfig?.price_bdt ?? fee}
           </span>
         </div>
 
@@ -533,10 +559,10 @@ export const EnrollPage: React.FC<EnrollPageProps> = ({
               <CheckCircle2 size={20} className="text-emerald-600 shrink-0 mt-0.5" />
               <div className="space-y-0.5">
                 <div className="font-extrabold text-sm">
-                  আপনার অ্যাকাউন্টে প্রিমিয়াম কোর্স এক্সেস সক্রিয় আছে
+                  আপনার অ্যাকাউন্টে সম্পূর্ণ প্যাকেজ এক্সেস সক্রিয় আছে
                 </div>
                 <p className="text-xs text-emerald-800">
-                  আপনি সকল পেইড ক্লাস, প্র্যাকটিস শিট এবং ই-বুক ব্যবহার করতে পারবেন।
+                  আপনি সকল পেইড ক্লাস, প্র্যাকটিস শিট, ই-বুক ও ভার্চুয়াল অ্যাবাকাস ব্যবহার করতে পারবেন।
                 </p>
               </div>
             </div>
@@ -653,7 +679,7 @@ export const EnrollPage: React.FC<EnrollPageProps> = ({
                   </div>
 
                   <div className="p-3 bg-white rounded-xl border border-slate-200">
-                    <span className="text-[11px] text-slate-500 block">প্রদেয় কোর্স ফি</span>
+                    <span className="text-[11px] text-slate-500 block">প্রদেয় প্যাকেজ ফি</span>
                     <span className="text-sm sm:text-base font-black text-emerald-700 tabular-nums">
                       ৳ {activeProviderConfig.price_bdt} টাকা
                     </span>
@@ -688,7 +714,7 @@ export const EnrollPage: React.FC<EnrollPageProps> = ({
                       পেমেন্ট তথ্য জমা দিতে লগইন বা অ্যাকাউন্ট তৈরি করুন
                     </h4>
                     <p className="text-xs text-slate-300 leading-relaxed">
-                      আপনার অ্যাকাউন্টে কোর্স এক্সেস যুক্ত করার জন্য প্রথমে ইমেইল ও কোডের মাধ্যমে লগইন বা নিবন্ধন সম্পন্ন করুন। এরপর এখানে আপনার TrxID ও প্রেরকের নম্বর জমা দিতে পারবেন।
+                      আপনার অ্যাকাউন্টে সম্পূর্ণ প্যাকেজ এক্সেস যুক্ত করার জন্য প্রথমে ইমেইল ও কোডের মাধ্যমে লগইন বা নিবন্ধন সম্পন্ন করুন। এরপর এখানে আপনার TrxID ও প্রেরকের নম্বর জমা দিতে পারবেন।
                     </p>
                   </div>
                 </div>
@@ -975,15 +1001,24 @@ export const EnrollPage: React.FC<EnrollPageProps> = ({
         </div>
       </div>
 
-      {/* Free Demo CTA */}
+      {/* Free Class CTA */}
       <div className="text-center pt-2">
         <p className="text-xs text-slate-500">
-          ভর্তির সিদ্ধান্ত নেওয়ার পূর্বে কোর্সের মান যাচাই করতে চান?{' '}
+          সিদ্ধান্ত নেওয়ার পূর্বে আমাদের ফ্রি ক্লাস ও শেখার রিসোর্স দেখতে চান?{' '}
           <button
-            onClick={() => onNavigate('/demo')}
+            type="button"
+            onClick={() => {
+              if (currentUser) {
+                onNavigate('/');
+              } else if (onOpenFreeClassAuth) {
+                onOpenFreeClassAuth('register');
+              } else {
+                onNavigate('/demo');
+              }
+            }}
             className="text-orange-600 hover:underline font-bold cursor-pointer"
           >
-            ডেমো ক্লাস দেখুন
+            ফ্রি ক্লাস দেখুন
           </button>
         </p>
       </div>
