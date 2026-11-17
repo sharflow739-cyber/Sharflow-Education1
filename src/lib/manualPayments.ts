@@ -13,25 +13,28 @@ export interface ManualPaymentProviderConfig {
   updated_at?: string;
 }
 
-export interface ManualPaymentClaim {
+export interface LearnerManualPaymentClaim {
   id: string;
-  user_id: string;
   provider: PaymentProvider;
   payment_method: PaymentMethod;
   recipient_number: string;
-  trx_id: string;
   trx_id_normalized: string;
   payer_number: string;
   submitted_amount_bdt: number;
   expected_amount_bdt: number;
-  verified_amount_bdt?: number | null;
   status: PaymentClaimStatus;
   reject_reason?: string | null;
-  admin_note?: string | null;
-  reviewed_by?: string | null;
   reviewed_at?: string | null;
   created_at: string;
   updated_at: string;
+}
+
+export interface ManualPaymentClaim extends LearnerManualPaymentClaim {
+  user_id: string;
+  trx_id: string;
+  verified_amount_bdt?: number | null;
+  admin_note?: string | null;
+  reviewed_by?: string | null;
   profile?: {
     id: string;
     full_name: string;

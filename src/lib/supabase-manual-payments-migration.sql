@@ -1,13 +1,17 @@
 -- =====================================================================
 -- STANDALONE ADDITIVE MIGRATION: MANUAL bKash / NAGAD PAYMENT SYSTEM
 -- Safe to run on top of existing schema. DO NOT rerun global schema.
+-- Wrapped in a single atomic transaction.
 -- Provides:
 --   1. Admin-configured per-provider payment settings (BDT price, number, exact method)
---   2. Signed-in user manual payment claims (no PIN/OTP, private self-read only)
---   3. Atomic admin approval RPC (verifies pending claim + ledger amount,
+--   2. Signed-in user manual payment claims (no PIN/OTP, serialized per-user limits)
+--   3. Safe learner-only RPC projection (students never read admin_note / reviewed_by)
+--   4. Atomic admin approval RPC (verifies pending claim + ledger amount,
 --      enforces unique accepted provider+TrxID constraint, grants course access)
---   4. Admin rejection RPC with explicit reason
+--   5. Admin rejection RPC with explicit reason
 -- =====================================================================
+
+begin;
 
 -- 0. Ensure profiles has enrollment status columns (idempotent / safe no-op if present)
 alter table public.profiles
@@ -124,27 +128,92 @@ alter table public.manual_payment_claims enable row level security;
 
 drop policy if exists manual_payment_claims_select on public.manual_payment_claims;
 
--- Private self-read only for signed-in active users; admins read all for review
+-- Strict admin-only direct table SELECT so students can never read admin_note, reviewed_by, or internal fields.
+-- Signed-in learners read ONLY their own safe projection via get_my_manual_payment_claims().
 create policy manual_payment_claims_select on public.manual_payment_claims
   for select to authenticated
-  using (
-    public.is_admin()
-    or (user_id = auth.uid() and public.is_active_user())
-  );
+  using (public.is_admin());
 
 -- Direct client INSERT/UPDATE/DELETE blocked; all state transitions go via RPCs below
 revoke all on public.manual_payment_claims from anon;
 revoke all on public.manual_payment_claims from authenticated;
 grant select on public.manual_payment_claims to authenticated;
 
--- 3. RPC: SIGNED-IN USER SUBMITS MANUAL PAYMENT CLAIM
+-- 3. RPC: SAFE LEARNER PROJECTION FOR OWN PAYMENT CLAIMS (excludes admin_note, reviewed_by, verified_amount_bdt)
+create or replace function public.get_my_manual_payment_claims()
+returns table (
+  id uuid,
+  provider text,
+  payment_method text,
+  recipient_number text,
+  trx_id_normalized text,
+  payer_number text,
+  submitted_amount_bdt integer,
+  expected_amount_bdt integer,
+  status text,
+  reject_reason text,
+  reviewed_at timestamptz,
+  created_at timestamptz,
+  updated_at timestamptz
+)
+language plpgsql
+security definer
+stable
+set search_path = public
+as $$
+declare
+  v_uid uuid;
+begin
+  v_uid := auth.uid();
+  if v_uid is null or not public.is_active_user() then
+    return;
+  end if;
+
+  return query
+  select
+    c.id,
+    c.provider,
+    c.payment_method,
+    c.recipient_number,
+    c.trx_id_normalized,
+    c.payer_number,
+    c.submitted_amount_bdt,
+    c.expected_amount_bdt,
+    c.status,
+    c.reject_reason,
+    c.reviewed_at,
+    c.created_at,
+    c.updated_at
+  from public.manual_payment_claims c
+  where c.user_id = v_uid
+  order by c.created_at desc;
+end;
+$$;
+
+-- 4. RPC: SIGNED-IN USER SUBMITS MANUAL PAYMENT CLAIM (serialized per user + safe learner return projection)
+drop function if exists public.submit_manual_payment_claim(text, text, text, integer);
+
 create or replace function public.submit_manual_payment_claim(
   p_provider text,
   p_trx_id text,
   p_payer_number text,
   p_amount_bdt integer
 )
-returns public.manual_payment_claims
+returns table (
+  id uuid,
+  provider text,
+  payment_method text,
+  recipient_number text,
+  trx_id_normalized text,
+  payer_number text,
+  submitted_amount_bdt integer,
+  expected_amount_bdt integer,
+  status text,
+  reject_reason text,
+  reviewed_at timestamptz,
+  created_at timestamptz,
+  updated_at timestamptz
+)
 language plpgsql
 security definer
 set search_path = public
@@ -165,6 +234,12 @@ begin
     raise exception 'পেমেন্ট জমা দিতে অনুগ্রহ করে সক্রিয় অ্যাকাউন্টে লগইন করুন।';
   end if;
 
+  -- Serialize concurrent submissions per user so pending/daily limit checks cannot race
+  perform pg_advisory_xact_lock(
+    hashtext('manual_payment_claim_submit'),
+    hashtext(v_uid::text)
+  );
+
   select p.enrollment_status
     into v_enrollment_status
     from public.profiles p
@@ -180,8 +255,8 @@ begin
 
   select *
     into v_config
-    from public.manual_payment_providers
-   where provider = p_provider;
+    from public.manual_payment_providers mp
+   where mp.provider = p_provider;
 
   if v_config.provider is null
      or not v_config.is_enabled
@@ -279,11 +354,25 @@ begin
   )
   returning * into v_created;
 
-  return v_created;
+  return query
+  select
+    v_created.id,
+    v_created.provider,
+    v_created.payment_method,
+    v_created.recipient_number,
+    v_created.trx_id_normalized,
+    v_created.payer_number,
+    v_created.submitted_amount_bdt,
+    v_created.expected_amount_bdt,
+    v_created.status,
+    v_created.reject_reason,
+    v_created.reviewed_at,
+    v_created.created_at,
+    v_created.updated_at;
 end;
 $$;
 
--- 4. RPC: ADMIN-ONLY ATOMIC APPROVAL (verifies pending claim + ledger amount + unique TrxID + grants access)
+-- 5. RPC: ADMIN-ONLY ATOMIC APPROVAL (verifies pending claim + ledger amount + unique TrxID + grants access)
 create or replace function public.approve_manual_payment_claim(
   p_claim_id uuid,
   p_verified_amount_bdt integer,
@@ -351,6 +440,7 @@ begin
         v_claim.trx_id_normalized;
   end;
 
+  -- Matches existing set_student_status / guard_profile_update enrollment update
   update public.profiles
      set enrollment_status = 'approved',
          reviewed_at = timezone('utc', now()),
@@ -365,7 +455,7 @@ begin
 end;
 $$;
 
--- 5. RPC: ADMIN-ONLY REJECTION
+-- 6. RPC: ADMIN-ONLY REJECTION
 create or replace function public.reject_manual_payment_claim(
   p_claim_id uuid,
   p_reject_reason text,
@@ -422,6 +512,9 @@ begin
 end;
 $$;
 
+revoke all on function public.get_my_manual_payment_claims() from public, anon;
+grant execute on function public.get_my_manual_payment_claims() to authenticated;
+
 revoke all on function public.submit_manual_payment_claim(text, text, text, integer) from public, anon;
 grant execute on function public.submit_manual_payment_claim(text, text, text, integer) to authenticated;
 
@@ -430,3 +523,5 @@ grant execute on function public.approve_manual_payment_claim(uuid, integer, tex
 
 revoke all on function public.reject_manual_payment_claim(uuid, text, text) from public, anon;
 grant execute on function public.reject_manual_payment_claim(uuid, text, text) to authenticated;
+
+commit;

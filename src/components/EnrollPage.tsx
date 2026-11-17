@@ -6,7 +6,7 @@ import {
   isPaymentsMigrationMissingError,
   isProviderConfigured,
   isValidTrxId,
-  ManualPaymentClaim,
+  LearnerManualPaymentClaim,
   ManualPaymentProviderConfig,
   normalizeBdMobile,
   normalizeTrxId,
@@ -74,7 +74,7 @@ export const EnrollPage: React.FC<EnrollPageProps> = ({
   const [copiedNumber, setCopiedNumber] = useState<string | null>(null);
 
   const [claimsLoading, setClaimsLoading] = useState(false);
-  const [myClaims, setMyClaims] = useState<ManualPaymentClaim[]>([]);
+  const [myClaims, setMyClaims] = useState<LearnerManualPaymentClaim[]>([]);
 
   // Form inputs (never asks for PIN/OTP/password/screenshot)
   const [payerNumber, setPayerNumber] = useState('');
@@ -121,14 +121,12 @@ export const EnrollPage: React.FC<EnrollPageProps> = ({
 
       if (currentUser?.id && currentUser.is_active) {
         setClaimsLoading(true);
-        const { data: claimRows, error: claimsErr } = await supabase
-          .from('manual_payment_claims')
-          .select('*')
-          .eq('user_id', currentUser.id)
-          .order('created_at', { ascending: false });
+        const { data: claimRows, error: claimsErr } = await supabase.rpc(
+          'get_my_manual_payment_claims'
+        );
 
-        if (!claimsErr && claimRows) {
-          setMyClaims(claimRows as ManualPaymentClaim[]);
+        if (!claimsErr && Array.isArray(claimRows)) {
+          setMyClaims(claimRows as LearnerManualPaymentClaim[]);
         } else {
           setMyClaims([]);
         }
