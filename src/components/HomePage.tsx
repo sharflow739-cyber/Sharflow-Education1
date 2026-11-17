@@ -4,14 +4,13 @@ import { PublicWelcomeVideo } from './PublicWelcomeVideo';
 import { SorobanMiniDemo } from './SorobanMiniDemo';
 import { 
   PlayCircle, UserPlus, CheckCircle2, HelpCircle, 
-  Smartphone, BookOpen, Clock, Calculator, Video, ArrowRight, Lock, LogIn
+  Smartphone, BookOpen, Clock, Calculator, Video, ArrowRight, LogIn
 } from 'lucide-react';
 
 interface HomePageProps {
   onNavigate: (path: string) => void;
-  onOpenAuth: (tab?: 'login' | 'register') => void;
-  onOpenDemoAuth: () => void;
   onOpenFreeResourcesAuth?: (redirectPath?: string, tab?: 'login' | 'register') => void;
+  onOpenAbacusAuth?: (tab?: 'login' | 'register') => void;
   publishedClassesCount: number;
 }
 
@@ -20,14 +19,21 @@ const BOOK_PREVIEW_IMAGE_PATH = '/assets/aistudio/book-preview_8ecf165f.png';
 
 export const HomePage: React.FC<HomePageProps> = ({
   onNavigate,
-  onOpenAuth,
-  onOpenDemoAuth,
   onOpenFreeResourcesAuth,
+  onOpenAbacusAuth,
   publishedClassesCount,
 }) => {
   const { settings } = useSettings();
   const resolvedWelcomeVideoUrl =
     (settings.public_welcome_video_url || '').trim() || '/sharflow-welcome-signup.mp4';
+
+  const openAbacusModal = (tab: 'login' | 'register' = 'login') => {
+    if (onOpenAbacusAuth) {
+      onOpenAbacusAuth(tab);
+    } else {
+      onOpenFreeResourcesAuth?.('/abacus', tab);
+    }
+  };
 
   return (
     <div className="space-y-16 pb-12">
@@ -59,51 +65,46 @@ export const HomePage: React.FC<HomePageProps> = ({
           </p>
 
           {/* Primary & Secondary Action Buttons */}
-          <div className="pt-2 flex flex-col sm:flex-row items-center justify-center gap-3 sm:gap-4 max-w-xl mx-auto">
+          <div className="pt-2 flex flex-col sm:flex-row items-center justify-center gap-3 sm:gap-4 max-w-2xl mx-auto">
             <button
-              onClick={onOpenDemoAuth}
+              type="button"
+              onClick={() => onNavigate('/demo')}
               className="w-full sm:w-auto min-h-[48px] px-6 py-3.5 bg-gradient-to-r from-[#E4BE67] via-[#D7AC4C] to-[#C89B3B] hover:from-[#ECC978] hover:to-[#D5A847] text-[#141517] font-extrabold text-sm rounded-2xl shadow-lg shadow-[#D4AF5F]/20 transition-all flex items-center justify-center gap-2 active:scale-98 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#F4D992] focus-visible:ring-offset-2 focus-visible:ring-offset-[#18191C]"
             >
               <PlayCircle size={18} />
-              <span>ফ্রি ক্লাস দেখুন</span>
+              <span>ডেমো ক্লাস দেখুন</span>
             </button>
 
             <button
-              onClick={() => onNavigate('/enroll')}
+              type="button"
+              onClick={() => onOpenFreeResourcesAuth?.('/', 'login')}
               className="w-full sm:w-auto min-h-[48px] px-6 py-3.5 bg-[#24252B] hover:bg-[#2F3138] text-[#FAF7F0] border border-[#D4AF5F]/45 hover:border-[#E8C778] font-extrabold text-sm rounded-2xl shadow-xs transition-all flex items-center justify-center gap-2 active:scale-98 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#E8C778] focus-visible:ring-offset-2 focus-visible:ring-offset-[#18191C]"
             >
-              <UserPlus size={18} className="text-[#E4BE67]" />
-              <span>ভর্তির তথ্য দেখুন</span>
+              <LogIn size={18} className="text-[#E4BE67]" />
+              <span>ফ্রি রিসোর্স পেতে লগইন করুন</span>
             </button>
           </div>
 
-          {/* Step-by-step instructions for accessing free demo */}
+          {/* Clear Public Demo vs Free Resources Guide */}
           <div className="max-w-xl mx-auto bg-[#1E1F24]/95 border border-[#D4AF5F]/25 rounded-2xl px-4 py-3 text-xs sm:text-sm text-[#EFE9DC] font-semibold leading-relaxed shadow-2xs space-y-1.5">
-            <p>নতুন অ্যাকাউন্ট নিবন্ধন করুন, ইমেইল যাচাই করুন, তারপর লগইন করে ফ্রি ডেমো দেখুন।</p>
-            <p className="text-[11px] sm:text-xs text-[#CFC7B7] font-medium flex flex-wrap items-center justify-center gap-x-2 gap-y-1">
-              <span>ইতিমধ্যে অ্যাকাউন্ট থাকলে:</span>
+            <p>
+              লগইন ছাড়াই পাবলিক ডেমো ক্লাস দেখুন। সম্পূর্ণ ফ্রি ক্লাস, ই-বুক ও ভার্চুয়াল অ্যাবাকাস ব্যবহার করতে লগইন বা ফ্রি অ্যাকাউন্ট তৈরি করুন।
+            </p>
+            <p className="text-[11px] sm:text-xs text-[#CFC7B7] font-medium flex flex-wrap items-center justify-center gap-x-2.5 gap-y-1">
               <button
                 type="button"
-                onClick={() => onOpenAuth('login')}
+                onClick={() => onOpenFreeResourcesAuth?.('/', 'register')}
                 className="font-extrabold text-[#E8C778] underline hover:text-[#F4D992] cursor-pointer"
               >
-                ফ্রি ক্লাস দেখতে লগইন করুন
+                নতুন অ্যাকাউন্ট তৈরি করুন (OTP)
               </button>
               <span aria-hidden="true">·</span>
               <button
                 type="button"
-                onClick={() => onOpenFreeResourcesAuth?.('/', 'login')}
+                onClick={() => onNavigate('/enroll')}
                 className="font-extrabold text-[#FAF7F0] underline hover:text-[#E8C778] cursor-pointer"
               >
-                ফ্রি রিসোর্স পেতে লগইন করুন
-              </button>
-              <span aria-hidden="true">·</span>
-              <button
-                type="button"
-                onClick={() => onNavigate('/demo')}
-                className="font-extrabold text-[#E8C778] underline hover:text-[#F4D992] cursor-pointer"
-              >
-                ডেমো পেজে যান
+                ভর্তির তথ্য দেখুন
               </button>
             </p>
           </div>
@@ -142,12 +143,12 @@ export const HomePage: React.FC<HomePageProps> = ({
               ভর্তির আগে দেখে নিন
             </h2>
             <p className="text-xs sm:text-sm text-[#4F4B43] max-w-2xl leading-relaxed">
-              কোর্সে ভর্তি হওয়ার আগেই আমাদের ফ্রি ক্লাস ও অনুশীলন শিট, বাংলা ই-বুক লাইব্রেরি এবং ভার্চুয়াল সোরোবান অ্যাবাকাস সম্পর্কে পরিষ্কার ধারণা নিন।
+              কোর্সে ভর্তি হওয়ার আগেই আমাদের পাবলিক ডেমো ক্লাস, বাংলা ই-বুক লাইব্রেরি এবং ভার্চুয়াল সোরোবান অ্যাবাকাস সম্পর্কে পরিষ্কার ধারণা নিন।
             </p>
           </div>
 
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-5 items-stretch">
-            {/* Card 1: Class Preview (16:9 thumbnail + decorative play/lock linking to demo auth; never exposes gated video) */}
+            {/* Card 1: Public Demo Class & Free Classes */}
             <article className="p-5 rounded-2xl bg-[#FBF7EC] border border-[#E6D9B8] flex flex-col justify-between gap-4">
               <div className="space-y-3">
                 <div className="flex items-center gap-3">
@@ -156,23 +157,26 @@ export const HomePage: React.FC<HomePageProps> = ({
                   </div>
                   <div className="min-w-0">
                     <p className="text-[11px] font-bold text-[#855E18]">
-                      ফ্রি ভিডিও লেসন · প্র্যাকটিস শিট
+                      পাবলিক ডেমো · লগইন ছাড়াই দেখুন
                     </p>
                     <h3 className="font-extrabold text-[#18191C] text-base leading-snug">
-                      ফ্রি ক্লাস প্রিভিউ
+                      ডেমো ক্লাস প্রিভিউ
                     </h3>
                   </div>
                 </div>
 
-                <button
-                  type="button"
-                  onClick={onOpenDemoAuth}
-                  aria-label="ফ্রি ক্লাস দেখতে নিবন্ধন বা লগইন করুন"
+                <a
+                  href="/demo"
+                  onClick={(e) => {
+                    e.preventDefault();
+                    onNavigate('/demo');
+                  }}
+                  aria-label="পাবলিক ডেমো ক্লাস দেখুন"
                   className="group/thumb relative aspect-video w-full rounded-xl overflow-hidden bg-[#18191C] border border-[#C89D4A]/45 block cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#9E7324] focus-visible:ring-offset-2"
                 >
                   <img
                     src={CLASS_PREVIEW_IMAGE_PATH}
-                    alt="সোরোবান অ্যাবাকাস হাতে অনুশীলনের ক্লাস প্রিভিউ"
+                    alt="সোরোবান অ্যাবাকাস হাতে অনুশীলনের ডেমো ক্লাস প্রিভিউ"
                     width={1672}
                     height={941}
                     referrerPolicy="no-referrer"
@@ -187,41 +191,43 @@ export const HomePage: React.FC<HomePageProps> = ({
                     className="absolute inset-x-2.5 bottom-2.5 flex items-center justify-between gap-2"
                   >
                     <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-[#141517]/85 border border-[#D4AF5F]/50 text-[#FAF7F0] text-[11px] font-bold">
-                      <Lock size={12} className="text-[#E4BE67] shrink-0" />
-                      <span>অ্যাকাউন্টে আনলক হয়</span>
+                      <span>পাবলিক ডেমো ক্লাস</span>
                     </span>
                     <span className="w-9 h-9 rounded-full bg-gradient-to-r from-[#E4BE67] to-[#CFA242] text-[#141517] flex items-center justify-center shadow-md group-hover/thumb:scale-105 transition-transform motion-reduce:transition-none shrink-0">
                       <PlayCircle size={18} />
                     </span>
                   </div>
-                </button>
+                </a>
 
                 <p className="text-xs sm:text-sm text-[#4F4B43] leading-relaxed">
-                  বিনামূল্যে অ্যাকাউন্ট খুলে ও ইমেইল যাচাই করে সোরোবানের শুরু ও পাঠদান পদ্ধতির ফ্রি ক্লাস এবং অনুশীলন ওয়ার্কশিট দেখুন।
+                  লগইন ছাড়াই আমাদের পাঠদান পদ্ধতির ডেমো ক্লাস দেখুন। এছাড়া সম্পূর্ণ ফ্রি ক্লাস ও ওয়ার্কশিট পেতে অ্যাকাউন্টে লগইন করুন।
                 </p>
               </div>
 
               <div className="space-y-2">
-                <button
-                  type="button"
-                  onClick={onOpenDemoAuth}
+                <a
+                  href="/demo"
+                  onClick={(e) => {
+                    e.preventDefault();
+                    onNavigate('/demo');
+                  }}
                   className="w-full min-h-[44px] px-4 py-2.5 bg-gradient-to-r from-[#E4BE67] to-[#CFA242] hover:from-[#ECC978] hover:to-[#DBB052] text-[#141517] font-extrabold text-xs rounded-xl shadow-xs transition-all inline-flex items-center justify-center gap-2 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#9E7324] focus-visible:ring-offset-2"
                 >
                   <PlayCircle size={16} className="shrink-0" />
-                  <span>ফ্রি ক্লাস দেখুন</span>
-                </button>
+                  <span>ডেমো ক্লাস দেখুন</span>
+                </a>
                 <button
                   type="button"
-                  onClick={() => onOpenAuth('login')}
+                  onClick={() => onOpenFreeResourcesAuth?.('/', 'login')}
                   className="w-full min-h-[40px] px-3 py-2 bg-[#FFFDF9] hover:bg-[#F3EDE0] text-[#18191C] border border-[#D8CBAF] font-bold text-xs rounded-xl transition-colors inline-flex items-center justify-center gap-1.5 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#9E7324]"
                 >
                   <LogIn size={14} className="text-[#855E18] shrink-0" />
-                  <span>ফ্রি ক্লাস দেখতে লগইন করুন</span>
+                  <span>ফ্রি রিসোর্স পেতে লগইন করুন</span>
                 </button>
               </div>
             </article>
 
-            {/* Card 2: E-book Library (16:9 illustrative reader thumbnail, not claimed as a specific real cover; preserves /ebooks access gate) */}
+            {/* Card 2: E-book Library (16:9 illustrative reader thumbnail; preserves /ebooks login gate) */}
             <article className="p-5 rounded-2xl bg-[#FBF7EC] border border-[#E6D9B8] flex flex-col justify-between gap-4">
               <div className="space-y-3">
                 <div className="flex items-center gap-3">
@@ -296,8 +302,11 @@ export const HomePage: React.FC<HomePageProps> = ({
               </div>
             </article>
 
-            {/* Card 3: Virtual Abacus (compact working Soroban mini demo + direct /abacus link) */}
-            <article className="p-5 rounded-2xl bg-[#FBF7EC] border border-[#E6D9B8] flex flex-col justify-between gap-4">
+            {/* Card 3: Virtual Abacus (clicking card, visual or buttons opens login/signup modal targeting /abacus) */}
+            <article
+              onClick={() => openAbacusModal('login')}
+              className="p-5 rounded-2xl bg-[#FBF7EC] border border-[#E6D9B8] hover:border-[#C89D4A] transition-colors flex flex-col justify-between gap-4 cursor-pointer"
+            >
               <div className="space-y-3">
                 <div className="flex items-center gap-3">
                   <div className="w-10 h-10 rounded-xl bg-[#18191C] border border-[#C89D4A]/45 text-[#E4BE67] flex items-center justify-center shrink-0">
@@ -305,7 +314,7 @@ export const HomePage: React.FC<HomePageProps> = ({
                   </div>
                   <div className="min-w-0">
                     <p className="text-[11px] font-bold text-[#855E18]">
-                      ইন্টারঅ্যাক্টিভ টুল · মিনি ডেমো
+                      ইন্টারঅ্যাক্টিভ টুল · লগইন আবশ্যক
                     </p>
                     <h3 className="font-extrabold text-[#18191C] text-base leading-snug">
                       ভার্চুয়াল অ্যাবাকাস
@@ -313,20 +322,27 @@ export const HomePage: React.FC<HomePageProps> = ({
                   </div>
                 </div>
 
-                <SorobanMiniDemo />
+                <SorobanMiniDemo onPreviewClick={() => openAbacusModal('login')} />
               </div>
 
               <div className="space-y-2">
-                <a
-                  href="/abacus"
-                  className="w-full min-h-[44px] px-4 py-2.5 bg-[#18191C] hover:bg-[#27292E] text-[#FAF7F0] border border-[#C89D4A]/45 font-extrabold text-xs rounded-xl shadow-xs transition-colors inline-flex items-center justify-center gap-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#9E7324] focus-visible:ring-offset-2"
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    openAbacusModal('login');
+                  }}
+                  className="w-full min-h-[44px] px-4 py-2.5 bg-[#18191C] hover:bg-[#27292E] text-[#FAF7F0] border border-[#C89D4A]/45 font-extrabold text-xs rounded-xl shadow-xs transition-colors inline-flex items-center justify-center gap-2 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#9E7324] focus-visible:ring-offset-2"
                 >
                   <span>ভার্চুয়াল অ্যাবাকাস খুলুন</span>
                   <ArrowRight size={15} className="text-[#E4BE67] shrink-0" />
-                </a>
+                </button>
                 <button
                   type="button"
-                  onClick={() => onOpenFreeResourcesAuth?.('/', 'register')}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    openAbacusModal('register');
+                  }}
                   className="w-full min-h-[40px] px-3 py-2 bg-[#FFFDF9] hover:bg-[#F3EDE0] text-[#18191C] border border-[#D8CBAF] font-bold text-xs rounded-xl transition-colors inline-flex items-center justify-center gap-1.5 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#9E7324]"
                 >
                   <UserPlus size={14} className="text-[#855E18] shrink-0" />
@@ -496,15 +512,19 @@ export const HomePage: React.FC<HomePageProps> = ({
             </div>
           </div>
 
-          <div className="p-4 bg-[#FFFDF9] border border-[#E5DEC9] rounded-2xl flex items-start gap-3">
+          <button
+            type="button"
+            onClick={() => openAbacusModal('login')}
+            className="p-4 bg-[#FFFDF9] hover:bg-[#FBF7EC] border border-[#E5DEC9] hover:border-[#C89D4A] rounded-2xl flex items-start gap-3 text-left transition-colors cursor-pointer"
+          >
             <CheckCircle2 size={20} className="text-[#8A6118] shrink-0 mt-0.5" />
             <div className="space-y-1">
               <h4 className="font-bold text-[#18191C] text-xs sm:text-sm">ভার্চুয়াল অ্যাবাকাস টুল</h4>
               <p className="text-xs text-[#4F4B43]">
-                ব্রাউজারে সরাসরি ইন্টারঅ্যাক্টিভ অ্যাবাকাস ফ্রেম ব্যবহারের সুবিধা।
+                অ্যাকাউন্টে লগইন করে ব্রাউজারে সরাসরি ইন্টারঅ্যাক্টিভ অ্যাবাকাস ফ্রেম ব্যবহারের সুবিধা।
               </p>
             </div>
-          </div>
+          </button>
 
           <div className="p-4 bg-[#FFFDF9] border border-[#E5DEC9] rounded-2xl flex items-start gap-3">
             <CheckCircle2 size={20} className="text-[#8A6118] shrink-0 mt-0.5" />
@@ -586,22 +606,24 @@ export const HomePage: React.FC<HomePageProps> = ({
             আজই শুরু করুন আপনার সন্তানের অ্যাবাকাস যাত্রা
           </h3>
           <p className="text-xs sm:text-sm text-[#D8D1C2] max-w-lg mx-auto leading-relaxed">
-            নতুন অ্যাকাউন্ট নিবন্ধন করুন, ইমেইল যাচাই করুন, তারপর লগইন করে ফ্রি ডেমো দেখুন।
+            লগইন ছাড়াই আমাদের পাবলিক ডেমো ক্লাস দেখুন অথবা বিনামূল্যে অ্যাকাউন্ট তৈরি করে ফ্রি ক্লাস, ই-বুক ও ভার্চুয়াল অ্যাবাকাস ব্যবহার শুরু করুন।
           </p>
           <div className="flex flex-col sm:flex-row items-center justify-center gap-3 pt-2">
             <button
-              onClick={onOpenDemoAuth}
+              type="button"
+              onClick={() => onNavigate('/demo')}
               className="w-full sm:w-auto min-h-[44px] px-6 py-3 bg-gradient-to-r from-[#E4BE67] to-[#CFA242] hover:from-[#ECC978] hover:to-[#DBB052] text-[#141517] font-extrabold text-xs rounded-xl shadow-md transition-all flex items-center justify-center gap-2 cursor-pointer"
             >
               <PlayCircle size={16} />
-              <span>ফ্রি ক্লাস দেখুন</span>
+              <span>ডেমো ক্লাস দেখুন</span>
             </button>
             <button
-              onClick={() => onNavigate('/enroll')}
+              type="button"
+              onClick={() => onOpenFreeResourcesAuth?.('/', 'login')}
               className="w-full sm:w-auto min-h-[44px] px-6 py-3 bg-white/8 hover:bg-white/14 text-[#FAF7F0] font-bold text-xs rounded-xl border border-[#D4AF5F]/40 transition-all flex items-center justify-center gap-2 cursor-pointer"
             >
-              <UserPlus size={16} className="text-[#E4BE67]" />
-              <span>ভর্তির তথ্য দেখুন</span>
+              <LogIn size={16} className="text-[#E4BE67]" />
+              <span>ফ্রি রিসোর্স পেতে লগইন করুন</span>
             </button>
           </div>
         </div>

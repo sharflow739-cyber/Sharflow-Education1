@@ -28,7 +28,7 @@ import { ResetPasswordModal } from './components/ResetPasswordModal';
 import { SetupRequiredView } from './components/SetupRequiredView';
 import { SupportWidget } from './components/SupportWidget';
 
-import { AlertOctagon, LogOut, AlertCircle, X } from 'lucide-react';
+import { AlertOctagon, LogOut, AlertCircle, X, Calculator, Lock, LogIn, UserPlus, ArrowRight, ArrowLeft } from 'lucide-react';
 
 const analyticsId = 'G-T6MR5VKW39';
 const analyticsPublicPaths = new Set(['/', '/demo', '/enroll', '/contact', '/privacy', '/terms', '/refund']);
@@ -175,8 +175,12 @@ export default function App() {
     return () => window.removeEventListener('popstate', handleLocationChange);
   }, [classes]);
 
-  // Safe SPA navigation
+  // Safe SPA navigation (and full browser navigation for /abacus rewrite)
   const navigateTo = useCallback((path: string) => {
+    if (path === '/abacus' || path === '/abacus/') {
+      window.location.assign('/abacus');
+      return;
+    }
     const prevPath = prevPathRef.current;
     if (window.location.pathname !== path) {
       window.history.pushState({}, '', path);
@@ -507,10 +511,11 @@ export default function App() {
         onOpenAuth={() =>
           openAuthModal(
             'login',
-            currentPath === '/demo' ? '/demo' : null,
-            currentPath === '/demo' ? 'demo' : 'other'
+            currentPath === '/abacus' ? '/abacus' : currentPath === '/demo' ? '/demo' : null,
+            'demo'
           )
         }
+        onOpenAbacusAuth={() => openAuthModal('login', '/abacus', 'demo')}
         activePath={currentPath}
         onNavigate={navigateTo}
         pendingRequestsCount={pendingRequestsCount}
@@ -551,13 +556,13 @@ export default function App() {
       <main className="flex-1">
         
         {/* ======================================================== */}
-        {/* ROUTE 1: GATED DEMO (/demo) */}
+        {/* ROUTE 1: PUBLIC DEMO (/demo) */}
         {/* ======================================================== */}
         {currentPath === '/demo' && (
           <DemoPage
             currentUser={currentUser}
             onNavigate={navigateTo}
-            onOpenAuth={(tab = 'register') => openAuthModal(tab, '/demo', 'demo')}
+            onOpenAuth={(tab = 'register') => openAuthModal(tab, '/', 'demo')}
           />
         )}
 
@@ -570,6 +575,85 @@ export default function App() {
             onNavigate={navigateTo}
             onOpenAuth={(tab = 'login') => openAuthModal(tab, '/ebooks', 'other')}
           />
+        )}
+
+        {/* ======================================================== */}
+        {/* ROUTE 1C: AUTHENTICATED VIRTUAL ABACUS (/abacus) */}
+        {/* ======================================================== */}
+        {(currentPath === '/abacus' || currentPath === '/abacus/') && (
+          !currentUser ? (
+            <div className="max-w-lg mx-auto px-4 py-12 sm:py-16">
+              <div className="p-6 sm:p-8 bg-gradient-to-br from-[#141517] via-[#1B1C20] to-[#23201A] text-[#FAF7F0] rounded-3xl border border-[#D4AF5F]/35 shadow-xl text-center space-y-5">
+                <div className="w-14 h-14 rounded-2xl bg-[#222328] border border-[#C89D4A]/45 text-[#E4BE67] mx-auto flex items-center justify-center">
+                  <Lock size={26} />
+                </div>
+                <div className="space-y-2">
+                  <h1 className="text-xl sm:text-2xl font-black text-[#FAF7F0]">
+                    ভার্চুয়াল অ্যাবাকাস ব্যবহার করতে লগইন করুন
+                  </h1>
+                  <p className="text-xs sm:text-sm text-[#D8D1C2] leading-relaxed">
+                    পূর্ণাঙ্গ ইন্টারঅ্যাক্টিভ ভার্চুয়াল অ্যাবাকাস টুল ব্যবহার করতে অনুগ্রহ করে লগইন করুন অথবা নতুন ফ্রি অ্যাকাউন্ট তৈরি করুন।
+                  </p>
+                </div>
+                <div className="flex flex-col sm:flex-row items-center justify-center gap-3 pt-1">
+                  <button
+                    type="button"
+                    onClick={() => openAuthModal('login', '/abacus', 'demo')}
+                    className="w-full sm:w-auto min-h-[46px] px-5 py-2.5 bg-gradient-to-r from-[#E4BE67] to-[#CFA242] hover:from-[#ECC978] hover:to-[#DBB052] text-[#141517] font-extrabold text-xs sm:text-sm rounded-xl shadow-md inline-flex items-center justify-center gap-2 cursor-pointer"
+                  >
+                    <LogIn size={16} />
+                    <span>লগইন করুন</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => openAuthModal('register', '/abacus', 'demo')}
+                    className="w-full sm:w-auto min-h-[46px] px-5 py-2.5 bg-[#24252B] hover:bg-[#2F3138] text-[#FAF7F0] border border-[#D4AF5F]/45 font-bold text-xs sm:text-sm rounded-xl inline-flex items-center justify-center gap-2 cursor-pointer"
+                  >
+                    <UserPlus size={16} className="text-[#E4BE67]" />
+                    <span>নতুন অ্যাকাউন্ট তৈরি করুন (OTP)</span>
+                  </button>
+                </div>
+                <div className="pt-2">
+                  <button
+                    type="button"
+                    onClick={() => navigateTo('/')}
+                    className="inline-flex items-center gap-1.5 text-xs font-bold text-[#CFC7B7] hover:text-[#E8C778] cursor-pointer"
+                  >
+                    <ArrowLeft size={14} />
+                    <span>মূল পাতায় ফিরে যান</span>
+                  </button>
+                </div>
+              </div>
+            </div>
+          ) : (
+            <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8 space-y-4">
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <button
+                  type="button"
+                  onClick={() => navigateTo('/')}
+                  className="inline-flex items-center gap-1.5 text-xs font-bold text-[#575247] hover:text-[#18191C] cursor-pointer"
+                >
+                  <ArrowLeft size={16} />
+                  <span>ড্যাশবোর্ডে ফিরে যান</span>
+                </button>
+                <a
+                  href="https://sharflow-education2.vercel.app/"
+                  className="min-h-[38px] px-4 py-2 bg-gradient-to-r from-[#E4BE67] to-[#CFA242] hover:from-[#ECC978] hover:to-[#DBB052] text-[#141517] font-extrabold text-xs rounded-xl shadow-xs inline-flex items-center gap-1.5"
+                >
+                  <Calculator size={15} />
+                  <span>পূর্ণ স্ক্রিনে ভার্চুয়াল অ্যাবাকাস খুলুন</span>
+                  <ArrowRight size={14} />
+                </a>
+              </div>
+              <div className="rounded-2xl overflow-hidden border border-[#D4AF5F]/40 bg-[#18191C] shadow-lg">
+                <iframe
+                  src="https://sharflow-education2.vercel.app/"
+                  title="ভার্চুয়াল সোরোবান অ্যাবাকাস"
+                  className="w-full h-[72dvh] min-h-[480px] border-0 bg-white"
+                />
+              </div>
+            </div>
+          )
         )}
 
         {/* ======================================================== */}
@@ -673,6 +757,8 @@ export default function App() {
         {/* ======================================================== */}
         {currentPath !== '/demo' &&
           currentPath !== '/ebooks' &&
+          currentPath !== '/abacus' &&
+          currentPath !== '/abacus/' &&
           currentPath !== '/enroll' &&
           currentPath !== '/contact' &&
           currentPath !== '/terms' &&
@@ -683,10 +769,11 @@ export default function App() {
               /* Public Mobile-First Homepage */
               <HomePage
                 onNavigate={navigateTo}
-                onOpenAuth={(tab = 'login') => openAuthModal(tab, '/demo', 'demo')}
-                onOpenDemoAuth={() => openAuthModal('register', '/demo', 'demo')}
-                onOpenFreeResourcesAuth={(redirectPath = '/', tab = 'register') =>
-                  openAuthModal(tab, redirectPath, 'other')
+                onOpenFreeResourcesAuth={(redirectPath = '/', tab = 'login') =>
+                  openAuthModal(tab, redirectPath, 'demo')
+                }
+                onOpenAbacusAuth={(tab = 'login') =>
+                  openAuthModal(tab, '/abacus', 'demo')
                 }
                 publishedClassesCount={publishedClassesCount}
               />
@@ -766,7 +853,7 @@ export default function App() {
         initialTab={authInitialTab}
         signupOrigin={authOrigin}
         onBeforeDemoCompleteRegistration={() => {
-          if (authOrigin === 'demo') {
+          if (authOrigin === 'demo' && postAuthRedirect === '/demo') {
             navigateTo('/demo');
           }
         }}
@@ -777,7 +864,13 @@ export default function App() {
         }}
         onLoginSuccess={(user) => {
           setCurrentUser(user);
-          const targetPath = postAuthRedirect || (currentPath === '/demo' ? '/demo' : '/');
+          const targetPath =
+            postAuthRedirect ||
+            (currentPath === '/abacus' || currentPath === '/abacus/'
+              ? '/abacus'
+              : currentPath === '/demo'
+              ? '/demo'
+              : '/');
           setPostAuthRedirect(null);
           setAuthOrigin('other');
           navigateTo(targetPath);

@@ -7,6 +7,7 @@ interface HeaderProps {
   currentUser: UserProfile | null;
   onLogout: () => void;
   onOpenAuth: () => void;
+  onOpenAbacusAuth?: () => void;
   activePath: string;
   onNavigate: (path: string) => void;
   pendingRequestsCount?: number;
@@ -19,6 +20,7 @@ export const Header: React.FC<HeaderProps> = ({
   currentUser,
   onLogout,
   onOpenAuth,
+  onOpenAbacusAuth,
   activePath,
   onNavigate,
   pendingRequestsCount = 0,
@@ -126,7 +128,7 @@ export const Header: React.FC<HeaderProps> = ({
                     size={14}
                     className={activePath === '/demo' ? 'text-[#E4BE67] shrink-0' : 'text-[#8B641E] shrink-0'}
                   />
-                  <span>ফ্রি ডেমো</span>
+                  <span>ডেমো ক্লাস</span>
                 </a>
                 <a
                   href="/enroll"
@@ -144,6 +146,21 @@ export const Header: React.FC<HeaderProps> = ({
                   />
                   <span>ভর্তির তথ্য</span>
                 </a>
+                <button
+                  type="button"
+                  onClick={() => (onOpenAbacusAuth ? onOpenAbacusAuth() : onOpenAuth())}
+                  className={`min-h-[36px] px-2.5 sm:px-3 py-1.5 rounded-lg text-xs font-bold transition-all inline-flex items-center gap-1.5 whitespace-nowrap cursor-pointer ${
+                    activePath.startsWith('/abacus')
+                      ? 'bg-[#18191C] text-[#F2D283] border border-[#C89D4A]/55 shadow-2xs'
+                      : 'text-[#3B3934] hover:text-[#141517] hover:bg-[#F3EDE0] border border-transparent'
+                  }`}
+                >
+                  <Calculator
+                    size={14}
+                    className={activePath.startsWith('/abacus') ? 'text-[#E4BE67] shrink-0' : 'text-[#8B641E] shrink-0'}
+                  />
+                  <span>ভার্চুয়াল অ্যাবাকাস</span>
+                </button>
               </>
             ) : (
               <>

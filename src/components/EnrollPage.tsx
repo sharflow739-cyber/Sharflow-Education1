@@ -430,7 +430,7 @@ export const EnrollPage: React.FC<EnrollPageProps> = ({
               className="w-full min-h-[48px] px-5 py-3 bg-slate-900 hover:bg-slate-800 text-white font-extrabold text-sm rounded-2xl shadow-xs transition-colors inline-flex items-center justify-center gap-2 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-900 focus-visible:ring-offset-2"
             >
               <PlayCircle size={18} className="shrink-0" />
-              <span>ফ্রি ক্লাস দেখুন</span>
+              <span>ডেমো ক্লাস দেখুন</span>
             </button>
           </div>
 
@@ -983,7 +983,7 @@ export const EnrollPage: React.FC<EnrollPageProps> = ({
             onClick={() => onNavigate('/demo')}
             className="text-orange-600 hover:underline font-bold cursor-pointer"
           >
-            ফ্রি ক্লাস দেখুন
+            ডেমো ক্লাস দেখুন
           </button>
         </p>
       </div>

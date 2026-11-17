@@ -2682,7 +2682,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
               
               <div className="sm:col-span-2">
                 <label className="block font-bold text-slate-700 mb-1">
-                  নিবন্ধিত সদস্যদের ফ্রি ডেমো ভিডিও লিংক (/demo)
+                  পাবলিক ডেমো ক্লাস ভিডিও লিংক (/demo)
                 </label>
                 <input
                   type="text"
@@ -2692,7 +2692,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                   className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:outline-none focus:border-orange-500 font-medium"
                 />
                 <p className="text-[11px] text-slate-400 mt-1">
-                  এখানে দেওয়া ভিডিওটি শুধুমাত্র লগইন ও ইমেইল-যাচাই করা সক্রিয় ব্যবহারকারীরাই /demo পেজে দেখতে পাবেন। সাইন-আউট ভিজিটরদের কাছে এই লিংক কখনোই প্রকাশ করা হয় না।
+                  এখানে দেওয়া ভিডিও লিংকটি লগইন ছাড়াই যেকোনো ভিজিটর /demo পেজে দেখতে পারবেন। লিংক ফাঁকা রাখলে “ডেমো ক্লাসের ভিডিও শীঘ্রই যুক্ত হবে।” বার্তা দেখানো হবে।
                 </p>
               </div>
 

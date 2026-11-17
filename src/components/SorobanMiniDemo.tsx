@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { RotateCcw } from 'lucide-react';
+import { Lock, RotateCcw } from 'lucide-react';
 
 export interface SorobanColumnState {
   heaven: boolean;
@@ -44,10 +44,15 @@ const INITIAL_COLUMNS: SorobanColumnState[] = [
 
 const COLUMN_LABELS = ['শতক', 'দশক', 'একক'] as const;
 
-export const SorobanMiniDemo: React.FC = () => {
+interface SorobanMiniDemoProps {
+  onPreviewClick?: () => void;
+}
+
+export const SorobanMiniDemo: React.FC<SorobanMiniDemoProps> = ({ onPreviewClick }) => {
   const [columns, setColumns] = useState<SorobanColumnState[]>(INITIAL_COLUMNS);
 
   const totalValue = computeSorobanTotal(columns);
+  const isPreviewGate = Boolean(onPreviewClick);
 
   const handleToggleHeaven = (colIndex: number) => {
     setColumns((prev) =>
@@ -73,9 +78,9 @@ export const SorobanMiniDemo: React.FC = () => {
     ]);
   };
 
-  return (
-    <div className="rounded-xl bg-[#F4EFE2] border border-[#DFD2B0] p-3 space-y-2.5">
-      {/* Live Calculated Readout & Reset */}
+  const rodContent = (
+    <>
+      {/* Live Calculated Readout & Action Badge */}
       <div className="flex items-center justify-between gap-2 text-xs">
         <div className="font-extrabold text-[#18191C] tabular-nums">
           <span>মোট মান: </span>
@@ -83,21 +88,28 @@ export const SorobanMiniDemo: React.FC = () => {
             {toBengaliDigits(totalValue)} ({totalValue})
           </span>
         </div>
-        <button
-          type="button"
-          onClick={handleReset}
-          aria-label="অ্যাবাকাস মান শূন্যে রিসেট করুন"
-          className="px-2 py-1 rounded-lg bg-[#FFFDF9] hover:bg-[#EFE6D2] border border-[#D8CBAF] text-[#4F4B43] hover:text-[#18191C] font-bold text-[11px] inline-flex items-center gap-1 transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#9E7324]"
-        >
-          <RotateCcw size={11} aria-hidden="true" />
-          <span>রিসেট</span>
-        </button>
+        {isPreviewGate ? (
+          <span className="px-2 py-1 rounded-lg bg-[#141517] border border-[#D4AF5F]/50 text-[#FAF7F0] font-bold text-[10px] inline-flex items-center gap-1 shrink-0">
+            <Lock size={10} className="text-[#E4BE67] shrink-0" />
+            <span>লগইন করে খুলুন</span>
+          </span>
+        ) : (
+          <button
+            type="button"
+            onClick={handleReset}
+            aria-label="অ্যাবাকাস মান শূন্যে রিসেট করুন"
+            className="px-2 py-1 rounded-lg bg-[#FFFDF9] hover:bg-[#EFE6D2] border border-[#D8CBAF] text-[#4F4B43] hover:text-[#18191C] font-bold text-[11px] inline-flex items-center gap-1 transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#9E7324]"
+          >
+            <RotateCcw size={11} aria-hidden="true" />
+            <span>রিসেট</span>
+          </button>
+        )}
       </div>
 
       {/* Tactile 3-Rod Soroban Frame */}
       <div
-        role="group"
-        aria-label="ইন্টারঅ্যাক্টিভ মিনি সোরোবান অ্যাবাকাস (পুঁতি ক্লিক করে মান পরিবর্তন করুন)"
+        role={isPreviewGate ? undefined : 'group'}
+        aria-label={isPreviewGate ? undefined : 'ইন্টারঅ্যাক্টিভ মিনি সোরোবান অ্যাবাকাস (পুঁতি ক্লিক করে মান পরিবর্তন করুন)'}
         className="rounded-xl bg-[#18191C] border-2 border-[#3C382E] p-2.5 select-none shadow-inner"
       >
         <div className="grid grid-cols-3 gap-2">
@@ -117,17 +129,28 @@ export const SorobanMiniDemo: React.FC = () => {
 
                   {/* Upper Heaven Section (Bead value = 5) */}
                   <div className="relative z-10 w-full h-12 flex flex-col justify-between items-center py-1 px-1.5">
-                    <button
-                      type="button"
-                      onClick={() => handleToggleHeaven(colIdx)}
-                      aria-pressed={col.heaven}
-                      aria-label={`${colLabel} কলামের ৫ মানের পুঁতি (${col.heaven ? 'সক্রিয়' : 'নিষ্ক্রিয়'})`}
-                      className={`w-10 sm:w-9 h-4 rounded-full border shadow-xs cursor-pointer transition-transform duration-150 motion-reduce:transition-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#9E7324] ${
-                        col.heaven
-                          ? 'translate-y-5 bg-gradient-to-b from-[#ECCB7A] to-[#C69738] border-[#7D5714]'
-                          : 'translate-y-0 bg-[#2A2B30] hover:bg-[#3A3B42] border-[#141517]'
-                      }`}
-                    />
+                    {isPreviewGate ? (
+                      <span
+                        aria-hidden="true"
+                        className={`w-10 sm:w-9 h-4 rounded-full border shadow-xs block ${
+                          col.heaven
+                            ? 'translate-y-5 bg-gradient-to-b from-[#ECCB7A] to-[#C69738] border-[#7D5714]'
+                            : 'translate-y-0 bg-[#2A2B30] border-[#141517]'
+                        }`}
+                      />
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={() => handleToggleHeaven(colIdx)}
+                        aria-pressed={col.heaven}
+                        aria-label={`${colLabel} কলামের ৫ মানের পুঁতি (${col.heaven ? 'সক্রিয়' : 'নিষ্ক্রিয়'})`}
+                        className={`w-10 sm:w-9 h-4 rounded-full border shadow-xs cursor-pointer transition-transform duration-150 motion-reduce:transition-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#9E7324] ${
+                          col.heaven
+                            ? 'translate-y-5 bg-gradient-to-b from-[#ECCB7A] to-[#C69738] border-[#7D5714]'
+                            : 'translate-y-0 bg-[#2A2B30] hover:bg-[#3A3B42] border-[#141517]'
+                        }`}
+                      />
+                    )}
                   </div>
 
                   {/* Reckoning Beam */}
@@ -140,6 +163,19 @@ export const SorobanMiniDemo: React.FC = () => {
                   <div className="relative z-10 w-full h-[84px] flex flex-col justify-end items-center py-1 px-1.5 gap-0.5">
                     {[0, 1, 2, 3].map((beadIdx) => {
                       const isActive = beadIdx < col.earth;
+                      if (isPreviewGate) {
+                        return (
+                          <span
+                            key={beadIdx}
+                            aria-hidden="true"
+                            className={`w-10 sm:w-9 h-3.5 rounded-full border shadow-xs block ${
+                              isActive
+                                ? '-translate-y-3 bg-gradient-to-b from-[#ECCB7A] to-[#C69738] border-[#7D5714]'
+                                : 'translate-y-0 bg-[#2A2B30] border-[#141517]'
+                            }`}
+                          />
+                        );
+                      }
                       return (
                         <button
                           key={beadIdx}
@@ -174,8 +210,32 @@ export const SorobanMiniDemo: React.FC = () => {
       </div>
 
       <p className="text-[11px] text-[#4F4B43] font-medium text-center leading-snug">
-        পুঁতিতে ট্যাপ করে দেখুন: উপরের পুঁতি = ৫, নিচের প্রতিটি পুঁতি = ১
+        {isPreviewGate
+          ? 'সম্পূর্ণ ভার্চুয়াল অ্যাবাকাস ব্যবহার করতে লগইন বা ফ্রি অ্যাকাউন্ট খুলুন'
+          : 'পুঁতিতে ট্যাপ করে দেখুন: উপরের পুঁতি = ৫, নিচের প্রতিটি পুঁতি = ১'}
       </p>
+    </>
+  );
+
+  if (onPreviewClick) {
+    return (
+      <button
+        type="button"
+        onClick={(e) => {
+          e.stopPropagation();
+          onPreviewClick();
+        }}
+        aria-label="ভার্চুয়াল অ্যাবাকাস খুলতে লগইন বা সাইনআপ করুন"
+        className="w-full text-left rounded-xl bg-[#F4EFE2] hover:bg-[#EFE6D2] border border-[#DFD2B0] hover:border-[#C89D4A] p-3 space-y-2.5 transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#9E7324]"
+      >
+        {rodContent}
+      </button>
+    );
+  }
+
+  return (
+    <div className="rounded-xl bg-[#F4EFE2] border border-[#DFD2B0] p-3 space-y-2.5">
+      {rodContent}
     </div>
   );
 };
