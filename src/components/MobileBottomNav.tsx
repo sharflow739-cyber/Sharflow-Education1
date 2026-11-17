@@ -204,7 +204,7 @@ export const MobileBottomNav: React.FC<MobileBottomNavProps> = ({
       {/* Fixed Bottom Navigation Bar (Mobile <md for Signed-in Active Users) */}
       <nav
         aria-label="মোবাইল নিচের ন্যাভিগেশন"
-        className="fixed bottom-0 inset-x-0 z-40 md:hidden bg-white/95 backdrop-blur-md border-t border-slate-200 shadow-[0_-4px_20px_-6px_rgba(15,23,42,0.12)] pb-[env(safe-area-inset-bottom,0px)]"
+        className="fixed bottom-0 inset-x-0 z-40 md:hidden bg-[#FCFBF7]/95 backdrop-blur-md border-t border-[#E5DEC9] shadow-[0_-4px_20px_-6px_rgba(20,21,23,0.12)] pb-[env(safe-area-inset-bottom,0px)]"
       >
         <div className="grid grid-cols-4 max-w-lg mx-auto">
           <button
@@ -214,16 +214,20 @@ export const MobileBottomNav: React.FC<MobileBottomNavProps> = ({
               onOpenDashboard();
             }}
             aria-current={isClassesActive ? 'page' : undefined}
-            className={`relative min-h-[58px] py-1.5 px-1 flex flex-col items-center justify-center gap-1 transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-orange-500 ${
+            className={`relative min-h-[58px] py-1.5 px-1 flex flex-col items-center justify-center gap-1 transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[#9E7324] ${
               isClassesActive
-                ? 'text-orange-600 bg-orange-50/80'
-                : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50'
+                ? 'text-[#141517] bg-[#F3EDE0]'
+                : 'text-[#524E46] hover:text-[#141517] hover:bg-[#F7F3EA]'
             }`}
           >
             {isClassesActive && (
-              <span className="absolute top-0 inset-x-4 h-0.5 rounded-full bg-orange-600" aria-hidden="true" />
+              <span className="absolute top-0 inset-x-4 h-0.5 rounded-full bg-[#B88930]" aria-hidden="true" />
             )}
-            <PlayCircle size={20} strokeWidth={isClassesActive ? 2.4 : 2} className="shrink-0" />
+            <PlayCircle
+              size={20}
+              strokeWidth={isClassesActive ? 2.4 : 2}
+              className={isClassesActive ? 'text-[#855E18] shrink-0' : 'shrink-0'}
+            />
             <span className="text-[11px] font-extrabold leading-tight whitespace-nowrap">
               ক্লাস
             </span>
@@ -236,16 +240,20 @@ export const MobileBottomNav: React.FC<MobileBottomNavProps> = ({
               onNavigate('/ebooks');
             }}
             aria-current={isEbooksActive ? 'page' : undefined}
-            className={`relative min-h-[58px] py-1.5 px-1 flex flex-col items-center justify-center gap-1 transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-orange-500 ${
+            className={`relative min-h-[58px] py-1.5 px-1 flex flex-col items-center justify-center gap-1 transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[#9E7324] ${
               isEbooksActive
-                ? 'text-orange-600 bg-orange-50/80'
-                : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50'
+                ? 'text-[#141517] bg-[#F3EDE0]'
+                : 'text-[#524E46] hover:text-[#141517] hover:bg-[#F7F3EA]'
             }`}
           >
             {isEbooksActive && (
-              <span className="absolute top-0 inset-x-4 h-0.5 rounded-full bg-orange-600" aria-hidden="true" />
+              <span className="absolute top-0 inset-x-4 h-0.5 rounded-full bg-[#B88930]" aria-hidden="true" />
             )}
-            <BookOpen size={20} strokeWidth={isEbooksActive ? 2.4 : 2} className="shrink-0" />
+            <BookOpen
+              size={20}
+              strokeWidth={isEbooksActive ? 2.4 : 2}
+              className={isEbooksActive ? 'text-[#855E18] shrink-0' : 'shrink-0'}
+            />
             <span className="text-[11px] font-extrabold leading-tight whitespace-nowrap">
               বই
             </span>
@@ -255,16 +263,20 @@ export const MobileBottomNav: React.FC<MobileBottomNavProps> = ({
             href="/abacus"
             onClick={() => setIsAccountOpen(false)}
             aria-current={isAbacusActive ? 'page' : undefined}
-            className={`relative min-h-[58px] py-1.5 px-1 flex flex-col items-center justify-center gap-1 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-orange-500 ${
+            className={`relative min-h-[58px] py-1.5 px-1 flex flex-col items-center justify-center gap-1 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[#9E7324] ${
               isAbacusActive
-                ? 'text-orange-600 bg-orange-50/80'
-                : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50'
+                ? 'text-[#141517] bg-[#F3EDE0]'
+                : 'text-[#524E46] hover:text-[#141517] hover:bg-[#F7F3EA]'
             }`}
           >
             {isAbacusActive && (
-              <span className="absolute top-0 inset-x-4 h-0.5 rounded-full bg-orange-600" aria-hidden="true" />
+              <span className="absolute top-0 inset-x-4 h-0.5 rounded-full bg-[#B88930]" aria-hidden="true" />
             )}
-            <Calculator size={20} strokeWidth={isAbacusActive ? 2.4 : 2} className="shrink-0" />
+            <Calculator
+              size={20}
+              strokeWidth={isAbacusActive ? 2.4 : 2}
+              className={isAbacusActive ? 'text-[#855E18] shrink-0' : 'shrink-0'}
+            />
             <span className="text-[11px] font-extrabold leading-tight whitespace-nowrap">
               অ্যাবাকাস
             </span>
@@ -274,16 +286,20 @@ export const MobileBottomNav: React.FC<MobileBottomNavProps> = ({
             type="button"
             onClick={() => setIsAccountOpen((prev) => !prev)}
             aria-expanded={isAccountOpen}
-            className={`relative min-h-[58px] py-1.5 px-1 flex flex-col items-center justify-center gap-1 transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-orange-500 ${
+            className={`relative min-h-[58px] py-1.5 px-1 flex flex-col items-center justify-center gap-1 transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[#9E7324] ${
               isAccountActive
-                ? 'text-orange-600 bg-orange-50/80'
-                : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50'
+                ? 'text-[#141517] bg-[#F3EDE0]'
+                : 'text-[#524E46] hover:text-[#141517] hover:bg-[#F7F3EA]'
             }`}
           >
             {isAccountActive && (
-              <span className="absolute top-0 inset-x-4 h-0.5 rounded-full bg-orange-600" aria-hidden="true" />
+              <span className="absolute top-0 inset-x-4 h-0.5 rounded-full bg-[#B88930]" aria-hidden="true" />
             )}
-            <User size={20} strokeWidth={isAccountActive ? 2.4 : 2} className="shrink-0" />
+            <User
+              size={20}
+              strokeWidth={isAccountActive ? 2.4 : 2}
+              className={isAccountActive ? 'text-[#855E18] shrink-0' : 'shrink-0'}
+            />
             <span className="text-[11px] font-extrabold leading-tight whitespace-nowrap">
               অ্যাকাউন্ট
             </span>

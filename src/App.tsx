@@ -429,9 +429,9 @@ export default function App() {
   // Auth Loading Screen
   if (authLoading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-slate-50 text-slate-500 text-xs">
+      <div className="min-h-screen flex items-center justify-center bg-[#FAF7F0] text-[#575247] text-xs">
         <div className="flex flex-col items-center gap-3">
-          <div className="w-8 h-8 rounded-full border-2 border-orange-500 border-t-transparent animate-spin"></div>
+          <div className="w-8 h-8 rounded-full border-2 border-[#B88930] border-t-transparent animate-spin"></div>
           <span>লোড হচ্ছে...</span>
         </div>
       </div>
@@ -441,7 +441,7 @@ export default function App() {
   // If User is logged in but deactivated
   if (currentUser && !currentUser.is_active) {
     return (
-      <div className="min-h-screen flex flex-col bg-slate-50">
+      <div className="min-h-screen flex flex-col bg-[#FAF7F0] text-[#18191C]">
         <Header
           currentUser={currentUser}
           onLogout={handleLogout}
@@ -495,7 +495,7 @@ export default function App() {
 
   return (
     <div
-      className={`min-h-screen overflow-x-clip flex flex-col bg-slate-50 text-slate-900 selection:bg-orange-500 selection:text-white ${
+      className={`min-h-screen overflow-x-clip flex flex-col bg-[#FAF7F0] text-[#18191C] selection:bg-[#D4AF5F] selection:text-[#141517] ${
         showMobileBottomNav ? 'pb-[calc(4.75rem+env(safe-area-inset-bottom,0px))] md:pb-0' : ''
       }`}
     >

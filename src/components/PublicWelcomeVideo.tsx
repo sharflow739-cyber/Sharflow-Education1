@@ -113,7 +113,7 @@ export const PublicWelcomeVideo: React.FC<PublicWelcomeVideoProps> = ({ src }) =
       aria-hidden={!isReady}
       className={
         isReady
-          ? 'max-w-3xl mx-auto rounded-2xl sm:rounded-3xl overflow-hidden bg-slate-950 border border-slate-800 shadow-xl'
+          ? 'max-w-3xl mx-auto rounded-2xl sm:rounded-3xl overflow-hidden bg-[#111214] border border-[#D4AF5F]/35 shadow-2xl'
           : '!m-0 absolute -z-10 w-px h-px overflow-hidden opacity-0 pointer-events-none'
       }
     >
@@ -152,11 +152,11 @@ export const PublicWelcomeVideo: React.FC<PublicWelcomeVideoProps> = ({ src }) =
       </div>
 
       {isReady && autoplayBlocked && !prefersReducedMotion && (
-        <div className="p-3 sm:p-4 bg-slate-900 border-t border-slate-800 flex items-center justify-center">
+        <div className="p-3 sm:p-4 bg-[#1B1C20] border-t border-[#D4AF5F]/25 flex items-center justify-center">
           <button
             type="button"
             onClick={handlePlayWithSound}
-            className="w-full sm:w-auto min-h-[48px] px-6 py-3 bg-amber-400 hover:bg-amber-300 active:bg-amber-500 text-slate-950 font-extrabold text-sm sm:text-base rounded-2xl shadow-lg shadow-amber-400/20 inline-flex items-center justify-center gap-2 cursor-pointer transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-2 focus-visible:ring-offset-slate-900"
+            className="w-full sm:w-auto min-h-[48px] px-6 py-3 bg-gradient-to-r from-[#E4BE67] to-[#CFA242] hover:from-[#ECC978] hover:to-[#DBB052] active:from-[#C79A3B] active:to-[#B8892B] text-[#141517] font-extrabold text-sm sm:text-base rounded-2xl shadow-lg shadow-[#D4AF5F]/20 inline-flex items-center justify-center gap-2 cursor-pointer transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#F4D992] focus-visible:ring-offset-2 focus-visible:ring-offset-[#1B1C20]"
           >
             <Volume2 size={20} className="shrink-0" />
             <span>সাউন্ডসহ ভিডিও চালান</span>
