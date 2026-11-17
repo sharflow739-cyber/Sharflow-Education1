@@ -160,9 +160,13 @@ export const SupportWidget: React.FC<SupportWidgetProps> = ({
         aria-expanded={isOpen}
         aria-controls="site-support-panel"
         aria-label="সাহায্য"
-        className="min-h-[44px] px-4 py-2.5 rounded-full bg-slate-900 hover:bg-slate-800 text-white border border-slate-700/80 shadow-lg shadow-slate-900/20 inline-flex items-center gap-2 text-xs sm:text-sm font-extrabold transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-500 focus-visible:ring-offset-2"
+        className="min-h-[44px] px-4 py-2.5 rounded-full bg-emerald-700 hover:bg-emerald-800 text-white border border-emerald-600/90 shadow-lg shadow-emerald-950/25 inline-flex items-center gap-2 text-xs sm:text-sm font-extrabold transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-700 focus-visible:ring-offset-2"
       >
-        <HelpCircle size={18} className="text-orange-400 shrink-0" />
+        <span
+          className="w-2.5 h-2.5 rounded-full bg-emerald-300 ring-2 ring-emerald-900/30 shrink-0"
+          aria-hidden="true"
+        />
+        <HelpCircle size={18} className="text-emerald-100 shrink-0" />
         <span>সাহায্য</span>
       </button>
     </div>

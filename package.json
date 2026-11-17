@@ -9,7 +9,7 @@
     "preview": "vite preview",
     "clean": "rm -rf dist server.js",
     "lint": "tsc --noEmit",
-    "test": "tsx --test src/lib/__tests__/demoSignupPixel.test.ts src/lib/__tests__/ebooks.test.ts src/lib/__tests__/courseChapters.test.ts src/lib/__tests__/manualPayments.test.ts"
+    "test": "tsx --test src/lib/__tests__/demoSignupPixel.test.ts src/lib/__tests__/ebooks.test.ts src/lib/__tests__/courseChapters.test.ts src/lib/__tests__/manualPayments.test.ts src/lib/__tests__/contactForm.test.ts"
   },
   "dependencies": {
     "@google/genai": "^2.4.0",

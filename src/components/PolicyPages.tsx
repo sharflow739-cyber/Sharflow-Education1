@@ -1,9 +1,14 @@
-import React, { useState } from 'react';
+import React, { useRef, useState } from 'react';
 import { useSettings } from '../contexts/SettingsContext';
 import { useConsent } from '../contexts/ConsentContext';
+import {
+  CONTACT_FALLBACK_EMAIL,
+  CONTACT_LIMITS,
+  validateContactForm,
+} from '../lib/contactForm';
 import { 
-  ArrowLeft, Phone, Mail, Clock, Shield, FileText, 
-  RotateCcw, Send, CheckCircle2, AlertCircle 
+  ArrowLeft, Phone, Mail, Clock, 
+  Send, CheckCircle2, AlertCircle 
 } from 'lucide-react';
 
 interface PolicyPagesProps {
@@ -25,12 +30,74 @@ export const PolicyPages: React.FC<PolicyPagesProps> = ({ type, onNavigate }) =>
   const [contactName, setContactName] = useState('');
   const [contactPhoneOrEmail, setContactPhoneOrEmail] = useState('');
   const [contactMsg, setContactMsg] = useState('');
+  const [honeypot, setHoneypot] = useState('');
+  const [submitting, setSubmitting] = useState(false);
+  const [submitError, setSubmitError] = useState<string | null>(null);
   const [submitted, setSubmitted] = useState(false);
+  const submittingRef = useRef(false);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const directFallbackEmail = (settings.contact_email || '').trim() || CONTACT_FALLBACK_EMAIL;
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!contactName.trim() || !contactPhoneOrEmail.trim()) return;
-    setSubmitted(true);
+    if (submitting || submittingRef.current) return;
+
+    setSubmitError(null);
+
+    const validation = validateContactForm({
+      name: contactName,
+      contact: contactPhoneOrEmail,
+      message: contactMsg,
+      website: honeypot,
+    });
+
+    if ('error' in validation) {
+      setSubmitError(validation.error);
+      return;
+    }
+
+    submittingRef.current = true;
+    setSubmitting(true);
+
+    try {
+      const response = await fetch('/api/contact', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          name: validation.value.name,
+          contact: validation.value.contact,
+          message: validation.value.message,
+          website: honeypot,
+        }),
+      });
+
+      const data = (await response.json().catch(() => null)) as
+        | { success?: boolean; error?: string }
+        | null;
+
+      if (!response.ok || data?.success !== true) {
+        setSubmitError(
+          data?.error ||
+            'বার্তা পাঠানো যায়নি। অনুগ্রহ করে নিচের সরাসরি ইমেইলে যোগাযোগ করুন।'
+        );
+        return;
+      }
+
+      setSubmitted(true);
+      setContactName('');
+      setContactPhoneOrEmail('');
+      setContactMsg('');
+      setHoneypot('');
+    } catch {
+      setSubmitError(
+        'নেটওয়ার্ক সমস্যার কারণে বার্তা পাঠানো যায়নি। অনুগ্রহ করে নিচের সরাসরি ইমেইল ব্যবহার করুন।'
+      );
+    } finally {
+      submittingRef.current = false;
+      setSubmitting(false);
+    }
   };
 
   const titles: Record<typeof type, string> = {
@@ -125,57 +192,131 @@ export const PolicyPages: React.FC<PolicyPagesProps> = ({ type, onNavigate }) =>
             <div className="border-t border-slate-100 pt-6 space-y-4">
               <h3 className="font-extrabold text-slate-900 text-sm">আমাদের কাছে সরাসরি বার্তা পাঠান</h3>
               {submitted ? (
-                <div className="p-5 bg-emerald-50 border border-emerald-200 rounded-2xl text-center space-y-2">
+                <div className="p-5 bg-emerald-50 border border-emerald-200 rounded-2xl text-center space-y-2.5">
                   <CheckCircle2 size={24} className="text-emerald-600 mx-auto" />
-                  <h4 className="font-bold text-emerald-900 text-sm">আপনার বার্তা গ্রহণ করা হয়েছে</h4>
+                  <h4 className="font-bold text-emerald-900 text-sm">আপনার বার্তা সফলভাবে পাঠানো হয়েছে</h4>
                   <p className="text-xs text-emerald-800">
-                    আমাদের প্রতিনিধি শীঘ্রই আপনার সাথে যোগাযোগ করবেন। ধন্যবাদ।
+                    আমাদের প্রতিনিধি আপনার বার্তা পেয়েছেন এবং শীঘ্রই যোগাযোগ করবেন।
                   </p>
+                  <button
+                    type="button"
+                    onClick={() => setSubmitted(false)}
+                    className="mt-1 px-4 py-2 bg-white border border-emerald-300 text-emerald-900 font-bold text-xs rounded-xl hover:bg-emerald-100 transition-colors cursor-pointer"
+                  >
+                    নতুন বার্তা পাঠান
+                  </button>
                 </div>
               ) : (
-                <form onSubmit={handleSubmit} className="space-y-3 max-w-lg">
-                  <div>
-                    <label className="block font-bold text-slate-700 mb-1">আপনার নাম *</label>
+                <form onSubmit={handleSubmit} className="space-y-3 max-w-lg relative">
+                  {/* Honeypot field for automated bot filtering */}
+                  <div
+                    aria-hidden="true"
+                    className="absolute -left-[9999px] w-px h-px overflow-hidden"
+                  >
+                    <label htmlFor="contact-website">Website</label>
                     <input
+                      id="contact-website"
+                      name="website"
+                      type="text"
+                      tabIndex={-1}
+                      autoComplete="off"
+                      value={honeypot}
+                      onChange={(e) => setHoneypot(e.target.value)}
+                    />
+                  </div>
+
+                  {submitError && (
+                    <div
+                      role="alert"
+                      className="p-3.5 bg-rose-50 border border-rose-200 rounded-xl text-xs text-rose-900 space-y-1.5"
+                    >
+                      <div className="font-bold flex items-start gap-2">
+                        <AlertCircle size={15} className="text-rose-600 shrink-0 mt-0.5" />
+                        <span>{submitError}</span>
+                      </div>
+                      <p className="text-[11px] text-rose-800 pl-5">
+                        সরাসরি ইমেইল করতে পারেন:{' '}
+                        <a
+                          href={`mailto:${directFallbackEmail}`}
+                          className="font-extrabold underline break-all"
+                        >
+                          {directFallbackEmail}
+                        </a>
+                      </p>
+                    </div>
+                  )}
+
+                  <div>
+                    <label htmlFor="contact-name-input" className="block font-bold text-slate-700 mb-1">
+                      আপনার নাম *
+                    </label>
+                    <input
+                      id="contact-name-input"
                       type="text"
                       required
+                      minLength={CONTACT_LIMITS.NAME_MIN}
+                      maxLength={CONTACT_LIMITS.NAME_MAX}
                       value={contactName}
                       onChange={(e) => setContactName(e.target.value)}
                       placeholder="আপনার পূর্ণ নাম"
-                      className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs focus:bg-white focus:outline-none focus:border-orange-500 font-medium"
+                      className="w-full min-h-[44px] px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs focus:bg-white focus:outline-none focus:border-orange-500 font-medium"
                     />
                   </div>
 
                   <div>
-                    <label className="block font-bold text-slate-700 mb-1">মোবাইল নম্বর অথবা ইমেইল *</label>
+                    <label htmlFor="contact-identifier-input" className="block font-bold text-slate-700 mb-1">
+                      মোবাইল নম্বর অথবা ইমেইল *
+                    </label>
                     <input
+                      id="contact-identifier-input"
                       type="text"
                       required
+                      minLength={CONTACT_LIMITS.CONTACT_MIN}
+                      maxLength={CONTACT_LIMITS.CONTACT_MAX}
                       value={contactPhoneOrEmail}
                       onChange={(e) => setContactPhoneOrEmail(e.target.value)}
                       placeholder="যেমন: 01712345678 বা yourname@email.com"
-                      className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs focus:bg-white focus:outline-none focus:border-orange-500 font-medium"
+                      className="w-full min-h-[44px] px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs focus:bg-white focus:outline-none focus:border-orange-500 font-medium"
                     />
                   </div>
 
                   <div>
-                    <label className="block font-bold text-slate-700 mb-1">আপনার জিজ্ঞাসা বা মন্তব্য</label>
+                    <label htmlFor="contact-message-input" className="block font-bold text-slate-700 mb-1">
+                      আপনার জিজ্ঞাসা বা মন্তব্য *
+                    </label>
                     <textarea
-                      rows={3}
+                      id="contact-message-input"
+                      rows={4}
+                      required
+                      minLength={CONTACT_LIMITS.MESSAGE_MIN}
+                      maxLength={CONTACT_LIMITS.MESSAGE_MAX}
                       value={contactMsg}
                       onChange={(e) => setContactMsg(e.target.value)}
-                      placeholder="কোর্স বা ভর্তি বিষয়ে যেকোনো প্রশ্ন লিখুন..."
+                      placeholder="কোর্স বা ভর্তি বিষয়ে আপনার প্রশ্ন বিস্তারিত লিখুন (কমপক্ষে ১০ অক্ষর)..."
                       className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs focus:bg-white focus:outline-none focus:border-orange-500 font-medium"
                     />
                   </div>
 
-                  <button
-                    type="submit"
-                    className="px-5 py-2.5 bg-orange-500 hover:bg-orange-600 text-white font-bold text-xs rounded-xl shadow-xs transition-all flex items-center gap-2 cursor-pointer"
-                  >
-                    <Send size={14} />
-                    <span>বার্তা পাঠান</span>
-                  </button>
+                  <div className="flex flex-wrap items-center gap-3 pt-1">
+                    <button
+                      type="submit"
+                      disabled={submitting}
+                      className="min-h-[44px] px-5 py-2.5 bg-orange-600 hover:bg-orange-700 text-white font-bold text-xs rounded-xl shadow-xs transition-all inline-flex items-center gap-2 cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed"
+                    >
+                      <Send size={14} />
+                      <span>{submitting ? 'পাঠানো হচ্ছে...' : 'বার্তা পাঠান'}</span>
+                    </button>
+
+                    <span className="text-[11px] text-slate-500">
+                      সরাসরি ইমেইল:{' '}
+                      <a
+                        href={`mailto:${directFallbackEmail}`}
+                        className="font-bold text-slate-700 hover:text-orange-600 underline break-all"
+                      >
+                        {directFallbackEmail}
+                      </a>
+                    </span>
+                  </div>
                 </form>
               )}
             </div>
