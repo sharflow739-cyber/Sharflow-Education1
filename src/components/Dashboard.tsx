@@ -4,6 +4,7 @@ import { useSettings } from '../contexts/SettingsContext';
 import {
   DEFAULT_COURSE_CHAPTERS,
   buildClassesAccordionSections,
+  getLearnerAccordionLabel,
 } from '../lib/courseChapters';
 import {
   ArrowLeft,
@@ -182,7 +183,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
           ক্লাসসমূহ
         </h1>
         <p className="text-xs sm:text-sm text-[#575247]">
-          পছন্দের অধ্যায় বা বিভাগে ক্লিক করে ক্লাস কার্ডগুলো দেখুন।
+          পছন্দের ধাপ বেছে নিয়ে ক্লাসগুলো দেখুন।
         </p>
       </div>
 
@@ -245,16 +246,21 @@ export const Dashboard: React.FC<DashboardProps> = ({
                     )}
                   </div>
 
-                  <div className="min-w-0">
-                    <h2 className="text-sm sm:text-base font-black text-[#18191C] leading-snug truncate">
-                      {section.title}
-                    </h2>
-                    {section.subtitle && (
-                      <span className="text-[11px] sm:text-xs font-semibold text-[#625D52] block truncate">
-                        {section.subtitle}
-                      </span>
-                    )}
-                  </div>
+                  {(() => {
+                    const displayLabel = getLearnerAccordionLabel(section);
+                    return (
+                      <div className="min-w-0">
+                        <h2 className="text-sm sm:text-base font-black text-[#18191C] leading-snug truncate">
+                          {displayLabel.title}
+                        </h2>
+                        {displayLabel.subtitle && (
+                          <span className="text-[11px] sm:text-xs font-semibold text-[#625D52] block truncate">
+                            {displayLabel.subtitle}
+                          </span>
+                        )}
+                      </div>
+                    );
+                  })()}
                 </div>
 
                 <div className="flex items-center gap-2.5 sm:gap-3 shrink-0">

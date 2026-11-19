@@ -5,6 +5,7 @@ import {
   UNCATEGORIZED_CHAPTER_KEY,
   buildClassesAccordionSections,
   computeClassOrderAfterMoveWithinGroup,
+  getLearnerAccordionLabel,
   groupClassesByChapter,
   inferUnambiguousChapterId,
   reorderChaptersList,
@@ -207,5 +208,32 @@ test('buildClassesAccordionSections includes free classes bar, preserves empty c
   assert.deepEqual(
     withoutUncategorized.map((s) => s.key),
     ['free-classes', 'direct', 'five-complement', 'ten-complement', 'mixed-complement']
+  );
+});
+
+test('getLearnerAccordionLabel maps beginner-friendly Bengali labels without English Complement jargon', () => {
+  const sections = buildClassesAccordionSections(
+    [
+      { ...SAMPLE_CLASSES[0], chapter_id: null, is_published: true, is_free: true },
+      { ...SAMPLE_CLASSES[1], chapter_id: 'direct', is_published: true, is_free: true },
+    ],
+    [
+      ...DEFAULT_COURSE_CHAPTERS,
+      { id: 'extra-ch', title: 'অতিরিক্ত অনুশীলন', subtitle: 'Mixed Complement Practice', sort_order: 5 },
+    ],
+    true
+  );
+
+  assert.deepEqual(
+    sections.map((s) => [s.key, getLearnerAccordionLabel(s)]),
+    [
+      ['free-classes', { title: 'শুরু করি', subtitle: 'ফ্রি ক্লাস' }],
+      ['direct', { title: 'সহজ যোগ-বিয়োগ' }],
+      ['five-complement', { title: '৫ দিয়ে যোগ-বিয়োগ' }],
+      ['ten-complement', { title: '১০ দিয়ে যোগ-বিয়োগ' }],
+      ['mixed-complement', { title: 'মিশ্র অনুশীলন' }],
+      ['extra-ch', { title: 'অতিরিক্ত অনুশীলন' }],
+      ['uncategorized', { title: 'অন্যান্য' }],
+    ]
   );
 });

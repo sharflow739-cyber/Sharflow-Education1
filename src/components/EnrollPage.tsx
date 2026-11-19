@@ -28,7 +28,6 @@ import {
   Clock,
   CreditCard,
   FileText,
-  Sparkles,
   Send,
   PlayCircle,
   ArrowDown,
@@ -296,10 +295,6 @@ export const EnrollPage: React.FC<EnrollPageProps> = ({
           <ArrowLeft size={16} />
           <span>মূল পাতায় ফিরে যান</span>
         </button>
-        <span className="px-3 py-1 bg-emerald-100 text-emerald-800 rounded-full text-xs font-extrabold flex items-center gap-1.5">
-          <Sparkles size={13} />
-          <span>সম্পূর্ণ প্যাকেজ</span>
-        </span>
       </div>
 
       {/* Main Title */}
@@ -308,7 +303,7 @@ export const EnrollPage: React.FC<EnrollPageProps> = ({
           ঘরে ঘরে অ্যাবাকাস — প্যারেন্ট স্টার্টার প্যাকেজ
         </h1>
         <p className="text-xs sm:text-sm text-slate-600 max-w-xl mx-auto leading-relaxed">
-          অভিভাবকদের জন্য সোরোবান অ্যাবাকাস অনলাইন শেখার প্রোগ্রামের প্যাকেজ ফি, সময়সীমা ও ভর্তির নিয়মাবলি।
+          প্যাকেজ ফি, সুবিধা, মেয়াদ ও ভর্তির নিয়মাবলি।
         </p>
       </div>
 
@@ -412,7 +407,7 @@ export const EnrollPage: React.FC<EnrollPageProps> = ({
               refundText
             ) : (
               <span>
-                ডিজিটাল কন্টেন্ট সুরক্ষার জন্য প্যাকেজ ফি পরিশোধ ও এক্সেস পাওয়ার পর প্রযোজ্য নীতিমালা অনুযায়ী আবেদন বিবেচনা করা হয়। বিস্তারিত জানতে আমাদের{' '}
+                প্যাকেজ ফি পরিশোধ ও এক্সেস পাওয়ার পর প্রযোজ্য নীতিমালা অনুযায়ী আবেদন বিবেচনা করা হয়। বিস্তারিত জানতে আমাদের{' '}
                 <button
                   type="button"
                   onClick={() => onNavigate('/refund')}

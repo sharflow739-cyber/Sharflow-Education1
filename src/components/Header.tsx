@@ -71,11 +71,8 @@ export const Header: React.FC<HeaderProps> = ({
               />
             </div>
             <div className="min-w-0">
-              <span className="font-extrabold text-[#18191C] text-base sm:text-lg tracking-tight leading-tight block truncate">
+              <span className="font-extrabold text-[#18191C] text-base sm:text-lg tracking-tight leading-tight block truncate whitespace-nowrap">
                 Shar Flow
-              </span>
-              <span className="text-[10px] sm:text-[11px] text-[#625D52] font-medium block truncate">
-                {settings.site_subtitle || 'অনলাইন অভিভাবক ট্রেনিং প্ল্যাটফর্ম'}
               </span>
             </div>
           </a>

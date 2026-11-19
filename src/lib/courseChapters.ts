@@ -239,6 +239,37 @@ export function buildClassesAccordionSections(
   return sections;
 }
 
+const LEARNER_SECTION_TITLES: Record<string, string> = {
+  'free-classes': 'শুরু করি',
+  direct: 'সহজ যোগ-বিয়োগ',
+  'five-complement': '৫ দিয়ে যোগ-বিয়োগ',
+  'ten-complement': '১০ দিয়ে যোগ-বিয়োগ',
+  'mixed-complement': 'মিশ্র অনুশীলন',
+  [UNCATEGORIZED_CHAPTER_KEY]: 'অন্যান্য',
+};
+
+/**
+ * Maps internal/admin accordion sections to beginner-friendly Bengali-first labels
+ * for the learner /classes screen without mutating stored DB chapter titles or assignments.
+ */
+export function getLearnerAccordionLabel(
+  section: Pick<ClassesAccordionSection, 'key' | 'title' | 'subtitle'>
+): { title: string; subtitle?: string } {
+  const mappedTitle = LEARNER_SECTION_TITLES[section.key];
+  if (mappedTitle) {
+    return section.key === 'free-classes'
+      ? { title: mappedTitle, subtitle: 'ফ্রি ক্লাস' }
+      : { title: mappedTitle };
+  }
+
+  const rawSubtitle = (section.subtitle || '').trim();
+  const hasTechnicalJargon = /\b(complement|friend|free classes)\b/i.test(rawSubtitle);
+  return {
+    title: section.title,
+    ...(!hasTechnicalJargon && rawSubtitle ? { subtitle: rawSubtitle } : {}),
+  };
+}
+
 /**
  * Computes updated chapter sort_order values after moving a chapter up or down.
  */
