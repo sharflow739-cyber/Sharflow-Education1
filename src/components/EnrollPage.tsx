@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { UserProfile } from '../types';
 import { useSettings } from '../contexts/SettingsContext';
 import { supabase, isSupabaseConfigured } from '../lib/supabase';
@@ -17,6 +17,7 @@ import {
   PaymentMethod,
   PaymentProvider,
 } from '../lib/manualPayments';
+import { getCurrentUtmParams, getGaClientId, track } from '../lib/analytics.js';
 import { PaymentProviderLogo } from './PaymentProviderBadge';
 import { SUPPORT_WHATSAPP_URL, SUPPORT_MESSENGER_URL } from './SupportWidget';
 import {
@@ -41,7 +42,34 @@ import {
   ShieldCheck,
   XCircle,
   Lock,
+  ChevronDown,
 } from 'lucide-react';
+
+const BENGALI_DIGITS: Record<string, string> = {
+  '০': '0',
+  '১': '1',
+  '২': '2',
+  '৩': '3',
+  '৪': '4',
+  '৫': '5',
+  '৬': '6',
+  '৭': '7',
+  '৮': '8',
+  '৯': '9',
+};
+
+function normalizeLeadPhoneInput(raw: string): string {
+  return raw
+    .replace(/[০-৯]/g, (ch) => BENGALI_DIGITS[ch] ?? ch)
+    .trim();
+}
+
+function isValidWhatsAppPhone(raw: string): boolean {
+  const normalized = normalizeLeadPhoneInput(raw);
+  if (!normalized || !/^[+\d\s\-().]{7,25}$/.test(normalized)) return false;
+  const digits = normalized.replace(/\D/g, '');
+  return digits.length >= 7 && digits.length <= 15;
+}
 
 interface EnrollPageProps {
   currentUser?: UserProfile | null;
@@ -86,9 +114,50 @@ export const EnrollPage: React.FC<EnrollPageProps> = ({
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [submitSuccess, setSubmitSuccess] = useState<string | null>(null);
 
+  // Quick 3-field Lead Capture State (above-the-fold CRO form -> /api/enroll)
+  const [leadName, setLeadName] = useState('');
+  const [leadPhone, setLeadPhone] = useState('');
+  const [leadAgeGroup, setLeadAgeGroup] = useState('');
+  const [leadPlan, setLeadPlan] = useState('starter-package');
+  const [leadSourceNote, setLeadSourceNote] = useState('');
+  const [showOptionalLeadFields, setShowOptionalLeadFields] = useState(false);
+  const [leadSubmitting, setLeadSubmitting] = useState(false);
+  const [leadError, setLeadError] = useState<string | null>(null);
+  const [leadSubmitted, setLeadSubmitted] = useState(false);
+
+  const formStartedRef = useRef(false);
+  const trackedScrollDepthsRef = useRef<Set<number>>(new Set());
+
   const isAlreadyPremium = Boolean(
     currentUser && (currentUser.role === 'admin' || currentUser.enrollment_status === 'approved')
   );
+
+  // Track enroll_view once on mount & scroll_depth at 25/50/75/100
+  useEffect(() => {
+    track('enroll_view', { page: 'enroll' });
+
+    const thresholds = [25, 50, 75, 100];
+    const handleScroll = () => {
+      const doc = document.documentElement;
+      const scrollableHeight = doc.scrollHeight - window.innerHeight;
+      if (scrollableHeight <= 0) return;
+      const percentScrolled = Math.min(
+        100,
+        Math.round((window.scrollY / scrollableHeight) * 100)
+      );
+      for (const threshold of thresholds) {
+        if (percentScrolled >= threshold && !trackedScrollDepthsRef.current.has(threshold)) {
+          trackedScrollDepthsRef.current.add(threshold);
+          track('scroll_depth', { percent: threshold });
+        }
+      }
+    };
+
+    window.addEventListener('scroll', handleScroll, { passive: true });
+    return () => {
+      window.removeEventListener('scroll', handleScroll);
+    };
+  }, []);
 
   const loadPaymentState = useCallback(async () => {
     if (!isSupabaseConfigured || !supabase) {
@@ -237,6 +306,81 @@ export const EnrollPage: React.FC<EnrollPageProps> = ({
     }
   };
 
+  const handleLeadFormFocus = () => {
+    if (formStartedRef.current) return;
+    formStartedRef.current = true;
+    track('form_start', { form: 'enroll' });
+  };
+
+  const handleLeadSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (leadSubmitting) return;
+    setLeadError(null);
+
+    const cleanedName = leadName.trim();
+    if (cleanedName.length < 2) {
+      setLeadError('অনুগ্রহ করে শিশুর নাম লিখুন (কমপক্ষে ২ অক্ষর)।');
+      track('form_error', { form: 'enroll', reason: 'invalid_name' });
+      return;
+    }
+
+    const cleanedPhone = normalizeLeadPhoneInput(leadPhone);
+    if (!isValidWhatsAppPhone(cleanedPhone)) {
+      setLeadError('অনুগ্রহ করে সঠিক WhatsApp নম্বর দিন (যেমন: 01XXXXXXXXX বা আন্তর্জাতিক কোডসহ)।');
+      track('form_error', { form: 'enroll', reason: 'invalid_phone' });
+      return;
+    }
+
+    const cleanedAgeGroup = leadAgeGroup.trim();
+    if (!cleanedAgeGroup) {
+      setLeadError('অনুগ্রহ করে শিশুর বয়স গ্রুপ নির্বাচন করুন।');
+      track('form_error', { form: 'enroll', reason: 'missing_age_group' });
+      return;
+    }
+
+    const selectedPlan = (leadPlan || 'starter-package').trim();
+    const utmParams = getCurrentUtmParams();
+    const clientId = getGaClientId();
+
+    try {
+      setLeadSubmitting(true);
+      const response = await fetch('/api/enroll', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: cleanedName,
+          phone: cleanedPhone,
+          plan: selectedPlan,
+          ageGroup: cleanedAgeGroup,
+          source: leadSourceNote.trim() || 'enroll',
+          ...(clientId ? { clientId } : {}),
+          ...utmParams,
+        }),
+      });
+
+      const data = (await response.json().catch(() => null)) as { ok?: boolean; error?: string } | null;
+
+      if (!response.ok || !data?.ok) {
+        const reason = `api_${response.status || 'error'}`;
+        setLeadError(
+          data?.error || 'আবেদন সংরক্ষণ করা যায়নি। অনুগ্রহ করে আবার চেষ্টা করুন বা WhatsApp-এ যোগাযোগ করুন।'
+        );
+        track('form_error', { form: 'enroll', reason });
+        return;
+      }
+
+      setLeadSubmitted(true);
+      track('form_submit', { form: 'enroll', plan: selectedPlan });
+    } catch {
+      setLeadError(
+        'নেটওয়ার্ক সংযোগে সমস্যা হয়েছে। অনুগ্রহ করে আবার চেষ্টা করুন বা সরাসরি WhatsApp-এ মেসেজ দিন।'
+      );
+      track('form_error', { form: 'enroll', reason: 'network_error' });
+    } finally {
+      setLeadSubmitting(false);
+    }
+  };
+
   const handleScrollToCheckout = (e: React.MouseEvent<HTMLAnchorElement>) => {
     const target = document.getElementById('enroll-checkout');
     if (!target) return;
@@ -269,127 +413,317 @@ export const EnrollPage: React.FC<EnrollPageProps> = ({
         </span>
       </div>
 
-      {/* Main Title */}
-      <div className="text-center space-y-2">
-        <h1 className="text-2xl sm:text-4xl font-black text-slate-900 tracking-tight text-balance">
-          ঘরে ঘরে অ্যাবাকাস — প্যারেন্ট স্টার্টার প্যাকেজ
-        </h1>
-        <p className="text-xs sm:text-sm text-slate-600 max-w-xl mx-auto leading-relaxed">
-          অভিভাবকদের জন্য সোরোবান অ্যাবাকাস অনলাইন শেখার প্রোগ্রামের প্যাকেজ ফি, সময়সীমা ও ভর্তির নিয়মাবলি।
-        </p>
-      </div>
-
-      {/* Package Fee & Key Details Card */}
-      <div className="bg-white rounded-3xl border border-slate-200 shadow-sm p-4 sm:p-8 space-y-6">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-100 pb-6">
-          <div className="space-y-1">
-            <span className="text-xs font-bold text-orange-600 uppercase tracking-wider">
-              সম্পূর্ণ প্যাকেজ
-            </span>
-            <h2 className="text-xl sm:text-2xl font-black text-slate-900">
+      {/* Above-the-Fold Plain Readable Summary + Short 3-Field Quick Enroll Form */}
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+        {/* Left: Plain Readable Package Details (NOT inside a form) */}
+        <div className="lg:col-span-6 space-y-4">
+          <div className="space-y-2">
+            <h1 className="text-2xl sm:text-3xl font-black text-slate-900 tracking-tight leading-tight">
               ঘরে ঘরে অ্যাবাকাস — প্যারেন্ট স্টার্টার প্যাকেজ
-            </h2>
-            <p className="text-xs text-slate-500">
-              অভিভাবকদের জন্য শুরু থেকে ধাপে ধাপে সম্পূর্ণ বাংলা ভিডিও ক্লাস ও অনুশীলন প্যাকেজ।
+            </h1>
+            <p className="text-xs sm:text-sm text-slate-600 leading-relaxed">
+              অভিভাবকদের জন্য শুরু থেকে ধাপে ধাপে সম্পূর্ণ বাংলা সোরোবান অ্যাবাকাস প্রশিক্ষণ প্যাকেজ।
             </p>
           </div>
 
-          <div className="bg-orange-50 border border-orange-200 rounded-2xl p-4 text-center sm:text-right shrink-0">
-            <span className="text-[11px] font-bold text-slate-500 block">প্যাকেজ ফি</span>
-            <div className="text-2xl sm:text-3xl font-black text-slate-900">
-              ৳ {fee}
-            </div>
-            <span className="text-[10px] font-bold text-orange-700 bg-orange-100/80 px-2 py-0.5 rounded-full inline-block mt-1">
-              এককালীন ফি (One-time)
-            </span>
-            {duration && (
-              <span className="text-[11px] text-slate-600 font-bold block mt-1">
-                এক্সেস মেয়াদ: {duration}
+          <div className="space-y-3 text-xs sm:text-sm text-slate-700 bg-white rounded-3xl border border-slate-200 shadow-sm p-5">
+            <div className="flex items-baseline justify-between gap-3 border-b border-slate-100 pb-3">
+              <div>
+                <span className="text-[11px] font-bold text-slate-500 block">প্যাকেজ মূল্য</span>
+                <span className="text-2xl sm:text-3xl font-black text-slate-900 tabular-nums">
+                  ৳ {fee}
+                </span>
+              </div>
+              <span className="text-[11px] font-extrabold text-orange-800 bg-orange-50 border border-orange-200 px-3 py-1 rounded-full">
+                এককালীন ফি (One-time)
               </span>
-            )}
+            </div>
+
+            <div className="space-y-1.5">
+              <p className="font-extrabold text-slate-900">প্যাকেজে কী কী থাকছে:</p>
+              {includesText ? (
+                <p className="text-xs text-slate-600 leading-relaxed whitespace-pre-line">
+                  {includesText}
+                </p>
+              ) : (
+                <ul className="space-y-1.5 text-xs text-slate-700">
+                  <li className="flex items-start gap-2">
+                    <CheckCircle2 size={14} className="text-emerald-600 shrink-0 mt-0.5" />
+                    <span>শুরু থেকে ধাপে ধাপে সম্পূর্ণ ভিডিও ক্লাস ও অভিভাবক গাইডলাইন</span>
+                  </li>
+                  <li className="flex items-start gap-2">
+                    <CheckCircle2 size={14} className="text-emerald-600 shrink-0 mt-0.5" />
+                    <span>বাংলা ই-বুক লাইব্রেরি, প্র্যাকটিস শিট ও ভার্চুয়াল অ্যাবাকাস</span>
+                  </li>
+                  <li className="flex items-start gap-2">
+                    <CheckCircle2 size={14} className="text-emerald-600 shrink-0 mt-0.5" />
+                    <span>ফিজিক্যাল অ্যাবাকাস পাঠানোর ব্যবস্থা ও সপ্তাহে ৭ দিন ইমেইল সহায়তা</span>
+                  </li>
+                </ul>
+              )}
+            </div>
+
+            <div className="pt-2 border-t border-slate-100 space-y-1.5 text-xs text-slate-600">
+              <p>
+                <strong className="text-slate-900">সময়সূচি ও এক্সেস:</strong>{' '}
+                {duration
+                  ? `ভর্তির পর ${duration} পর্যন্ত যেকোনো সময় রেকর্ডেড ক্লাস ও রিসোর্স ব্যবহার করা যাবে।`
+                  : 'নিজের সুবিধামতো সময়ে যেকোনো ডিভাইস থেকে রেকর্ডেড ভিডিও ক্লাস দেখার পূর্ণ এক্সেস।'}
+              </p>
+              <p>
+                <strong className="text-slate-900">রিফান্ড নীতিমালা:</strong>{' '}
+                {refundText ? (
+                  refundText
+                ) : (
+                  <>
+                    ডিজিটাল এক্সেস চালু হওয়ার পর প্রযোজ্য নীতিমালা অনুযায়ী আবেদন বিবেচনা করা হয়।{' '}
+                    <button
+                      type="button"
+                      onClick={() => onNavigate('/refund')}
+                      className="text-orange-700 hover:underline font-bold cursor-pointer"
+                    >
+                      রিফান্ড নীতিমালা দেখুন
+                    </button>
+                  </>
+                )}
+              </p>
+            </div>
+
+            <div className="pt-1 flex flex-wrap items-center gap-3 text-xs">
+              <a
+                href="#enroll-checkout"
+                onClick={handleScrollToCheckout}
+                className="inline-flex items-center gap-1.5 font-extrabold text-orange-700 hover:underline"
+              >
+                <span>সরাসরি বিকাশ/নগদে পেমেন্ট করতে নিচে যান</span>
+                <ArrowDown size={14} />
+              </a>
+              {supportPhone && (
+                <a
+                  href={`tel:${supportPhone}`}
+                  onClick={() => track('phone_click', { place: 'enroll' })}
+                  className="inline-flex items-center gap-1 font-bold text-slate-800 hover:text-orange-700"
+                >
+                  <Phone size={13} />
+                  <span>{supportPhone}</span>
+                </a>
+              )}
+            </div>
           </div>
         </div>
 
-        {/* What is Included */}
-        <div className="space-y-3">
-          <h3 className="font-extrabold text-sm text-slate-900 flex items-center gap-2">
-            <CheckCircle2 size={16} className="text-emerald-500" />
-            <span>এই প্যাকেজে কী কী থাকছে:</span>
-          </h3>
+        {/* Right: Shortened 3-Field Quick Enroll Form */}
+        <div
+          id="enroll-lead-form"
+          className="lg:col-span-6 bg-white rounded-3xl border-2 border-[#D4AF5F]/60 shadow-sm p-5 sm:p-6 space-y-4"
+        >
+          {leadSubmitted ? (
+            <div role="status" className="space-y-4 py-2">
+              <div className="flex items-start gap-3">
+                <div className="w-10 h-10 rounded-2xl bg-emerald-100 text-emerald-700 flex items-center justify-center shrink-0">
+                  <CheckCircle2 size={22} />
+                </div>
+                <div className="space-y-1">
+                  <h2 className="text-lg font-black text-slate-900">
+                    আপনার ভর্তি আবেদন সফলভাবে জমা হয়েছে!
+                  </h2>
+                  <p className="text-xs sm:text-sm text-slate-600 leading-relaxed">
+                    ধন্যবাদ। আমরা আপনার তথ্য সংরক্ষণ করেছি এবং দ্রুত WhatsApp-এ যোগাযোগ করব। চাইলে এখনই নিচের বাটনে ক্লিক করে WhatsApp-এ কথা বলতে পারেন।
+                  </p>
+                </div>
+              </div>
 
-          {includesText ? (
-            <div className="text-xs text-slate-600 leading-relaxed whitespace-pre-line bg-slate-50 p-4 rounded-2xl border border-slate-200">
-              {includesText}
+              <div className="p-3 bg-slate-50 border border-slate-200 rounded-2xl text-xs text-slate-700 space-y-1">
+                <div>শিশুর নাম: <strong className="text-slate-900">{leadName}</strong></div>
+                <div>বয়স গ্রুপ: <strong className="text-slate-900">{leadAgeGroup}</strong></div>
+                <div>WhatsApp নম্বর: <strong className="font-mono text-slate-900">{leadPhone}</strong></div>
+              </div>
+
+              <div className="flex flex-col sm:flex-row gap-2.5">
+                <a
+                  href={`${SUPPORT_WHATSAPP_URL}?text=${encodeURIComponent(
+                    `আসসালামু আলাইকুম, আমি "${leadName}" (বয়স: ${leadAgeGroup}) এর জন্য ঘরে ঘরে অ্যাবাকাস — প্যারেন্ট স্টার্টার প্যাকেজে ভর্তির আবেদন করেছি।`
+                  )}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  onClick={() => track('whatsapp_click', { place: 'enroll' })}
+                  className="flex-1 min-h-[46px] px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold text-xs sm:text-sm rounded-xl inline-flex items-center justify-center gap-2 transition-colors"
+                >
+                  <MessageCircle size={17} />
+                  <span>WhatsApp-এ ফলো-আপ করুন</span>
+                </a>
+                <a
+                  href="#enroll-checkout"
+                  onClick={handleScrollToCheckout}
+                  className="min-h-[46px] px-4 py-2.5 bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs sm:text-sm rounded-xl inline-flex items-center justify-center gap-1.5 transition-colors"
+                >
+                  <span>বিকাশ/নগদ পেমেন্ট</span>
+                  <ArrowDown size={15} />
+                </a>
+              </div>
+
+              <button
+                type="button"
+                onClick={() => {
+                  setLeadSubmitted(false);
+                  setLeadName('');
+                  setLeadPhone('');
+                  setLeadAgeGroup('');
+                  setLeadSourceNote('');
+                  setLeadError(null);
+                  formStartedRef.current = false;
+                }}
+                className="text-xs font-bold text-slate-500 hover:text-slate-800 underline cursor-pointer"
+              >
+                অন্য তথ্য দিয়ে আবার আবেদন করুন
+              </button>
             </div>
           ) : (
-            <ul className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs text-slate-700">
-              <li className="flex items-start gap-2 bg-slate-50 p-3 rounded-xl border border-slate-200/80">
-                <CheckCircle2 size={15} className="text-emerald-500 shrink-0 mt-0.5" />
-                <span>শুরু থেকে ধাপে ধাপে সম্পূর্ণ ভিডিও ক্লাস</span>
-              </li>
-              <li className="flex items-start gap-2 bg-slate-50 p-3 rounded-xl border border-slate-200/80">
-                <CheckCircle2 size={15} className="text-emerald-500 shrink-0 mt-0.5" />
-                <span>অভিভাবকদের জন্য শেখানো ও অনুশীলনের গাইডলাইন</span>
-              </li>
-              <li className="flex items-start gap-2 bg-slate-50 p-3 rounded-xl border border-slate-200/80">
-                <CheckCircle2 size={15} className="text-emerald-500 shrink-0 mt-0.5" />
-                <span>বাংলা ই-বুক লাইব্রেরি</span>
-              </li>
-              <li className="flex items-start gap-2 bg-slate-50 p-3 rounded-xl border border-slate-200/80">
-                <CheckCircle2 size={15} className="text-emerald-500 shrink-0 mt-0.5" />
-                <span>প্র্যাকটিস শিট</span>
-              </li>
-              <li className="flex items-start gap-2 bg-slate-50 p-3 rounded-xl border border-slate-200/80">
-                <CheckCircle2 size={15} className="text-emerald-500 shrink-0 mt-0.5" />
-                <span>ভার্চুয়াল অ্যাবাকাস</span>
-              </li>
-              <li className="flex items-start gap-2 bg-slate-50 p-3 rounded-xl border border-slate-200/80">
-                <CheckCircle2 size={15} className="text-emerald-500 shrink-0 mt-0.5" />
-                <span>ফিজিক্যাল অ্যাবাকাস পাঠানোর ব্যবস্থা</span>
-              </li>
-              <li className="flex items-start gap-2 bg-slate-50 p-3 rounded-xl border border-slate-200/80 sm:col-span-2">
-                <CheckCircle2 size={15} className="text-emerald-500 shrink-0 mt-0.5" />
-                <span>সপ্তাহে সাত দিন ইমেইলে সহায়তা</span>
-              </li>
-            </ul>
-          )}
-        </div>
+            <form onSubmit={handleLeadSubmit} noValidate className="space-y-4">
+              <div className="space-y-1">
+                <span className="inline-block text-[11px] font-extrabold text-[#855E18] bg-[#FBF3DF] px-2.5 py-0.5 rounded-full">
+                  মাত্র ৩০ সেকেন্ডে ভর্তি আবেদন
+                </span>
+                <h2 className="text-lg sm:text-xl font-black text-slate-900">
+                  শিশুর তথ্য দিয়ে ভর্তি শুরু করুন
+                </h2>
+                <p className="text-xs text-slate-600">
+                  ভর্তি ও গাইডলাইন পেতে নিচের ৩টি আবশ্যিক তথ্য দিন।
+                </p>
+              </div>
 
-        {/* Access Duration */}
-        <div className="space-y-1.5 p-4 bg-slate-50 rounded-2xl border border-slate-200 text-xs">
-          <h4 className="font-bold text-slate-800 flex items-center gap-1.5">
-            <Clock size={15} className="text-orange-500" />
-            <span>অ্যাক্সেসের সময়সীমা</span>
-          </h4>
-          <p className="text-slate-600 leading-relaxed">
-            {duration 
-              ? `প্যাকেজ নেওয়ার পর অ্যাকাউন্টে ${duration} পর্যন্ত নিয়মিত এক্সেস বজায় থাকবে।`
-              : 'প্যাকেজ নেওয়ার পর নির্দিষ্ট মেয়াদ পর্যন্ত সুবিধামতো সময়ে যেকোনো স্থান থেকে ভিডিও ক্লাস দেখার এক্সেস বজায় থাকবে।'}
-          </p>
-        </div>
-
-        {/* Refund Policy Summary */}
-        <div className="space-y-1.5 p-4 bg-slate-50 rounded-2xl border border-slate-200 text-xs">
-          <h4 className="font-bold text-slate-800 flex items-center gap-1.5">
-            <FileText size={15} className="text-orange-500" />
-            <span>রিফান্ড নীতিমালা</span>
-          </h4>
-          <p className="text-slate-600 leading-relaxed">
-            {refundText ? (
-              refundText
-            ) : (
-              <span>
-                ডিজিটাল কন্টেন্ট সুরক্ষার জন্য প্যাকেজ ফি পরিশোধ ও এক্সেস পাওয়ার পর প্রযোজ্য নীতিমালা অনুযায়ী আবেদন বিবেচনা করা হয়। বিস্তারিত জানতে আমাদের{' '}
-                <button
-                  onClick={() => onNavigate('/refund')}
-                  className="text-orange-600 hover:underline font-bold cursor-pointer"
+              {leadError && (
+                <div
+                  role="alert"
+                  className="p-3 bg-rose-50 border border-rose-200 text-rose-800 rounded-xl text-xs font-bold flex items-start gap-2"
                 >
-                  রিফান্ড নীতিমালা পেজ
-                </button>{' '}
-                দেখুন।
-              </span>
-            )}
-          </p>
+                  <AlertCircle size={16} className="text-rose-600 shrink-0 mt-0.5" />
+                  <span>{leadError}</span>
+                </div>
+              )}
+
+              <div className="space-y-3 text-xs">
+                <div>
+                  <label htmlFor="enroll-lead-name" className="block font-bold text-slate-800 mb-1">
+                    শিশুর নাম *
+                  </label>
+                  <input
+                    id="enroll-lead-name"
+                    name="name"
+                    type="text"
+                    required
+                    value={leadName}
+                    onFocus={handleLeadFormFocus}
+                    onChange={(e) => setLeadName(e.target.value)}
+                    placeholder="শিশুর পূর্ণ নাম লিখুন"
+                    className="w-full min-h-[44px] px-3.5 py-2 bg-slate-50 border border-slate-300 rounded-xl font-semibold text-slate-900 focus:bg-white focus:outline-none focus:border-[#C89B3B]"
+                  />
+                </div>
+
+                <div>
+                  <label htmlFor="enroll-lead-phone" className="block font-bold text-slate-800 mb-1">
+                    WhatsApp নম্বর *
+                  </label>
+                  <input
+                    id="enroll-lead-phone"
+                    name="phone"
+                    type="tel"
+                    inputMode="tel"
+                    required
+                    value={leadPhone}
+                    onFocus={handleLeadFormFocus}
+                    onChange={(e) => setLeadPhone(e.target.value)}
+                    placeholder="01XXXXXXXXX (অথবা দেশ কোডসহ)"
+                    className="w-full min-h-[44px] px-3.5 py-2 bg-slate-50 border border-slate-300 rounded-xl font-mono font-bold text-slate-900 focus:bg-white focus:outline-none focus:border-[#C89B3B]"
+                  />
+                </div>
+
+                <div>
+                  <label htmlFor="enroll-lead-age-group" className="block font-bold text-slate-800 mb-1">
+                    শিশুর বয়স গ্রুপ *
+                  </label>
+                  <select
+                    id="enroll-lead-age-group"
+                    name="ageGroup"
+                    required
+                    value={leadAgeGroup}
+                    onFocus={handleLeadFormFocus}
+                    onChange={(e) => setLeadAgeGroup(e.target.value)}
+                    className="w-full min-h-[44px] px-3.5 py-2 bg-slate-50 border border-slate-300 rounded-xl font-semibold text-slate-900 focus:bg-white focus:outline-none focus:border-[#C89B3B]"
+                  >
+                    <option value="">বয়স গ্রুপ নির্বাচন করুন</option>
+                    <option value="৪–৬ বছর">৪–৬ বছর</option>
+                    <option value="৭–৯ বছর">৭–৯ বছর</option>
+                    <option value="১০–১২ বছর">১০–১২ বছর</option>
+                    <option value="১৩+ বছর">১৩+ বছর</option>
+                  </select>
+                </div>
+
+                {/* Optional Progressive Disclosure after Step 1 */}
+                <div className="pt-1">
+                  <button
+                    type="button"
+                    onClick={() => setShowOptionalLeadFields((prev) => !prev)}
+                    aria-expanded={showOptionalLeadFields}
+                    className="inline-flex items-center gap-1 text-[11px] font-bold text-slate-600 hover:text-slate-900 cursor-pointer"
+                  >
+                    <span>ঐচ্ছিক তথ্য যোগ করুন</span>
+                    <ChevronDown
+                      size={14}
+                      className={`transition-transform ${showOptionalLeadFields ? 'rotate-180' : ''}`}
+                    />
+                  </button>
+
+                  {showOptionalLeadFields && (
+                    <div className="mt-2.5 space-y-2.5 p-3 bg-slate-50 rounded-xl border border-slate-200">
+                      <div>
+                        <label htmlFor="enroll-lead-plan" className="block font-bold text-slate-700 mb-1">
+                          প্যাকেজ পছন্দ (ঐচ্ছিক)
+                        </label>
+                        <select
+                          id="enroll-lead-plan"
+                          name="plan"
+                          value={leadPlan}
+                          onFocus={handleLeadFormFocus}
+                          onChange={(e) => setLeadPlan(e.target.value)}
+                          className="w-full min-h-[40px] px-3 py-1.5 bg-white border border-slate-300 rounded-lg font-semibold text-slate-900 focus:outline-none focus:border-[#C89B3B]"
+                        >
+                          <option value="starter-package">
+                            ঘরে ঘরে অ্যাবাকাস — প্যারেন্ট স্টার্টার প্যাকেজ
+                          </option>
+                          <option value="free-guidance">ফ্রি ক্লাস ও প্রাথমিক গাইডলাইন</option>
+                        </select>
+                      </div>
+                      <div>
+                        <label htmlFor="enroll-lead-source" className="block font-bold text-slate-700 mb-1">
+                          কোথা থেকে জেনেছেন? (ঐচ্ছিক)
+                        </label>
+                        <input
+                          id="enroll-lead-source"
+                          name="source"
+                          type="text"
+                          value={leadSourceNote}
+                          onFocus={handleLeadFormFocus}
+                          onChange={(e) => setLeadSourceNote(e.target.value)}
+                          placeholder="যেমন: Facebook / Google / পরিচিতজন"
+                          className="w-full min-h-[40px] px-3 py-1.5 bg-white border border-slate-300 rounded-lg font-medium text-slate-900 focus:outline-none focus:border-[#C89B3B]"
+                        />
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              <button
+                type="submit"
+                disabled={leadSubmitting}
+                className="w-full min-h-[48px] px-5 py-3 bg-gradient-to-r from-[#E4BE67] via-[#D7AC4C] to-[#C89B3B] hover:from-[#ECC978] hover:to-[#D5A847] text-[#141517] font-extrabold text-sm rounded-2xl shadow-md shadow-[#D4AF5F]/20 transition-all inline-flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
+              >
+                <Send size={16} />
+                <span>{leadSubmitting ? 'জমা হচ্ছে...' : 'ভর্তি আবেদন জমা দিন'}</span>
+              </button>
+            </form>
+          )}
         </div>
       </div>
 
@@ -915,6 +1249,7 @@ export const EnrollPage: React.FC<EnrollPageProps> = ({
             href={SUPPORT_WHATSAPP_URL}
             target="_blank"
             rel="noopener noreferrer"
+            onClick={() => track('whatsapp_click', { place: 'enroll' })}
             className="min-h-[52px] p-3.5 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 rounded-xl flex items-center justify-between gap-3 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600"
           >
             <div className="flex items-center gap-3 min-w-0">
@@ -959,6 +1294,7 @@ export const EnrollPage: React.FC<EnrollPageProps> = ({
           {supportPhone && (
             <a
               href={`tel:${supportPhone}`}
+              onClick={() => track('phone_click', { place: 'enroll' })}
               className="min-h-[52px] p-3.5 bg-slate-50 hover:bg-slate-100 border border-slate-200 rounded-xl flex items-center gap-3 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-900"
             >
               <Phone size={18} className="text-orange-600 shrink-0" />

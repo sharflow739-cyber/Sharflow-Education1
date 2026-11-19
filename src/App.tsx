@@ -10,6 +10,7 @@ import {
   hasAuthCallbackOrResetUrl,
 } from './lib/metaPixel';
 import { SignupOrigin } from './lib/demoSignupPixel';
+import { trackPageView } from './lib/analytics.js';
 
 import { Header } from './components/Header';
 import { MobileBottomNav } from './components/MobileBottomNav';
@@ -39,19 +40,19 @@ type AnalyticsWindow = Window & {
   'ga-disable-G-T6MR5VKW39'?: boolean;
 };
 
-function usePublicPageAnalytics(path: string) {
-  const lastPage = useRef<string | null>(null);
+function usePublicPageAnalytics(
+  path: string,
+  initialPageViewFiredRef: React.MutableRefObject<boolean>,
+  lastTrackedPathRef: React.MutableRefObject<string | null>
+) {
   const publicPage = analyticsPublicPaths.has(path);
 
   useEffect(() => {
     const analytics = window as AnalyticsWindow;
     analytics['ga-disable-G-T6MR5VKW39'] = !publicPage;
     if (!publicPage) {
-      lastPage.current = null;
       return;
     }
-    if (lastPage.current === path) return;
-    lastPage.current = path;
 
     const location = window.location.origin + path;
     if (!analytics.gtag) {
@@ -62,6 +63,7 @@ function usePublicPageAnalytics(path: string) {
         send_page_view: false,
         allow_google_signals: false,
         allow_ad_personalization_signals: false,
+        page_path: path,
         page_location: location,
         page_referrer: '',
       });
@@ -70,12 +72,41 @@ function usePublicPageAnalytics(path: string) {
       tag.src = 'https://www.googletagmanager.com/gtag/js?id=' + analyticsId;
       document.head.appendChild(tag);
     }
-    analytics.gtag('event', 'page_view', {
-      send_to: analyticsId,
-      page_location: location,
-      page_referrer: '',
-    });
-  }, [path, publicPage]);
+
+    if (!initialPageViewFiredRef.current) {
+      initialPageViewFiredRef.current = true;
+      lastTrackedPathRef.current = path;
+      analytics.gtag('event', 'page_view', {
+        send_to: analyticsId,
+        page_path: path,
+        page_location: location,
+        page_referrer: '',
+      });
+    }
+  }, [path, publicPage, initialPageViewFiredRef, lastTrackedPathRef]);
+}
+
+function useSpaPageTracking(
+  path: string,
+  initialPageViewFiredRef: React.MutableRefObject<boolean>,
+  lastTrackedPathRef: React.MutableRefObject<string | null>
+) {
+  const publicPage = analyticsPublicPaths.has(path);
+
+  useEffect(() => {
+    if (!publicPage) {
+      lastTrackedPathRef.current = null;
+      return;
+    }
+    if (!initialPageViewFiredRef.current) {
+      return;
+    }
+    if (lastTrackedPathRef.current === path) {
+      return;
+    }
+    lastTrackedPathRef.current = path;
+    trackPageView(path);
+  }, [path, publicPage, initialPageViewFiredRef, lastTrackedPathRef]);
 }
 
 export default function App() {
@@ -93,7 +124,15 @@ export default function App() {
     }
     return '/';
   });
-  usePublicPageAnalytics(authLoading || currentUser ? '' : currentPath);
+  const initialPageViewFiredRef = useRef<boolean>(false);
+  const lastTrackedPathRef = useRef<string | null>(null);
+  const publicAnalyticsPath = authLoading
+    ? ''
+    : currentPath === '/' && currentUser
+    ? ''
+    : currentPath;
+  usePublicPageAnalytics(publicAnalyticsPath, initialPageViewFiredRef, lastTrackedPathRef);
+  useSpaPageTracking(publicAnalyticsPath, initialPageViewFiredRef, lastTrackedPathRef);
   const prevPathRef = useRef<string>(currentPath);
   const initialAuthCallbackOrResetRef = useRef<boolean>(
     typeof window !== 'undefined' && hasAuthCallbackOrResetUrl(window.location)

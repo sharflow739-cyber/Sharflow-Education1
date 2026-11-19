@@ -1,5 +1,6 @@
 import React from 'react';
 import { UserProfile } from '../types';
+import { track } from '../lib/analytics.js';
 import {
   PlayCircle,
   UserPlus,
@@ -99,28 +100,6 @@ export const DemoPage: React.FC<DemoPageProps> = ({
         )}
       </div>
 
-      {/* Package CTA Card */}
-      <div className="p-6 bg-[#FFFDF9] rounded-2xl border border-[#E5DEC9] shadow-2xs flex flex-col sm:flex-row items-center justify-between gap-4">
-        <div className="space-y-1 text-center sm:text-left">
-          <p className="text-[11px] font-bold text-[#855E18]">সম্পূর্ণ প্যাকেজ</p>
-          <h2 className="font-extrabold text-sm sm:text-base text-[#18191C]">
-            ঘরে ঘরে অ্যাবাকাস — প্যারেন্ট স্টার্টার প্যাকেজ
-          </h2>
-          <p className="text-xs text-[#575247]">
-            সম্পূর্ণ ভিডিও ক্লাস, অভিভাবক গাইডলাইন, ই-বুক লাইব্রেরি, প্র্যাকটিস শিট, ভার্চুয়াল ও ফিজিক্যাল অ্যাবাকাস সম্পর্কে বিস্তারিত জানুন।
-          </p>
-        </div>
-
-        <button
-          type="button"
-          onClick={() => onNavigate('/enroll')}
-          className="w-full sm:w-auto min-h-[44px] px-6 py-3 bg-gradient-to-r from-[#E4BE67] to-[#CFA242] hover:from-[#ECC978] hover:to-[#DBB052] text-[#141517] font-extrabold text-xs rounded-xl shadow-md shadow-[#D4AF5F]/20 transition-all flex items-center justify-center gap-2 cursor-pointer shrink-0 whitespace-nowrap"
-        >
-          <UserPlus size={16} className="shrink-0" />
-          <span>প্যাকেজের বিস্তারিত দেখুন</span>
-        </button>
-      </div>
-
       {/* Highlights */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 pt-2">
         <div className="p-4 bg-[#FBF7EC] border border-[#E6D9B8] rounded-2xl space-y-1">
@@ -152,6 +131,31 @@ export const DemoPage: React.FC<DemoPageProps> = ({
             অ্যাকাউন্টে লগইন করে সরাসরি ব্রাউজারে ইন্টারঅ্যাক্টিভ সোরোবান অ্যাবাকাস অনুশীলন করুন।
           </p>
         </div>
+      </div>
+
+      {/* Visible Enroll CTA after main content */}
+      <div className="p-6 bg-[#FFFDF9] rounded-2xl border border-[#E5DEC9] shadow-2xs flex flex-col sm:flex-row items-center justify-between gap-4">
+        <div className="space-y-1 text-center sm:text-left">
+          <p className="text-[11px] font-bold text-[#855E18]">সম্পূর্ণ প্যাকেজ</p>
+          <h2 className="font-extrabold text-sm sm:text-base text-[#18191C]">
+            ঘরে ঘরে অ্যাবাকাস — প্যারেন্ট স্টার্টার প্যাকেজ
+          </h2>
+          <p className="text-xs text-[#575247]">
+            সম্পূর্ণ ভিডিও ক্লাস, অভিভাবক গাইডলাইন, ই-বুক লাইব্রেরি, প্র্যাকটিস শিট, ভার্চুয়াল ও ফিজিক্যাল অ্যাবাকাস সম্পর্কে বিস্তারিত জানুন।
+          </p>
+        </div>
+
+        <button
+          type="button"
+          onClick={() => {
+            track('cta_click', { place: 'demo', target: 'enroll' });
+            onNavigate('/enroll');
+          }}
+          className="w-full sm:w-auto min-h-[44px] px-6 py-3 bg-gradient-to-r from-[#E4BE67] to-[#CFA242] hover:from-[#ECC978] hover:to-[#DBB052] text-[#141517] font-extrabold text-xs rounded-xl shadow-md shadow-[#D4AF5F]/20 transition-all flex items-center justify-center gap-2 cursor-pointer shrink-0 whitespace-nowrap"
+        >
+          <UserPlus size={16} className="shrink-0" />
+          <span>সম্পূর্ণ প্যাকেজে ভর্তি হোন</span>
+        </button>
       </div>
     </div>
   );
