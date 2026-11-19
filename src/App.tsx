@@ -11,6 +11,13 @@ import {
 } from './lib/metaPixel';
 import { SignupOrigin } from './lib/demoSignupPixel';
 import {
+  claimAndTrackOAuthRegistration,
+  clearPendingGoogleOAuthAttempt,
+  consumePendingGoogleOAuthAttempt,
+  parseAuthCallbackError,
+  sanitizeOAuthReturnPath,
+} from './lib/oauthRedirect';
+import {
   SCROLL_DEPTH_THRESHOLDS,
   normalizeAnalyticsPath,
   track,
@@ -25,6 +32,7 @@ import { DemoPage } from './components/DemoPage';
 import { EbookLibrary } from './components/EbookLibrary';
 import { EnrollPage } from './components/EnrollPage';
 import { PolicyPages } from './components/PolicyPages';
+import { StudentHomeHub } from './components/StudentHomeHub';
 import { Dashboard } from './components/Dashboard';
 import { ClassView } from './components/ClassView';
 import { AdminPanel } from './components/AdminPanel';
@@ -188,7 +196,8 @@ export default function App() {
     !(currentUser && !currentUser.is_active);
 
   const publicAnalyticsPath =
-    authLoading || (currentPath === '/' && Boolean(currentUser))
+    authLoading ||
+    ((currentPath === '/' || currentPath === '/dashboard') && Boolean(currentUser))
       ? ''
       : currentPath;
 
@@ -241,16 +250,21 @@ export default function App() {
     []
   );
 
-  // Clean URL Hash after Supabase extracts token, or handle expired old link error
+  // Handle OAuth / email callback errors in search/hash & clean residual token hashes
   useEffect(() => {
+    const callbackErr = parseAuthCallbackError(window.location);
+    if (callbackErr) {
+      clearPendingGoogleOAuthAttempt();
+      window.history.replaceState(null, '', window.location.pathname || '/');
+      setLegacyLinkNotice(callbackErr.message);
+      return;
+    }
+
     const hash = window.location.hash;
-    if (hash && (hash.includes('error_code=otp_expired') || hash.includes('error=') || hash.includes('error_code='))) {
-      window.history.replaceState(null, '', window.location.pathname + window.location.search);
-      setLegacyLinkNotice('লিংকের বদলে ইমেইলের কোড ব্যবহার করুন।');
-    } else if (hash && (hash.includes('access_token') || hash.includes('type='))) {
+    if (hash && (hash.includes('access_token') || hash.includes('type='))) {
       const timer = setTimeout(() => {
         if (window.location.hash && window.location.hash.includes('access_token')) {
-          window.history.replaceState(null, '', window.location.pathname + window.location.search);
+          window.history.replaceState(null, '', window.location.pathname || '/');
         }
       }, 400);
       return () => clearTimeout(timer);
@@ -267,12 +281,12 @@ export default function App() {
       if (path !== prevPath) {
         setPublicVisitSeq((seq) => seq + 1);
       }
-      // Support class deep links (e.g. /class/class-01 or /class-01)
+      // Support class deep links (e.g. /class/class-01)
       if (path.startsWith('/class/')) {
         const classId = path.replace('/class/', '').trim();
         const found = classes.find((c) => c.id === classId);
-        if (found) setCurrentClass(found);
-      } else if (path === '/' || path === '/dashboard') {
+        setCurrentClass(found || null);
+      } else {
         setCurrentClass(null);
       }
     };
@@ -281,11 +295,25 @@ export default function App() {
     return () => window.removeEventListener('popstate', handleLocationChange);
   }, [classes]);
 
+  // Resolve deep-linked class once classes finish loading
+  useEffect(() => {
+    if (!currentUser || !currentPath.startsWith('/class/')) return;
+    const classId = currentPath.replace('/class/', '').trim();
+    if (!classId) return;
+    const found = classes.find((c) => c.id === classId);
+    if (found && currentClass?.id !== found.id) {
+      setCurrentClass(found);
+    }
+  }, [currentUser, currentPath, classes, currentClass?.id]);
+
   // Safe SPA navigation (and full browser navigation for /abacus rewrite)
   const navigateTo = useCallback((path: string) => {
     if (path === '/abacus' || path === '/abacus/') {
       window.location.assign('/abacus');
       return;
+    }
+    if (!path.startsWith('/class/')) {
+      setCurrentClass(null);
     }
     const prevPath = prevPathRef.current;
     if (window.location.pathname !== path) {
@@ -301,14 +329,14 @@ export default function App() {
   }, []);
 
   // Track Meta Pixel PageView once per public page visit when privacy requirements permit.
-  // Excludes /admin, /ebooks, member dashboard (/ while signed in), password reset, and auth callbacks.
+  // Excludes /admin, /ebooks, /classes, /class/*, member home (/ while signed in), password reset, and auth callbacks.
   useEffect(() => {
     if (!isSupabaseConfigured || authLoading) return;
     if (!isMarketingPermitted) return;
     if (isResetPasswordModalOpen || legacyLinkNotice) return;
     if (initialAuthCallbackOrResetRef.current) return;
     if (currentUser && !currentUser.is_active) return;
-    if (currentUser && currentPath === '/') return;
+    if (currentUser && (currentPath === '/' || currentPath === '/dashboard')) return;
     if (!isPublicPixelPath(currentPath)) return;
 
     trackPublicPageView(currentPath, publicVisitSeq);
@@ -434,21 +462,70 @@ export default function App() {
     }
   }, [fetchChapters]);
 
-  // Subscribe to real Supabase Auth State
+  // Subscribe to real Supabase Auth State (including Google OAuth PKCE/hash completion)
   useEffect(() => {
     if (!isSupabaseConfigured || !supabase) {
       setAuthLoading(false);
       return;
     }
 
-    // Initial session check
-    supabase.auth.getSession().then(({ data: { session } }) => {
+    let isMounted = true;
+
+    const loadProfileWithOAuthRetry = async (userId: string): Promise<UserProfile | null> => {
+      const firstTry = await fetchUserProfile(userId);
+      if (firstTry) return firstTry;
+      await new Promise((resolve) => setTimeout(resolve, 250));
+      return fetchUserProfile(userId);
+    };
+
+    const handleAuthenticatedSession = async (session: {
+      user: {
+        id: string;
+        created_at?: string;
+        last_sign_in_at?: string;
+        identities?: Array<{ provider?: string; created_at?: string; last_sign_in_at?: string }>;
+      };
+    }) => {
+      if (!isMounted) return;
+
+      // Scrub PKCE ?code= / ?state= or #access_token= before tracking or navigating
+      if (hasAuthCallbackOrResetUrl(window.location)) {
+        window.history.replaceState(null, '', window.location.pathname || '/');
+      }
+
+      const profile = await loadProfileWithOAuthRetry(session.user.id);
+      if (!isMounted) return;
+
+      const pendingOAuth = consumePendingGoogleOAuthAttempt();
+      if (pendingOAuth && profile?.is_active !== false) {
+        claimAndTrackOAuthRegistration(session.user, pendingOAuth);
+      }
+
+      setCurrentUser(profile);
+      setAuthLoading(false);
+
+      if (pendingOAuth && profile?.is_active !== false) {
+        const safeTarget = sanitizeOAuthReturnPath(pendingOAuth.returnPath);
+        const currentPathname = window.location.pathname || '/';
+        if (safeTarget && safeTarget !== currentPathname) {
+          navigateTo(safeTarget);
+        }
+      }
+    };
+
+    // Initial session check (waits for Supabase URL code exchange if returning from Google OAuth)
+    supabase.auth.getSession().then(({ data: { session }, error: sessionErr }) => {
+      if (!isMounted) return;
       if (session?.user) {
-        fetchUserProfile(session.user.id).then((profile) => {
-          setCurrentUser(profile);
-          setAuthLoading(false);
-        });
+        handleAuthenticatedSession(session);
       } else {
+        if (sessionErr || (window.location.search && window.location.search.includes('code='))) {
+          clearPendingGoogleOAuthAttempt();
+          window.history.replaceState(null, '', window.location.pathname || '/');
+          setLegacyLinkNotice((prev) =>
+            prev || 'Google লগইন সম্পন্ন করা যায়নি। অনুগ্রহ করে আবার চেষ্টা করুন।'
+          );
+        }
         setCurrentUser(null);
         setAuthLoading(false);
       }
@@ -456,28 +533,25 @@ export default function App() {
 
     // Auth state changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+      if (!isMounted) return;
       if (event === 'PASSWORD_RECOVERY') {
         initialAuthCallbackOrResetRef.current = true;
         setIsResetPasswordModalOpen(true);
       }
       if (session?.user) {
-        const profile = await fetchUserProfile(session.user.id);
-        setCurrentUser(profile);
-        // Clean URL hash if present
-        if (window.location.hash && window.location.hash.includes('access_token')) {
-          window.history.replaceState(null, '', window.location.pathname + window.location.search);
-        }
+        await handleAuthenticatedSession(session);
       } else {
         setCurrentUser(null);
         setCurrentClass(null);
+        setAuthLoading(false);
       }
-      setAuthLoading(false);
     });
 
     return () => {
+      isMounted = false;
       subscription.unsubscribe();
     };
-  }, [fetchUserProfile]);
+  }, [fetchUserProfile, navigateTo]);
 
   // Re-read profile and queues on window focus
   useEffect(() => {
@@ -628,28 +702,34 @@ export default function App() {
         pendingStudentsCount={0}
       />
 
-      {/* Notice for visitors arriving from legacy email links */}
+      {/* Notice for visitors arriving from OAuth callback errors or legacy email links */}
       {legacyLinkNotice && (
-        <div className="bg-amber-500 text-white px-4 py-3 flex items-center justify-between text-xs font-bold shadow-sm">
+        <div
+          role="alert"
+          className="bg-amber-600 text-white px-4 py-3 flex items-center justify-between text-xs font-bold shadow-sm"
+        >
           <div className="max-w-4xl mx-auto w-full flex items-center justify-between gap-3">
             <div className="flex items-center gap-2">
               <AlertCircle size={16} className="shrink-0" />
               <span>{legacyLinkNotice}</span>
             </div>
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 shrink-0">
               <button
+                type="button"
                 onClick={() => {
                   openAuthModal('login');
                   setLegacyLinkNotice(null);
                 }}
-                className="bg-white text-amber-900 px-3 py-1 rounded-lg text-xs font-black hover:bg-amber-50 cursor-pointer shadow-xs"
+                className="bg-white text-amber-950 px-3 py-1 rounded-lg text-xs font-black hover:bg-amber-50 cursor-pointer shadow-xs whitespace-nowrap"
               >
-                কোড দিন
+                {legacyLinkNotice.includes('কোড') ? 'কোড দিন' : 'লগইন করুন'}
               </button>
               <button
+                type="button"
                 onClick={() => setLegacyLinkNotice(null)}
-                className="text-white/80 hover:text-white p-1 cursor-pointer"
+                className="text-white/85 hover:text-white p-1 cursor-pointer"
                 title="বন্ধ করুন"
+                aria-label="নোটিশ বন্ধ করুন"
               >
                 <X size={16} />
               </button>
@@ -763,6 +843,158 @@ export default function App() {
         )}
 
         {/* ======================================================== */}
+        {/* ROUTE 1D: CLASSES ACCORDION SCREEN (/classes) */}
+        {/* ======================================================== */}
+        {(currentPath === '/classes' || currentPath === '/classes/') && (
+          !currentUser ? (
+            <div className="max-w-lg mx-auto px-4 py-12 sm:py-16">
+              <div className="p-6 sm:p-8 bg-gradient-to-br from-[#141517] via-[#1B1C20] to-[#23201A] text-[#FAF7F0] rounded-3xl border border-[#D4AF5F]/35 shadow-xl text-center space-y-5">
+                <div className="w-14 h-14 rounded-2xl bg-[#222328] border border-[#C89D4A]/45 text-[#E4BE67] mx-auto flex items-center justify-center">
+                  <Lock size={26} />
+                </div>
+                <div className="space-y-2">
+                  <h1 className="text-xl sm:text-2xl font-black text-[#FAF7F0]">
+                    ক্লাসসমূহ দেখতে লগইন করুন
+                  </h1>
+                  <p className="text-xs sm:text-sm text-[#D8D1C2] leading-relaxed">
+                    ফ্রি ও অধ্যায়ভিত্তিক সব ক্লাস দেখতে অনুগ্রহ করে লগইন করুন অথবা নতুন ফ্রি অ্যাকাউন্ট তৈরি করুন।
+                  </p>
+                </div>
+                <div className="flex flex-col sm:flex-row items-center justify-center gap-3 pt-1">
+                  <button
+                    type="button"
+                    onClick={() => openAuthModal('login', '/classes', 'other')}
+                    className="w-full sm:w-auto min-h-[46px] px-5 py-2.5 bg-gradient-to-r from-[#E4BE67] to-[#CFA242] hover:from-[#ECC978] hover:to-[#DBB052] text-[#141517] font-extrabold text-xs sm:text-sm rounded-xl shadow-md inline-flex items-center justify-center gap-2 cursor-pointer"
+                  >
+                    <LogIn size={16} />
+                    <span>লগইন করুন</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => openAuthModal('register', '/classes', 'demo')}
+                    className="w-full sm:w-auto min-h-[46px] px-5 py-2.5 bg-[#24252B] hover:bg-[#2F3138] text-[#FAF7F0] border border-[#D4AF5F]/45 font-bold text-xs sm:text-sm rounded-xl inline-flex items-center justify-center gap-2 cursor-pointer"
+                  >
+                    <UserPlus size={16} className="text-[#E4BE67]" />
+                    <span>নতুন অ্যাকাউন্ট তৈরি করুন (OTP)</span>
+                  </button>
+                </div>
+                <div className="pt-2">
+                  <button
+                    type="button"
+                    onClick={() => navigateTo('/')}
+                    className="inline-flex items-center gap-1.5 text-xs font-bold text-[#CFC7B7] hover:text-[#E8C778] cursor-pointer"
+                  >
+                    <ArrowLeft size={14} />
+                    <span>মূল পাতায় ফিরে যান</span>
+                  </button>
+                </div>
+              </div>
+            </div>
+          ) : (
+            <>
+              {classesLoading && (
+                <div className="py-16 text-center text-xs text-slate-400">
+                  ক্লাস লোড হচ্ছে...
+                </div>
+              )}
+              {classesError && (
+                <div className="max-w-4xl mx-auto px-4 py-6">
+                  <div className="p-4 bg-rose-50 border border-rose-200 text-rose-800 rounded-2xl text-xs">
+                    {classesError}
+                  </div>
+                </div>
+              )}
+              {!classesLoading && !classesError && (
+                <Dashboard
+                  classes={classes}
+                  chapters={chapters}
+                  chaptersSupported={chaptersSupported}
+                  currentUser={currentUser}
+                  onSelectClass={(cls) => {
+                    setCurrentClass(cls);
+                    navigateTo(`/class/${cls.id}`);
+                  }}
+                  onNavigate={navigateTo}
+                  onBackHome={() => navigateTo('/')}
+                />
+              )}
+            </>
+          )
+        )}
+
+        {/* ======================================================== */}
+        {/* ROUTE 1E: SINGLE CLASS VIEW (/class/:id) */}
+        {/* ======================================================== */}
+        {currentPath.startsWith('/class/') && (
+          !currentUser ? (
+            <div className="max-w-lg mx-auto px-4 py-12 sm:py-16">
+              <div className="p-6 sm:p-8 bg-gradient-to-br from-[#141517] via-[#1B1C20] to-[#23201A] text-[#FAF7F0] rounded-3xl border border-[#D4AF5F]/35 shadow-xl text-center space-y-5">
+                <div className="w-14 h-14 rounded-2xl bg-[#222328] border border-[#C89D4A]/45 text-[#E4BE67] mx-auto flex items-center justify-center">
+                  <Lock size={26} />
+                </div>
+                <div className="space-y-2">
+                  <h1 className="text-xl sm:text-2xl font-black text-[#FAF7F0]">
+                    ক্লাস দেখতে লগইন করুন
+                  </h1>
+                  <p className="text-xs sm:text-sm text-[#D8D1C2] leading-relaxed">
+                    এই ক্লাস ভিডিও ও রিসোর্স দেখতে অনুগ্রহ করে লগইন করুন।
+                  </p>
+                </div>
+                <div className="flex flex-col sm:flex-row items-center justify-center gap-3 pt-1">
+                  <button
+                    type="button"
+                    onClick={() => openAuthModal('login', currentPath, 'other')}
+                    className="w-full sm:w-auto min-h-[46px] px-5 py-2.5 bg-gradient-to-r from-[#E4BE67] to-[#CFA242] hover:from-[#ECC978] hover:to-[#DBB052] text-[#141517] font-extrabold text-xs sm:text-sm rounded-xl shadow-md inline-flex items-center justify-center gap-2 cursor-pointer"
+                  >
+                    <LogIn size={16} />
+                    <span>লগইন করুন</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => openAuthModal('register', currentPath, 'demo')}
+                    className="w-full sm:w-auto min-h-[46px] px-5 py-2.5 bg-[#24252B] hover:bg-[#2F3138] text-[#FAF7F0] border border-[#D4AF5F]/45 font-bold text-xs sm:text-sm rounded-xl inline-flex items-center justify-center gap-2 cursor-pointer"
+                  >
+                    <UserPlus size={16} className="text-[#E4BE67]" />
+                    <span>নতুন অ্যাকাউন্ট তৈরি করুন (OTP)</span>
+                  </button>
+                </div>
+              </div>
+            </div>
+          ) : currentClass ? (
+            <ClassView
+              currentClass={currentClass}
+              allClasses={classes}
+              currentUser={currentUser}
+              onBackToDashboard={() => {
+                setCurrentClass(null);
+                navigateTo('/classes');
+              }}
+              onNavigate={navigateTo}
+            />
+          ) : classesLoading ? (
+            <div className="py-16 text-center text-xs text-slate-400">
+              ক্লাস লোড হচ্ছে...
+            </div>
+          ) : (
+            <div className="max-w-md mx-auto px-4 py-14 text-center space-y-4">
+              <div className="p-6 bg-white rounded-2xl border border-[#E5DEC9] shadow-sm space-y-3">
+                <p className="text-sm font-bold text-[#18191C]">
+                  ক্লাসটি খুঁজে পাওয়া যায়নি।
+                </p>
+                <button
+                  type="button"
+                  onClick={() => navigateTo('/classes')}
+                  className="px-4 py-2 bg-[#18191C] text-[#F2D283] font-bold text-xs rounded-xl inline-flex items-center gap-1.5 cursor-pointer"
+                >
+                  <ArrowLeft size={14} />
+                  <span>ক্লাসসমূহে ফিরে যান</span>
+                </button>
+              </div>
+            </div>
+          )
+        )}
+
+        {/* ======================================================== */}
         {/* ROUTE 2: PUBLIC ENROLL (/enroll) */}
         {/* ======================================================== */}
         {currentPath === '/enroll' && (
@@ -866,6 +1098,9 @@ export default function App() {
           currentPath !== '/ebooks' &&
           currentPath !== '/abacus' &&
           currentPath !== '/abacus/' &&
+          currentPath !== '/classes' &&
+          currentPath !== '/classes/' &&
+          !currentPath.startsWith('/class/') &&
           currentPath !== '/enroll' &&
           currentPath !== '/contact' &&
           currentPath !== '/terms' &&
@@ -892,37 +1127,28 @@ export default function App() {
                 currentUser={currentUser}
                 onBackToDashboard={() => {
                   setCurrentClass(null);
-                  navigateTo('/');
+                  navigateTo('/classes');
                 }}
                 onNavigate={navigateTo}
               />
             ) : (
-              /* Member Dashboard for Logged-In User */
+              /* Signed-in Resource Hub at / */
               <>
-                {classesLoading && (
-                  <div className="py-16 text-center text-xs text-slate-400">
-                    ক্লাস লোড হচ্ছে...
-                  </div>
-                )}
                 {classesError && (
-                  <div className="max-w-4xl mx-auto px-4 py-6">
+                  <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 pt-6">
                     <div className="p-4 bg-rose-50 border border-rose-200 text-rose-800 rounded-2xl text-xs">
                       {classesError}
                     </div>
                   </div>
                 )}
-                {!classesLoading && !classesError && (
-                  <Dashboard
-                    classes={classes}
-                    chapters={chapters}
-                    chaptersSupported={chaptersSupported}
-                    currentUser={currentUser}
-                    onSelectClass={(cls) => {
-                      setCurrentClass(cls);
-                    }}
-                    onNavigate={navigateTo}
-                  />
-                )}
+                <StudentHomeHub
+                  currentUser={currentUser}
+                  classes={classes}
+                  classesLoading={classesLoading}
+                  onNavigate={navigateTo}
+                  onLogout={handleLogout}
+                  pendingRequestsCount={pendingRequestsCount}
+                />
               </>
             )
           )}
@@ -959,6 +1185,7 @@ export default function App() {
         isOpen={isAuthModalOpen}
         initialTab={authInitialTab}
         signupOrigin={authOrigin}
+        redirectPath={postAuthRedirect}
         onBeforeDemoCompleteRegistration={() => {
           if (authOrigin === 'demo' && postAuthRedirect === '/demo') {
             navigateTo('/demo');

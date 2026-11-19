@@ -184,6 +184,61 @@ export function groupClassesByChapter(
   return groups;
 }
 
+export interface ClassesAccordionSection {
+  key: string;
+  title: string;
+  subtitle?: string;
+  isFreeSection: boolean;
+  classes: ClassItem[];
+  emptyMessage: string;
+}
+
+/**
+ * Builds the /classes full-width accordion bar list:
+ * 1. "ফ্রি ক্লাস" bar containing all published free classes in admin order
+ * 2. All configured course_chapters in admin sort_order (including empty states)
+ * 3. "অন্যান্য" ONLY when unassigned published classes exist
+ */
+export function buildClassesAccordionSections(
+  classes: ClassItem[],
+  chapters: CourseChapter[],
+  chaptersSupported: boolean
+): ClassesAccordionSection[] {
+  const publishedClasses = sortClassesByOrder(
+    classes.filter((cls) => cls.is_published !== false)
+  );
+  const freeClasses = publishedClasses.filter((cls) => cls.is_free !== false);
+  const chapterGroups = groupClassesByChapter(
+    publishedClasses,
+    sortChapters(chapters),
+    chaptersSupported
+  );
+
+  const sections: ClassesAccordionSection[] = [
+    {
+      key: 'free-classes',
+      title: 'ফ্রি ক্লাস',
+      subtitle: 'Free Classes',
+      isFreeSection: true,
+      classes: freeClasses,
+      emptyMessage: 'বর্তমানে কোনো প্রকাশকৃত ফ্রি ক্লাস নেই।',
+    },
+  ];
+
+  for (const grp of chapterGroups) {
+    sections.push({
+      key: grp.key,
+      title: grp.title,
+      subtitle: grp.subtitle,
+      isFreeSection: false,
+      classes: grp.classes,
+      emptyMessage: 'এই অধ্যায়ে এখনও কোনো প্রকাশকৃত ক্লাস যুক্ত হয়নি।',
+    });
+  }
+
+  return sections;
+}
+
 /**
  * Computes updated chapter sort_order values after moving a chapter up or down.
  */

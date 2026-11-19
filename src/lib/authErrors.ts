@@ -116,7 +116,20 @@ export function explainAuthError(err: unknown): string {
     return 'কনফিগারেশন ভুল: VITE_SUPABASE_ANON_KEY ঠিক নয়।';
   }
 
-  // 11. "Failed to fetch" / "NetworkError"
+  // 11. OAuth / Google sign-in errors
+  if (
+    code.includes('provider') ||
+    combined.includes('unsupported provider') ||
+    combined.includes('provider is not enabled')
+  ) {
+    return 'Google লগইন সুবিধাটি এখন সক্রিয় নেই। অনুগ্রহ করে ইমেইল ও পাসওয়ার্ড ব্যবহার করুন।';
+  }
+
+  if (combined.includes('access_denied') || combined.includes('oauth')) {
+    return 'Google লগইন সম্পন্ন করা যায়নি। অনুগ্রহ করে আবার চেষ্টা করুন।';
+  }
+
+  // 12. "Failed to fetch" / "NetworkError"
   if (
     combined.includes('failed to fetch') ||
     combined.includes('networkerror') ||

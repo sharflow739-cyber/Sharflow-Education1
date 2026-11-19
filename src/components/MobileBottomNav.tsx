@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { UserProfile } from '../types';
 import {
-  PlayCircle,
+  Home,
   BookOpen,
   Calculator,
   User,
@@ -54,9 +54,8 @@ export const MobileBottomNav: React.FC<MobileBottomNavProps> = ({
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [isAccountOpen]);
 
-  const isClassesActive =
-    !isAccountOpen &&
-    (activePath === '/' || activePath === '/dashboard' || activePath.startsWith('/class'));
+  const isHomeActive =
+    !isAccountOpen && (activePath === '/' || activePath === '/dashboard');
   const isEbooksActive = !isAccountOpen && activePath === '/ebooks';
   const isAbacusActive = !isAccountOpen && activePath.startsWith('/abacus');
   const isAccountActive = isAccountOpen || activePath === '/admin';
@@ -213,23 +212,23 @@ export const MobileBottomNav: React.FC<MobileBottomNavProps> = ({
               setIsAccountOpen(false);
               onOpenDashboard();
             }}
-            aria-current={isClassesActive ? 'page' : undefined}
+            aria-current={isHomeActive ? 'page' : undefined}
             className={`relative min-h-[58px] py-1.5 px-1 flex flex-col items-center justify-center gap-1 transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[#9E7324] ${
-              isClassesActive
+              isHomeActive
                 ? 'text-[#141517] bg-[#F3EDE0]'
                 : 'text-[#524E46] hover:text-[#141517] hover:bg-[#F7F3EA]'
             }`}
           >
-            {isClassesActive && (
+            {isHomeActive && (
               <span className="absolute top-0 inset-x-4 h-0.5 rounded-full bg-[#B88930]" aria-hidden="true" />
             )}
-            <PlayCircle
+            <Home
               size={20}
-              strokeWidth={isClassesActive ? 2.4 : 2}
-              className={isClassesActive ? 'text-[#855E18] shrink-0' : 'shrink-0'}
+              strokeWidth={isHomeActive ? 2.4 : 2}
+              className={isHomeActive ? 'text-[#855E18] shrink-0' : 'shrink-0'}
             />
             <span className="text-[11px] font-extrabold leading-tight whitespace-nowrap">
-              ক্লাস
+              হোম
             </span>
           </button>
 

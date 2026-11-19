@@ -1,7 +1,18 @@
 import React from 'react';
 import { UserProfile } from '../types';
 import { useSettings } from '../contexts/SettingsContext';
-import { LogOut, User, BookOpen, ShieldAlert, Calculator, Sparkles, UserPlus, ShoppingCart } from 'lucide-react';
+import {
+  LogOut,
+  User,
+  Home,
+  PlayCircle,
+  BookOpen,
+  ShieldAlert,
+  Calculator,
+  Sparkles,
+  UserPlus,
+  ShoppingCart,
+} from 'lucide-react';
 
 interface HeaderProps {
   currentUser: UserProfile | null;
@@ -14,7 +25,7 @@ interface HeaderProps {
   pendingStudentsCount?: number;
 }
 
-const BRAND_LOGO_PATH = '/assets/aistudio/sharflow-logo-1_4c5c869d.png';
+const BRAND_EMBLEM_PATH = '/assets/aistudio/sharflow-emblem.png';
 
 export const Header: React.FC<HeaderProps> = ({
   currentUser,
@@ -29,6 +40,9 @@ export const Header: React.FC<HeaderProps> = ({
   const { settings } = useSettings();
   const isAdmin = currentUser?.role === 'admin';
   const isPremium = isAdmin || currentUser?.enrollment_status === 'approved';
+  const isHomeActive = activePath === '/' || activePath === '/dashboard';
+  const isClassesActive =
+    activePath === '/classes' || activePath === '/classes/' || activePath.startsWith('/class');
 
   const handleNavClick = (e: React.MouseEvent, path: string) => {
     e.preventDefault();
@@ -40,27 +54,27 @@ export const Header: React.FC<HeaderProps> = ({
       <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8">
         <div className="flex flex-wrap lg:flex-nowrap items-center justify-between gap-x-2 gap-y-2 py-2.5 lg:py-0 lg:min-h-[68px]">
           
-          {/* Row 1 Left: Logo & Platform Name */}
+          {/* Row 1 Left: Logo Emblem & Shar Flow Brand */}
           <a
             href="/"
             onClick={(e) => handleNavClick(e, '/')}
             className="order-1 flex items-center gap-2.5 sm:gap-3 cursor-pointer group min-w-0 flex-1 lg:flex-initial lg:shrink-0"
           >
-            <div className="w-[66px] h-[38px] sm:w-[82px] sm:h-[46px] rounded-xl bg-[#151618] border border-[#C89D4A]/45 p-0.5 shadow-sm overflow-hidden flex items-center justify-center shrink-0 transition-transform group-hover:scale-[1.03]">
+            <div className="w-10 h-10 sm:w-11 sm:h-11 rounded-xl bg-[#121212] border border-[#C89D4A]/45 shadow-sm overflow-hidden flex items-center justify-center shrink-0 transition-transform group-hover:scale-[1.03]">
               <img
-                src={BRAND_LOGO_PATH}
+                src={BRAND_EMBLEM_PATH}
                 alt="Shar Flow"
-                width={1000}
-                height={559}
+                width={440}
+                height={440}
                 referrerPolicy="no-referrer"
-                className="w-full h-full object-contain"
+                className="w-full h-full object-cover"
               />
             </div>
             <div className="min-w-0">
-              <span className="font-extrabold text-[#18191C] text-sm sm:text-base lg:text-lg tracking-tight leading-tight block truncate">
-                {settings.site_name || 'অ্যাবাকাস Parent Training'}
+              <span className="font-extrabold text-[#18191C] text-base sm:text-lg tracking-tight leading-tight block truncate">
+                Shar Flow
               </span>
-              <span className="text-[10px] sm:text-[11px] text-[#625D52] font-medium hidden sm:block truncate">
+              <span className="text-[10px] sm:text-[11px] text-[#625D52] font-medium block truncate">
                 {settings.site_subtitle || 'অনলাইন অভিভাবক ট্রেনিং প্ল্যাটফর্ম'}
               </span>
             </div>
@@ -167,18 +181,35 @@ export const Header: React.FC<HeaderProps> = ({
                 <a
                   href="/"
                   onClick={(e) => handleNavClick(e, '/')}
-                  aria-current={
-                    activePath === '/' || activePath === '/dashboard' || activePath.startsWith('/class')
-                      ? 'page'
-                      : undefined
-                  }
-                  className={`min-h-[36px] px-2.5 sm:px-3 py-1.5 rounded-lg text-xs font-bold transition-all inline-flex items-center whitespace-nowrap ${
-                    activePath === '/' || activePath === '/dashboard' || activePath.startsWith('/class')
+                  aria-current={isHomeActive ? 'page' : undefined}
+                  className={`min-h-[36px] px-2.5 sm:px-3 py-1.5 rounded-lg text-xs font-bold transition-all inline-flex items-center gap-1.5 whitespace-nowrap ${
+                    isHomeActive
                       ? 'bg-[#18191C] text-[#F2D283] border border-[#C89D4A]/55 shadow-2xs'
                       : 'text-[#3B3934] hover:text-[#141517] hover:bg-[#F3EDE0] border border-transparent'
                   }`}
                 >
-                  ক্লাসসমূহ
+                  <Home
+                    size={14}
+                    className={isHomeActive ? 'text-[#E4BE67] shrink-0' : 'text-[#8B641E] shrink-0'}
+                  />
+                  <span>হোম</span>
+                </a>
+
+                <a
+                  href="/classes"
+                  onClick={(e) => handleNavClick(e, '/classes')}
+                  aria-current={isClassesActive ? 'page' : undefined}
+                  className={`min-h-[36px] px-2.5 sm:px-3 py-1.5 rounded-lg text-xs font-bold transition-all inline-flex items-center gap-1.5 whitespace-nowrap ${
+                    isClassesActive
+                      ? 'bg-[#18191C] text-[#F2D283] border border-[#C89D4A]/55 shadow-2xs'
+                      : 'text-[#3B3934] hover:text-[#141517] hover:bg-[#F3EDE0] border border-transparent'
+                  }`}
+                >
+                  <PlayCircle
+                    size={14}
+                    className={isClassesActive ? 'text-[#E4BE67] shrink-0' : 'text-[#8B641E] shrink-0'}
+                  />
+                  <span>ক্লাসসমূহ</span>
                 </a>
 
                 <a

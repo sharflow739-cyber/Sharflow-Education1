@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import {
   DEFAULT_COURSE_CHAPTERS,
   UNCATEGORIZED_CHAPTER_KEY,
+  buildClassesAccordionSections,
   computeClassOrderAfterMoveWithinGroup,
   groupClassesByChapter,
   inferUnambiguousChapterId,
@@ -151,4 +152,60 @@ test('reorderChaptersList and computeClassOrderAfterMoveWithinGroup persist dete
     { id: 'class-05', class_number: 1 },
     { id: 'class-04', class_number: 2 },
   ]);
+});
+
+test('buildClassesAccordionSections includes free classes bar, preserves empty chapters, and shows অন্যান্য only for unassigned classes', () => {
+  const dbClasses: ClassItem[] = [
+    { ...SAMPLE_CLASSES[0], chapter_id: null, is_published: true, is_free: true },
+    { ...SAMPLE_CLASSES[1], chapter_id: 'direct', is_published: true, is_free: true },
+    { ...SAMPLE_CLASSES[2], chapter_id: 'direct', is_published: true, is_free: false },
+    {
+      id: 'draft-free',
+      class_number: 99,
+      title: 'অপ্রকাশিত ফ্রি ক্লাস',
+      description: 'Draft',
+      video_url: '',
+      is_published: false,
+      is_free: true,
+      chapter_id: 'ten-complement',
+    },
+  ];
+
+  const withUncategorized = buildClassesAccordionSections(
+    dbClasses,
+    DEFAULT_COURSE_CHAPTERS,
+    true
+  );
+
+  assert.deepEqual(
+    withUncategorized.map((s) => s.key),
+    ['free-classes', 'direct', 'five-complement', 'ten-complement', 'mixed-complement', 'uncategorized']
+  );
+  assert.equal(withUncategorized[0].title, 'ফ্রি ক্লাস');
+  assert.deepEqual(
+    withUncategorized[0].classes.map((c) => c.id),
+    ['class-01', 'class-04']
+  );
+  assert.deepEqual(
+    withUncategorized.find((s) => s.key === 'five-complement')?.classes,
+    []
+  );
+  assert.deepEqual(
+    withUncategorized.find((s) => s.key === 'uncategorized')?.classes.map((c) => c.id),
+    ['class-01']
+  );
+
+  // When no unassigned published classes remain, অন্যান্য disappears automatically
+  const allAssigned = dbClasses
+    .filter((c) => c.is_published)
+    .map((c) => (c.id === 'class-01' ? { ...c, chapter_id: 'direct' } : c));
+  const withoutUncategorized = buildClassesAccordionSections(
+    allAssigned,
+    DEFAULT_COURSE_CHAPTERS,
+    true
+  );
+  assert.deepEqual(
+    withoutUncategorized.map((s) => s.key),
+    ['free-classes', 'direct', 'five-complement', 'ten-complement', 'mixed-complement']
+  );
 });
