@@ -648,10 +648,16 @@ export const AuthModal: React.FC<AuthModalProps> = ({
             </div>
             <div className="min-w-0">
               <h3 id="auth-modal-title" className="font-extrabold text-base sm:text-xl leading-snug text-white break-words">
-                {settings.site_name || 'অ্যাবাকাস পেরেন্ট পোর্টাল'}
+                Shar Flow
               </h3>
               <p className="text-xs sm:text-sm text-slate-300 leading-snug mt-0.5">
-                {settings.site_subtitle || 'অভিভাবকদের অনলাইন অ্যাবাকাস শেখার প্ল্যাটফর্ম'}
+                {activeTab === 'register'
+                  ? 'শুরু করতে অ্যাকাউন্ট খুলুন'
+                  : activeTab === 'verify-otp'
+                  ? 'ইমেইল কোড যাচাই করুন'
+                  : activeTab === 'forgot'
+                  ? 'পাসওয়ার্ড রিসেট করুন'
+                  : 'আবার স্বাগতম'}
               </p>
             </div>
           </div>

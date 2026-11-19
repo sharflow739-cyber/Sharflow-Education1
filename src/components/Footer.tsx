@@ -41,11 +41,11 @@ export const Footer: React.FC<FooterProps> = ({ onNavigate }) => {
                 />
               </div>
               <span className="font-extrabold text-[#FAF7F0] text-base leading-snug">
-                {settings.site_name || 'অ্যাবাকাস Parent Training'}
+                Shar Flow
               </span>
             </div>
             <p className="text-[#BDB6A8] leading-relaxed max-w-md">
-              {settings.footer_description}
+              অ্যাবাকাস ব্যবহারের সহজ গাইড, বই ও অনুশীলন—এক জায়গায়।
             </p>
             {settings.show_secure_badge && (
               <div className="flex items-center gap-4 text-[#EAE4D7] font-medium flex-wrap pt-1">
@@ -137,14 +137,9 @@ export const Footer: React.FC<FooterProps> = ({ onNavigate }) => {
         </div>
 
         {/* Security Notice */}
-        {settings.security_notice_text && (
-          <div className="py-4 border-t border-[#2B2924] text-[11px] text-[#BDB6A8] leading-relaxed">
-            <span className="font-bold text-[#EAE4D7]">
-              {settings.security_notice_title || 'প্ল্যাটফর্ম সিকিউরিটি তথ্য'}:{' '}
-            </span>
-            {settings.security_notice_text}
-          </div>
-        )}
+        <div className="py-4 border-t border-[#2B2924] text-[11px] text-[#BDB6A8] leading-relaxed">
+          শেখার ভিডিও ব্যক্তিগত ব্যবহারের জন্য। অনুমতি ছাড়া কপি বা শেয়ার করা যাবে না।
+        </div>
 
         {/* Bottom copyright & credit */}
         <div className="pt-6 border-t border-[#2B2924] flex flex-col sm:flex-row items-center justify-between gap-3 text-[11px] text-center sm:text-left">
