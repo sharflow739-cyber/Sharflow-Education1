@@ -62,7 +62,10 @@ export const DemoPage: React.FC<DemoPageProps> = ({
           <div className="flex flex-col sm:flex-row items-center justify-center gap-3 pt-1">
             <button
               type="button"
-              onClick={() => onNavigate('/')}
+              onClick={() => {
+                track('cta_click', { place: 'demo', target: 'dashboard' });
+                onNavigate('/');
+              }}
               className="w-full sm:w-auto min-h-[48px] px-6 py-3 bg-gradient-to-r from-[#E4BE67] to-[#CFA242] hover:from-[#ECC978] hover:to-[#DBB052] text-[#141517] font-extrabold text-xs sm:text-sm rounded-2xl shadow-md inline-flex items-center justify-center gap-2 cursor-pointer"
             >
               <PlayCircle size={18} className="shrink-0" />
@@ -70,7 +73,10 @@ export const DemoPage: React.FC<DemoPageProps> = ({
             </button>
             <button
               type="button"
-              onClick={() => onNavigate('/ebooks')}
+              onClick={() => {
+                track('cta_click', { place: 'demo', target: 'ebooks' });
+                onNavigate('/ebooks');
+              }}
               className="w-full sm:w-auto min-h-[48px] px-6 py-3 bg-[#24252B] hover:bg-[#2F3138] text-[#FAF7F0] border border-[#D4AF5F]/45 font-bold text-xs sm:text-sm rounded-2xl inline-flex items-center justify-center gap-2 cursor-pointer"
             >
               <BookOpen size={17} className="text-[#E4BE67] shrink-0" />
@@ -81,7 +87,10 @@ export const DemoPage: React.FC<DemoPageProps> = ({
           <div className="flex flex-col sm:flex-row items-center justify-center gap-3 pt-1">
             <button
               type="button"
-              onClick={() => onOpenAuth('register')}
+              onClick={() => {
+                track('cta_click', { place: 'demo', target: 'free_class_auth' });
+                onOpenAuth('register');
+              }}
               className="w-full sm:w-auto min-h-[48px] px-6 py-3 bg-gradient-to-r from-[#E4BE67] via-[#D7AC4C] to-[#C89B3B] hover:from-[#ECC978] hover:to-[#D5A847] text-[#141517] font-extrabold text-xs sm:text-sm rounded-2xl shadow-lg shadow-[#D4AF5F]/20 inline-flex items-center justify-center gap-2 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#F4D992] focus-visible:ring-offset-2 focus-visible:ring-offset-[#18191C]"
             >
               <PlayCircle size={18} className="shrink-0" />
@@ -90,7 +99,10 @@ export const DemoPage: React.FC<DemoPageProps> = ({
 
             <button
               type="button"
-              onClick={() => onOpenAuth('login')}
+              onClick={() => {
+                track('cta_click', { place: 'demo', target: 'login_auth' });
+                onOpenAuth('login');
+              }}
               className="w-full sm:w-auto min-h-[48px] px-6 py-3 bg-[#24252B] hover:bg-[#2F3138] text-[#FAF7F0] border border-[#D4AF5F]/45 hover:border-[#E8C778] font-bold text-xs sm:text-sm rounded-2xl inline-flex items-center justify-center gap-2 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#E8C778] focus-visible:ring-offset-2 focus-visible:ring-offset-[#18191C]"
             >
               <LogIn size={17} className="text-[#E4BE67] shrink-0" />

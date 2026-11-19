@@ -6,6 +6,7 @@ import {
   CONTACT_LIMITS,
   validateContactForm,
 } from '../lib/contactForm';
+import { track } from '../lib/analytics.js';
 import { 
   ArrowLeft, Phone, Mail, Clock, 
   Send, CheckCircle2, AlertCircle 
@@ -35,8 +36,15 @@ export const PolicyPages: React.FC<PolicyPagesProps> = ({ type, onNavigate }) =>
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [submitted, setSubmitted] = useState(false);
   const submittingRef = useRef(false);
+  const contactFormStartedRef = useRef(false);
 
   const directFallbackEmail = (settings.contact_email || '').trim() || CONTACT_FALLBACK_EMAIL;
+
+  const handleContactFormFocus = () => {
+    if (contactFormStartedRef.current) return;
+    contactFormStartedRef.current = true;
+    track('form_start', { form_name: 'contact' });
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -53,6 +61,7 @@ export const PolicyPages: React.FC<PolicyPagesProps> = ({ type, onNavigate }) =>
 
     if ('error' in validation) {
       setSubmitError(validation.error);
+      track('form_error', { form_name: 'contact', reason: 'validation_error' });
       return;
     }
 
@@ -82,9 +91,14 @@ export const PolicyPages: React.FC<PolicyPagesProps> = ({ type, onNavigate }) =>
           data?.error ||
             'বার্তা পাঠানো যায়নি। অনুগ্রহ করে নিচের সরাসরি ইমেইলে যোগাযোগ করুন।'
         );
+        track('form_error', {
+          form_name: 'contact',
+          reason: `http_${response.status || 'error'}`,
+        });
         return;
       }
 
+      track('form_submit', { form_name: 'contact' });
       setSubmitted(true);
       setContactName('');
       setContactPhoneOrEmail('');
@@ -94,6 +108,7 @@ export const PolicyPages: React.FC<PolicyPagesProps> = ({ type, onNavigate }) =>
       setSubmitError(
         'নেটওয়ার্ক সমস্যার কারণে বার্তা পাঠানো যায়নি। অনুগ্রহ করে নিচের সরাসরি ইমেইল ব্যবহার করুন।'
       );
+      track('form_error', { form_name: 'contact', reason: 'network_error' });
     } finally {
       submittingRef.current = false;
       setSubmitting(false);
@@ -151,6 +166,7 @@ export const PolicyPages: React.FC<PolicyPagesProps> = ({ type, onNavigate }) =>
                 {settings.contact_phone ? (
                   <a
                     href={`tel:${settings.contact_phone}`}
+                    onClick={() => track('phone_click', { place: 'contact' })}
                     className="font-extrabold text-slate-900 text-sm hover:text-orange-600 block"
                   >
                     {settings.contact_phone}
@@ -200,7 +216,10 @@ export const PolicyPages: React.FC<PolicyPagesProps> = ({ type, onNavigate }) =>
                   </p>
                   <button
                     type="button"
-                    onClick={() => setSubmitted(false)}
+                    onClick={() => {
+                      contactFormStartedRef.current = false;
+                      setSubmitted(false);
+                    }}
                     className="mt-1 px-4 py-2 bg-white border border-emerald-300 text-emerald-900 font-bold text-xs rounded-xl hover:bg-emerald-100 transition-colors cursor-pointer"
                   >
                     নতুন বার্তা পাঠান
@@ -257,6 +276,7 @@ export const PolicyPages: React.FC<PolicyPagesProps> = ({ type, onNavigate }) =>
                       minLength={CONTACT_LIMITS.NAME_MIN}
                       maxLength={CONTACT_LIMITS.NAME_MAX}
                       value={contactName}
+                      onFocus={handleContactFormFocus}
                       onChange={(e) => setContactName(e.target.value)}
                       placeholder="আপনার পূর্ণ নাম"
                       className="w-full min-h-[44px] px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs focus:bg-white focus:outline-none focus:border-orange-500 font-medium"
@@ -274,6 +294,7 @@ export const PolicyPages: React.FC<PolicyPagesProps> = ({ type, onNavigate }) =>
                       minLength={CONTACT_LIMITS.CONTACT_MIN}
                       maxLength={CONTACT_LIMITS.CONTACT_MAX}
                       value={contactPhoneOrEmail}
+                      onFocus={handleContactFormFocus}
                       onChange={(e) => setContactPhoneOrEmail(e.target.value)}
                       placeholder="যেমন: 01712345678 বা yourname@email.com"
                       className="w-full min-h-[44px] px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs focus:bg-white focus:outline-none focus:border-orange-500 font-medium"
@@ -291,6 +312,7 @@ export const PolicyPages: React.FC<PolicyPagesProps> = ({ type, onNavigate }) =>
                       minLength={CONTACT_LIMITS.MESSAGE_MIN}
                       maxLength={CONTACT_LIMITS.MESSAGE_MAX}
                       value={contactMsg}
+                      onFocus={handleContactFormFocus}
                       onChange={(e) => setContactMsg(e.target.value)}
                       placeholder="প্যাকেজ বা ভর্তি বিষয়ে আপনার প্রশ্ন বিস্তারিত লিখুন (কমপক্ষে ১০ অক্ষর)..."
                       className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs focus:bg-white focus:outline-none focus:border-orange-500 font-medium"
@@ -369,7 +391,7 @@ export const PolicyPages: React.FC<PolicyPagesProps> = ({ type, onNavigate }) =>
                     পাবলিক পেজ অ্যানালিটিক্স ও মার্কেটিং ট্র্যাকিং পছন্দসমূহ
                   </h3>
                   <p className="text-slate-600 text-xs leading-relaxed">
-                    পাবলিক পেজ ভিজিট এবং ফ্রি ক্লাস নিবন্ধন পরিসংখ্যানের জন্য নিরাপদ Meta Pixel ব্যবহৃত হয়। কোনো ব্যক্তিগত নাম, ইমেইল, ফোন নম্বর, পাসওয়ার্ড বা লগইন টোকেন পাঠানো হয় না এবং ব্রাউজারের গোপনীয়তা সংকেত (GPC) সম্মান করা হয়।
+                    পাবলিক পেজ ভিজিট, নেভিগেশন ও ফ্রি ক্লাস নিবন্ধন পরিসংখ্যানের জন্য নিরাপদ Meta Pixel এবং Google Analytics (GA4) ব্যবহৃত হয়। কোনো ব্যক্তিগত নাম, ইমেইল, ফোন নম্বর, OTP, ট্রানজেকশন আইডি বা লগইন টোকেন পাঠানো হয় না এবং ব্রাউজারের গোপনীয়তা সংকেত (GPC) সম্মান করা হয়।
                   </p>
                 </div>
                 <div className="shrink-0 flex flex-wrap items-center gap-2">

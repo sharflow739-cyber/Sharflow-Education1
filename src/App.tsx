@@ -10,7 +10,12 @@ import {
   hasAuthCallbackOrResetUrl,
 } from './lib/metaPixel';
 import { SignupOrigin } from './lib/demoSignupPixel';
-import { trackPageView } from './lib/analytics.js';
+import {
+  SCROLL_DEPTH_THRESHOLDS,
+  normalizeAnalyticsPath,
+  track,
+  trackPageView,
+} from './lib/analytics.js';
 
 import { Header } from './components/Header';
 import { MobileBottomNav } from './components/MobileBottomNav';
@@ -42,19 +47,22 @@ type AnalyticsWindow = Window & {
 
 function usePublicPageAnalytics(
   path: string,
+  permitted: boolean,
   initialPageViewFiredRef: React.MutableRefObject<boolean>,
   lastTrackedPathRef: React.MutableRefObject<string | null>
 ) {
-  const publicPage = analyticsPublicPaths.has(path);
+  const normalizedPath = path ? normalizeAnalyticsPath(path) : '';
+  const publicPage = analyticsPublicPaths.has(normalizedPath);
 
   useEffect(() => {
     const analytics = window as AnalyticsWindow;
-    analytics['ga-disable-G-T6MR5VKW39'] = !publicPage;
-    if (!publicPage) {
+    const enabled = publicPage && permitted;
+    analytics['ga-disable-G-T6MR5VKW39'] = !enabled;
+    if (!enabled) {
       return;
     }
 
-    const location = window.location.origin + path;
+    const location = window.location.origin + normalizedPath;
     if (!analytics.gtag) {
       const dataLayer = (analytics.dataLayer ??= []);
       analytics.gtag = function () { dataLayer.push(arguments); };
@@ -63,7 +71,7 @@ function usePublicPageAnalytics(
         send_page_view: false,
         allow_google_signals: false,
         allow_ad_personalization_signals: false,
-        page_path: path,
+        page_path: normalizedPath,
         page_location: location,
         page_referrer: '',
       });
@@ -75,38 +83,76 @@ function usePublicPageAnalytics(
 
     if (!initialPageViewFiredRef.current) {
       initialPageViewFiredRef.current = true;
-      lastTrackedPathRef.current = path;
+      lastTrackedPathRef.current = normalizedPath;
       analytics.gtag('event', 'page_view', {
         send_to: analyticsId,
-        page_path: path,
+        page_path: normalizedPath,
         page_location: location,
         page_referrer: '',
       });
     }
-  }, [path, publicPage, initialPageViewFiredRef, lastTrackedPathRef]);
+  }, [normalizedPath, publicPage, permitted, initialPageViewFiredRef, lastTrackedPathRef]);
 }
 
 function useSpaPageTracking(
   path: string,
+  permitted: boolean,
   initialPageViewFiredRef: React.MutableRefObject<boolean>,
   lastTrackedPathRef: React.MutableRefObject<string | null>
 ) {
-  const publicPage = analyticsPublicPaths.has(path);
+  const normalizedPath = path ? normalizeAnalyticsPath(path) : '';
+  const publicPage = analyticsPublicPaths.has(normalizedPath);
 
   useEffect(() => {
     if (!publicPage) {
       lastTrackedPathRef.current = null;
       return;
     }
-    if (!initialPageViewFiredRef.current) {
+    if (!permitted || !initialPageViewFiredRef.current) {
       return;
     }
-    if (lastTrackedPathRef.current === path) {
+    if (lastTrackedPathRef.current === normalizedPath) {
       return;
     }
-    lastTrackedPathRef.current = path;
-    trackPageView(path);
-  }, [path, publicPage, initialPageViewFiredRef, lastTrackedPathRef]);
+    lastTrackedPathRef.current = normalizedPath;
+    trackPageView(normalizedPath);
+  }, [normalizedPath, publicPage, permitted, initialPageViewFiredRef, lastTrackedPathRef]);
+}
+
+function usePublicScrollDepth(path: string, visitSeq: number, permitted: boolean) {
+  const normalizedPath = path ? normalizeAnalyticsPath(path) : '';
+  const publicPage = analyticsPublicPaths.has(normalizedPath) && permitted;
+
+  useEffect(() => {
+    if (!publicPage) return;
+
+    const triggered = new Set<number>();
+    const handleScroll = () => {
+      const doc = document.documentElement;
+      const scrollableHeight = doc.scrollHeight - window.innerHeight;
+      if (scrollableHeight <= 0 || window.scrollY <= 0) return;
+
+      const percentScrolled = Math.min(
+        100,
+        Math.round((window.scrollY / scrollableHeight) * 100)
+      );
+
+      for (const threshold of SCROLL_DEPTH_THRESHOLDS) {
+        if (percentScrolled >= threshold && !triggered.has(threshold)) {
+          triggered.add(threshold);
+          track('scroll_depth', {
+            percent: threshold,
+            page_path: normalizedPath,
+          });
+        }
+      }
+    };
+
+    window.addEventListener('scroll', handleScroll, { passive: true });
+    return () => {
+      window.removeEventListener('scroll', handleScroll);
+    };
+  }, [normalizedPath, visitSeq, publicPage]);
 }
 
 export default function App() {
@@ -124,20 +170,43 @@ export default function App() {
     }
     return '/';
   });
-  const initialPageViewFiredRef = useRef<boolean>(false);
-  const lastTrackedPathRef = useRef<string | null>(null);
-  const publicAnalyticsPath = authLoading
-    ? ''
-    : currentPath === '/' && currentUser
-    ? ''
-    : currentPath;
-  usePublicPageAnalytics(publicAnalyticsPath, initialPageViewFiredRef, lastTrackedPathRef);
-  useSpaPageTracking(publicAnalyticsPath, initialPageViewFiredRef, lastTrackedPathRef);
-  const prevPathRef = useRef<string>(currentPath);
+  const [isResetPasswordModalOpen, setIsResetPasswordModalOpen] = useState(false);
+  const [legacyLinkNotice, setLegacyLinkNotice] = useState<string | null>(null);
   const initialAuthCallbackOrResetRef = useRef<boolean>(
     typeof window !== 'undefined' && hasAuthCallbackOrResetUrl(window.location)
   );
   const [publicVisitSeq, setPublicVisitSeq] = useState<number>(1);
+  const initialPageViewFiredRef = useRef<boolean>(false);
+  const lastTrackedPathRef = useRef<string | null>(null);
+
+  const isGaPermitted =
+    isMarketingPermitted &&
+    !authLoading &&
+    !isResetPasswordModalOpen &&
+    !legacyLinkNotice &&
+    !initialAuthCallbackOrResetRef.current &&
+    !(currentUser && !currentUser.is_active);
+
+  const publicAnalyticsPath =
+    authLoading || (currentPath === '/' && Boolean(currentUser))
+      ? ''
+      : currentPath;
+
+  usePublicPageAnalytics(
+    publicAnalyticsPath,
+    isGaPermitted,
+    initialPageViewFiredRef,
+    lastTrackedPathRef
+  );
+  useSpaPageTracking(
+    publicAnalyticsPath,
+    isGaPermitted,
+    initialPageViewFiredRef,
+    lastTrackedPathRef
+  );
+  usePublicScrollDepth(publicAnalyticsPath, publicVisitSeq, isGaPermitted);
+
+  const prevPathRef = useRef<string>(currentPath);
 
   const [currentClass, setCurrentClass] = useState<ClassItem | null>(null);
 
@@ -157,8 +226,6 @@ export default function App() {
   const [authInitialTab, setAuthInitialTab] = useState<'login' | 'register'>('login');
   const [postAuthRedirect, setPostAuthRedirect] = useState<string | null>(null);
   const [authOrigin, setAuthOrigin] = useState<SignupOrigin>('other');
-  const [isResetPasswordModalOpen, setIsResetPasswordModalOpen] = useState(false);
-  const [legacyLinkNotice, setLegacyLinkNotice] = useState<string | null>(null);
 
   const openAuthModal = useCallback(
     (

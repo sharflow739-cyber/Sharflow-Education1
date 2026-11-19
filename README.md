@@ -43,13 +43,8 @@ Vercel Dashboard → আপনার প্রজেক্ট → **Settings** �
 | `MAIL_FROM` | প্রেরকের ইমেইল ফরম্যাট | `অ্যাবাকাস Parent Training <rssharifu@gmail.com>` |
 | `SITE_URL` | সাইটের মূল লাইভ URL | `https://your-app.vercel.app` |
 | `SITE_NAME` | সাইটের নাম (ঐচ্ছিক) | `অ্যাবাকাস Parent Training` |
-| `MONGODB_URI` | MongoDB Atlas কানেকশন স্ট্রিং (`/api/enroll` লিড সংরক্ষণের জন্য, শুধুমাত্র সার্ভার-সাইড) | `mongodb+srv://<user>:<password>@<cluster>.mongodb.net/?retryWrites=true&w=majority` |
-| `GA_MEASUREMENT_ID` | GA4 Measurement ID (`/api/enroll` Measurement Protocol ইভেন্টের জন্য) | `G-T6MR5VKW39` |
-| `GA_API_SECRET` | GA4 Measurement Protocol API Secret (Admin → Data Streams → Measurement Protocol API secrets থেকে তৈরি, শুধুমাত্র সার্ভার-সাইড) | `your-ga4-measurement-protocol-api-secret` |
 
-> ℹ️ **সার্ভারলেস ফাংশনসমূহ:**
-> - `/api/send-email` এডমিন অনুমোদনে ভর্তি নিশ্চিতকরণ এবং প্রত্যাখ্যান ইমেইল পাঠায়।
-> - `/api/enroll` `/enroll` ফর্ম থেকে প্রাপ্ত লিড MongoDB ডাটাবেজ `abacus`-এর `leads` কালেকশনে সংরক্ষণ করে এবং সার্ভার-সাইড GA4 Measurement Protocol (`generate_lead`) ইভেন্ট পাঠায়। কখনোই `MONGODB_URI` বা `GA_API_SECRET`-এ `VITE_` প্রিফিক্স ব্যবহার করবেন না।
+> ℹ️ **সার্ভারলেস ইমেইল ফাংশন:** `/api/send-email` একটি Vercel Node Runtime সার্ভারলেস ফাংশন। এটি `nodemailer` ও SMTP-এর মাধ্যমে শুধুমাত্র এডমিন অনুমোদনে ভর্তি নিশ্চিতকরণ ইমেইল (`type: 'approved'`) এবং প্রত্যাখ্যান ইমেইল (`type: 'rejected'`) পাঠায়।
 
 ---
 

@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { useSettings } from '../contexts/SettingsContext';
+import { normalizeAnalyticsPath, track } from '../lib/analytics.js';
 import { HelpCircle, Mail, MessageCircle, MessagesSquare, X, ExternalLink } from 'lucide-react';
 
 export const SUPPORT_WHATSAPP_URL = 'https://wa.me/8801352024231';
@@ -101,7 +102,13 @@ export const SupportWidget: React.FC<SupportWidgetProps> = ({
               href={SUPPORT_WHATSAPP_URL}
               target="_blank"
               rel="noopener noreferrer"
-              onClick={() => setIsOpen(false)}
+              onClick={() => {
+                track('whatsapp_click', {
+                  place: 'support_widget',
+                  page_path: normalizeAnalyticsPath(activePath),
+                });
+                setIsOpen(false);
+              }}
               className="w-full min-h-[46px] px-3 py-2.5 rounded-xl bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 flex items-center justify-between gap-2.5 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600"
             >
               <div className="flex items-center gap-2.5 min-w-0">
@@ -120,7 +127,13 @@ export const SupportWidget: React.FC<SupportWidgetProps> = ({
               href={SUPPORT_MESSENGER_URL}
               target="_blank"
               rel="noopener noreferrer"
-              onClick={() => setIsOpen(false)}
+              onClick={() => {
+                track('cta_click', {
+                  place: 'support_widget',
+                  target: 'messenger',
+                });
+                setIsOpen(false);
+              }}
               className="w-full min-h-[46px] px-3 py-2.5 rounded-xl bg-sky-50 hover:bg-sky-100 border border-sky-200 flex items-center justify-between gap-2.5 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-600"
             >
               <div className="flex items-center gap-2.5 min-w-0">

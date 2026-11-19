@@ -1,5 +1,6 @@
 import React from 'react';
 import { useSettings } from '../contexts/SettingsContext';
+import { track } from '../lib/analytics.js';
 import { PublicWelcomeVideo } from './PublicWelcomeVideo';
 import { SorobanMiniDemo } from './SorobanMiniDemo';
 import { 
@@ -72,7 +73,10 @@ export const HomePage: React.FC<HomePageProps> = ({
           <div className="pt-2 flex flex-col sm:flex-row items-center justify-center gap-3 sm:gap-4 max-w-2xl mx-auto">
             <button
               type="button"
-              onClick={() => openFreeClassAuth('register')}
+              onClick={() => {
+                track('cta_click', { place: 'home_hero', target: 'free_class_auth' });
+                openFreeClassAuth('register');
+              }}
               className="w-full sm:w-auto min-h-[48px] px-6 py-3.5 bg-gradient-to-r from-[#E4BE67] via-[#D7AC4C] to-[#C89B3B] hover:from-[#ECC978] hover:to-[#D5A847] text-[#141517] font-extrabold text-sm rounded-2xl shadow-lg shadow-[#D4AF5F]/20 transition-all flex items-center justify-center gap-2 active:scale-98 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#F4D992] focus-visible:ring-offset-2 focus-visible:ring-offset-[#18191C]"
             >
               <PlayCircle size={18} />
@@ -81,7 +85,10 @@ export const HomePage: React.FC<HomePageProps> = ({
 
             <button
               type="button"
-              onClick={() => onOpenFreeResourcesAuth?.('/', 'login')}
+              onClick={() => {
+                track('cta_click', { place: 'home_hero', target: 'login_auth' });
+                onOpenFreeResourcesAuth?.('/', 'login');
+              }}
               className="w-full sm:w-auto min-h-[48px] px-6 py-3.5 bg-[#24252B] hover:bg-[#2F3138] text-[#FAF7F0] border border-[#D4AF5F]/45 hover:border-[#E8C778] font-extrabold text-sm rounded-2xl shadow-xs transition-all flex items-center justify-center gap-2 active:scale-98 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#E8C778] focus-visible:ring-offset-2 focus-visible:ring-offset-[#18191C]"
             >
               <LogIn size={18} className="text-[#E4BE67]" />
@@ -97,7 +104,10 @@ export const HomePage: React.FC<HomePageProps> = ({
             <p className="text-[11px] sm:text-xs text-[#CFC7B7] font-medium flex flex-wrap items-center justify-center gap-x-2.5 gap-y-1">
               <button
                 type="button"
-                onClick={() => onNavigate('/enroll')}
+                onClick={() => {
+                  track('cta_click', { place: 'home_hero', target: 'enroll' });
+                  onNavigate('/enroll');
+                }}
                 className="font-extrabold text-[#FAF7F0] underline hover:text-[#E8C778] cursor-pointer"
               >
                 প্যাকেজের বিস্তারিত দেখুন
@@ -105,7 +115,10 @@ export const HomePage: React.FC<HomePageProps> = ({
               <span aria-hidden="true">·</span>
               <button
                 type="button"
-                onClick={() => onNavigate('/enroll')}
+                onClick={() => {
+                  track('cta_click', { place: 'home_hero', target: 'enroll' });
+                  onNavigate('/enroll');
+                }}
                 className="font-extrabold text-[#E8C778] underline hover:text-[#F4D992] cursor-pointer"
               >
                 প্যাকেজ নিন
@@ -171,7 +184,10 @@ export const HomePage: React.FC<HomePageProps> = ({
 
                 <button
                   type="button"
-                  onClick={() => openFreeClassAuth('register')}
+                  onClick={() => {
+                    track('cta_click', { place: 'home_preview', target: 'free_class_auth' });
+                    openFreeClassAuth('register');
+                  }}
                   aria-label="ফ্রি ক্লাস দেখুন (অ্যাকাউন্টে আনলক হয়)"
                   className="group/thumb relative aspect-video w-full rounded-xl overflow-hidden bg-[#18191C] border border-[#C89D4A]/45 block cursor-pointer text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#9E7324] focus-visible:ring-offset-2"
                 >
@@ -209,7 +225,10 @@ export const HomePage: React.FC<HomePageProps> = ({
               <div className="space-y-2">
                 <button
                   type="button"
-                  onClick={() => openFreeClassAuth('register')}
+                  onClick={() => {
+                    track('cta_click', { place: 'home_preview', target: 'free_class_auth' });
+                    openFreeClassAuth('register');
+                  }}
                   className="w-full min-h-[44px] px-4 py-2.5 bg-gradient-to-r from-[#E4BE67] to-[#CFA242] hover:from-[#ECC978] hover:to-[#DBB052] text-[#141517] font-extrabold text-xs rounded-xl shadow-xs transition-all inline-flex items-center justify-center gap-2 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#9E7324] focus-visible:ring-offset-2"
                 >
                   <PlayCircle size={16} className="shrink-0" />
@@ -217,7 +236,10 @@ export const HomePage: React.FC<HomePageProps> = ({
                 </button>
                 <button
                   type="button"
-                  onClick={() => onOpenFreeResourcesAuth?.('/', 'login')}
+                  onClick={() => {
+                    track('cta_click', { place: 'home_preview', target: 'login_auth' });
+                    onOpenFreeResourcesAuth?.('/', 'login');
+                  }}
                   className="w-full min-h-[40px] px-3 py-2 bg-[#FFFDF9] hover:bg-[#F3EDE0] text-[#18191C] border border-[#D8CBAF] font-bold text-xs rounded-xl transition-colors inline-flex items-center justify-center gap-1.5 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#9E7324]"
                 >
                   <LogIn size={14} className="text-[#855E18] shrink-0" />
@@ -247,6 +269,7 @@ export const HomePage: React.FC<HomePageProps> = ({
                   href="/ebooks"
                   onClick={(e) => {
                     e.preventDefault();
+                    track('cta_click', { place: 'home_preview', target: 'ebooks' });
                     onNavigate('/ebooks');
                   }}
                   aria-label="ই-বুক লাইব্রেরি দেখুন (ই-বুক পাঠের দৃষ্টান্ত)"
@@ -283,6 +306,7 @@ export const HomePage: React.FC<HomePageProps> = ({
                   href="/ebooks"
                   onClick={(e) => {
                     e.preventDefault();
+                    track('cta_click', { place: 'home_preview', target: 'ebooks' });
                     onNavigate('/ebooks');
                   }}
                   className="w-full min-h-[44px] px-4 py-2.5 bg-[#18191C] hover:bg-[#27292E] text-[#FAF7F0] border border-[#C89D4A]/45 font-extrabold text-xs rounded-xl shadow-xs transition-colors inline-flex items-center justify-center gap-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#9E7324] focus-visible:ring-offset-2"
@@ -292,7 +316,10 @@ export const HomePage: React.FC<HomePageProps> = ({
                 </a>
                 <button
                   type="button"
-                  onClick={() => onOpenFreeResourcesAuth?.('/', 'login')}
+                  onClick={() => {
+                    track('cta_click', { place: 'home_preview', target: 'login_auth' });
+                    onOpenFreeResourcesAuth?.('/', 'login');
+                  }}
                   className="w-full min-h-[40px] px-3 py-2 bg-[#FFFDF9] hover:bg-[#F3EDE0] text-[#18191C] border border-[#D8CBAF] font-bold text-xs rounded-xl transition-colors inline-flex items-center justify-center gap-1.5 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#9E7324]"
                 >
                   <LogIn size={14} className="text-[#855E18] shrink-0" />
@@ -303,7 +330,10 @@ export const HomePage: React.FC<HomePageProps> = ({
 
             {/* Card 3: Virtual Abacus (clicking card, visual or buttons opens login/signup modal targeting /abacus) */}
             <article
-              onClick={() => openAbacusModal('login')}
+              onClick={() => {
+                track('cta_click', { place: 'home_preview', target: 'abacus_auth' });
+                openAbacusModal('login');
+              }}
               className="p-5 rounded-2xl bg-[#FBF7EC] border border-[#E6D9B8] hover:border-[#C89D4A] transition-colors flex flex-col justify-between gap-4 cursor-pointer"
             >
               <div className="space-y-3">
@@ -321,7 +351,12 @@ export const HomePage: React.FC<HomePageProps> = ({
                   </div>
                 </div>
 
-                <SorobanMiniDemo onPreviewClick={() => openAbacusModal('login')} />
+                <SorobanMiniDemo
+                  onPreviewClick={() => {
+                    track('cta_click', { place: 'home_preview', target: 'abacus_auth' });
+                    openAbacusModal('login');
+                  }}
+                />
               </div>
 
               <div className="space-y-2">
@@ -329,6 +364,7 @@ export const HomePage: React.FC<HomePageProps> = ({
                   type="button"
                   onClick={(e) => {
                     e.stopPropagation();
+                    track('cta_click', { place: 'home_preview', target: 'abacus_auth' });
                     openAbacusModal('login');
                   }}
                   className="w-full min-h-[44px] px-4 py-2.5 bg-[#18191C] hover:bg-[#27292E] text-[#FAF7F0] border border-[#C89D4A]/45 font-extrabold text-xs rounded-xl shadow-xs transition-colors inline-flex items-center justify-center gap-2 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#9E7324] focus-visible:ring-offset-2"
@@ -340,6 +376,7 @@ export const HomePage: React.FC<HomePageProps> = ({
                   type="button"
                   onClick={(e) => {
                     e.stopPropagation();
+                    track('cta_click', { place: 'home_preview', target: 'abacus_register' });
                     openAbacusModal('register');
                   }}
                   className="w-full min-h-[40px] px-3 py-2 bg-[#FFFDF9] hover:bg-[#F3EDE0] text-[#18191C] border border-[#D8CBAF] font-bold text-xs rounded-xl transition-colors inline-flex items-center justify-center gap-1.5 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#9E7324]"
@@ -359,6 +396,7 @@ export const HomePage: React.FC<HomePageProps> = ({
               href="/enroll"
               onClick={(e) => {
                 e.preventDefault();
+                track('cta_click', { place: 'home_preview', target: 'enroll' });
                 onNavigate('/enroll');
               }}
               className="font-extrabold text-[#855E18] hover:text-[#6B4A10] hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#9E7324] rounded"
@@ -552,7 +590,10 @@ export const HomePage: React.FC<HomePageProps> = ({
 
           <button
             type="button"
-            onClick={() => openAbacusModal('login')}
+            onClick={() => {
+              track('cta_click', { place: 'home_included', target: 'abacus_auth' });
+              openAbacusModal('login');
+            }}
             className="p-4 bg-[#FFFDF9] hover:bg-[#FBF7EC] border border-[#E5DEC9] hover:border-[#C89D4A] rounded-2xl flex items-start gap-3 text-left transition-colors cursor-pointer"
           >
             <CheckCircle2 size={20} className="text-[#8A6118] shrink-0 mt-0.5" />
@@ -594,7 +635,10 @@ export const HomePage: React.FC<HomePageProps> = ({
         <div className="flex flex-wrap items-center justify-center gap-3 pt-1">
           <button
             type="button"
-            onClick={() => onNavigate('/enroll')}
+            onClick={() => {
+              track('cta_click', { place: 'home_included', target: 'enroll' });
+              onNavigate('/enroll');
+            }}
             className="min-h-[46px] px-6 py-3 bg-[#18191C] hover:bg-[#27292E] text-[#FAF7F0] border border-[#C89D4A]/45 font-extrabold text-xs sm:text-sm rounded-xl shadow-xs inline-flex items-center gap-2 cursor-pointer"
           >
             <span>প্যাকেজের বিস্তারিত দেখুন</span>
@@ -602,7 +646,10 @@ export const HomePage: React.FC<HomePageProps> = ({
           </button>
           <button
             type="button"
-            onClick={() => onNavigate('/enroll')}
+            onClick={() => {
+              track('cta_click', { place: 'home_included', target: 'enroll' });
+              onNavigate('/enroll');
+            }}
             className="min-h-[46px] px-6 py-3 bg-gradient-to-r from-[#E4BE67] to-[#CFA242] hover:from-[#ECC978] hover:to-[#DBB052] text-[#141517] font-extrabold text-xs sm:text-sm rounded-xl shadow-sm inline-flex items-center gap-2 cursor-pointer"
           >
             <span>প্যাকেজ নিন</span>
@@ -673,7 +720,10 @@ export const HomePage: React.FC<HomePageProps> = ({
           <div className="flex flex-col sm:flex-row items-center justify-center gap-3 pt-2">
             <button
               type="button"
-              onClick={() => openFreeClassAuth('register')}
+              onClick={() => {
+                track('cta_click', { place: 'home_bottom', target: 'free_class_auth' });
+                openFreeClassAuth('register');
+              }}
               className="w-full sm:w-auto min-h-[44px] px-6 py-3 bg-gradient-to-r from-[#E4BE67] to-[#CFA242] hover:from-[#ECC978] hover:to-[#DBB052] text-[#141517] font-extrabold text-xs rounded-xl shadow-md transition-all flex items-center justify-center gap-2 cursor-pointer"
             >
               <PlayCircle size={16} />
@@ -681,7 +731,10 @@ export const HomePage: React.FC<HomePageProps> = ({
             </button>
             <button
               type="button"
-              onClick={() => onOpenFreeResourcesAuth?.('/', 'login')}
+              onClick={() => {
+                track('cta_click', { place: 'home_bottom', target: 'login_auth' });
+                onOpenFreeResourcesAuth?.('/', 'login');
+              }}
               className="w-full sm:w-auto min-h-[44px] px-6 py-3 bg-white/8 hover:bg-white/14 text-[#FAF7F0] font-bold text-xs rounded-xl border border-[#D4AF5F]/40 transition-all flex items-center justify-center gap-2 cursor-pointer"
             >
               <LogIn size={16} className="text-[#E4BE67]" />
@@ -689,7 +742,10 @@ export const HomePage: React.FC<HomePageProps> = ({
             </button>
             <button
               type="button"
-              onClick={() => onNavigate('/enroll')}
+              onClick={() => {
+                track('cta_click', { place: 'home_bottom', target: 'enroll' });
+                onNavigate('/enroll');
+              }}
               className="w-full sm:w-auto min-h-[44px] px-5 py-3 bg-transparent hover:bg-white/8 text-[#E8C778] font-bold text-xs rounded-xl border border-[#D4AF5F]/30 transition-all flex items-center justify-center gap-1.5 cursor-pointer"
             >
               <span>সম্পূর্ণ প্যাকেজ</span>
